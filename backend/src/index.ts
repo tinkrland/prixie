@@ -10,6 +10,7 @@ import statsRouter from "./routes/stats.ts";
 import browserbaseRouter from "./routes/browserbase.ts";
 import lumaRouter from "./routes/luma.ts";
 import calendlyRouter from "./routes/calendly.ts";
+import hinglishRouter from "./routes/hinglish.ts";
 
 import recallRealtimeWebhook from "./routes/webhooks/recall_realtime.ts";
 import recallStatusWebhook from "./routes/webhooks/recall_status.ts";
@@ -45,6 +46,7 @@ app.route("/api/stats", statsRouter);
 app.route("/api/browserbase", browserbaseRouter);
 app.route("/api/luma", lumaRouter);
 app.route("/api/calendly", calendlyRouter);
+app.route("/api/hinglish", hinglishRouter);
 
 // nested: POST /api/meetings/:id/capture
 app.post("/api/meetings/:id/capture", async (c) => {
