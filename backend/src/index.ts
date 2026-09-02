@@ -11,6 +11,10 @@ import browserbaseRouter from "./routes/browserbase.ts";
 import lumaRouter from "./routes/luma.ts";
 import calendlyRouter from "./routes/calendly.ts";
 import hinglishRouter from "./routes/hinglish.ts";
+import inboxRouter from "./routes/inbox.ts";
+import liveLinksRouter from "./routes/live_links.ts";
+import forumLinksRouter from "./routes/forum_links.ts";
+import voiceAgentRouter from "./routes/voice_agent.ts";
 
 import recallRealtimeWebhook from "./routes/webhooks/recall_realtime.ts";
 import recallStatusWebhook from "./routes/webhooks/recall_status.ts";
@@ -26,13 +30,18 @@ app.use("*", cors({
   allowHeaders: ["Content-Type", "Authorization"],
 }));
 
-// health check
 app.get("/", (c) => {
   return c.json({
     name: "prixie",
     status: "ok",
     message: "prixie is online and standing by for meetings",
     timestamp: new Date().toISOString(),
+    routes: [
+      "/api/meetings", "/api/capture", "/api/transcripts", "/api/deploy",
+      "/api/profiles", "/api/stats", "/api/browserbase", "/api/luma",
+      "/api/calendly", "/api/hinglish", "/api/inbox", "/api/live-links",
+      "/api/forum", "/api/voice",
+    ],
   });
 });
 
@@ -47,19 +56,10 @@ app.route("/api/browserbase", browserbaseRouter);
 app.route("/api/luma", lumaRouter);
 app.route("/api/calendly", calendlyRouter);
 app.route("/api/hinglish", hinglishRouter);
-
-// nested: POST /api/meetings/:id/capture
-app.post("/api/meetings/:id/capture", async (c) => {
-  const meetingId = c.req.param("id");
-  const body = await c.req.json();
-  const reqWithMeetingId = { ...body, meeting_id: meetingId };
-  const request = new Request(c.req.raw.url, {
-    method: "POST",
-    headers: c.req.raw.headers,
-    body: JSON.stringify(reqWithMeetingId),
-  });
-  return app.fetch(request);
-});
+app.route("/api/inbox", inboxRouter);
+app.route("/api/live-links", liveLinksRouter);
+app.route("/api/forum", forumLinksRouter);
+app.route("/api/voice", voiceAgentRouter);
 
 // webhooks
 app.route("/webhooks/recall/realtime", recallRealtimeWebhook);
