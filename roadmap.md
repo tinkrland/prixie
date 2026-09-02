@@ -455,3 +455,156 @@ test result: screen share + filler + cursor activity = prixie stays quiet. corre
 - vapi: full conversational voice agent
 - mem0: persistent memory layer (wrapped by memorium)
 
+
+---
+
+## phase 6: social calling + phone (future)
+
+prixie joins calls that aren't meetings. social platform calls, audio spaces, and regular phone calls. the meeting proxy concept extended to everywhere people actually talk.
+
+### instagram calls
+
+instagram doesn't have a public API for joining calls. the approach:
+
+1. prixie opens instagram in a browserbase session (or the instagram desktop app via browser automation)
+2. navigates to the DM thread where the call is happening
+3. clicks "join call" (browser automation handles the UI)
+4. captures tab audio via media capture API
+5. streams audio to assembly.ai for transcription
+6. same keyword detection + capture pipeline runs on top
+7. when the call ends, returns transcript + captured items
+
+challenges:
+- instagram web doesn't support video calls in all browsers — may need mobile emulation
+- auth: prixie needs to be logged into instagram (session cookies or credentials)
+- instagram may detect and block automated sessions — need human-like behavior patterns
+- no official API means this is fragile and may break on UI changes
+
+alternative: if meta opens a calling API (whatsapp business API already exists for messaging), use that instead. until then, browser automation is the only path.
+
+### twitter / x spaces
+
+twitter spaces are public audio conversations. no join API, but they're browser-accessible.
+
+1. prixie opens the spaces URL in a browserbase session
+2. clicks "join space" (handles any login/auth prompts)
+3. captures audio from the browser tab
+4. streams to assembly.ai for transcription
+5. keyword detection runs on the transcript
+6. captures links shared in the space, speaker names, key quotes
+7. returns transcript + captured items when the space ends
+
+challenges:
+- spaces can run for hours — need to handle long sessions efficiently
+- speaker identification is harder (twitter doesn't expose per-speaker audio streams)
+- some spaces require twitter login to join
+- spaces can be private/limited — prixie can only join public ones
+
+use case: monitoring industry spaces, AMAs, or community discussions for specific information without attending the full session.
+
+### whatsapp calls
+
+whatsapp doesn't have a calling API for joining calls. two approaches:
+
+**approach 1: whatsapp web via browserbase**
+1. prixie opens whatsapp web in a browserbase session
+2. pairs with the user's whatsapp account (QR code, one-time setup)
+3. when a call starts in a DM or group, clicks "join call"
+4. captures audio via media capture API
+5. streams to assembly.ai for transcription
+6. same capture pipeline
+
+challenges:
+- whatsapp web calling support varies by region and browser
+- whatsapp may detect automation
+- one-to-one calls are private — prixie should only join group calls where the user has consent
+
+**approach 2: whatsapp business API (if/when calling is supported)**
+- whatsapp business API currently supports messaging, not calling
+- if meta opens a calling endpoint, prixie would use it directly (like recall.ai for zoom)
+- this is the clean path but doesn't exist yet
+
+note: whatsapp group calls can have up to 32 participants. prixie joining a group call as a silent listener is the same proxy concept as meetings, just on a different platform.
+
+### facetime calls
+
+apple does not provide any API for joining facetime calls. this is the hardest platform.
+
+**approach 1: facetime link (browser)**
+- facetime supports "facetime links" — a URL anyone can open to join from a browser (chrome, edge, etc. on non-apple devices)
+1. prixie opens the facetime link in a browserbase session
+2. handles the "join as guest" flow (enter name, allow camera/mic)
+3. captures audio via media capture API
+4. streams to assembly.ai for transcription
+5. same capture pipeline
+
+challenges:
+- facetime links only work if the host creates one (not all facetime calls have links)
+- guest join from browser is limited — may not get per-speaker audio streams
+- apple may restrict or block non-safari browsers over time
+- this is the most fragile integration
+
+**approach 2: apple device automation (local only)**
+- if prixie runs on a mac, she could use apple automation (appleScript, shortcuts) to join facetime calls directly in the facetime app
+- this gives better audio quality and native integration
+- but: requires a mac running locally (breaks the "your device doesn't need to be on" principle)
+- only viable as a self-hosted option
+
+### regular calls (phone calls)
+
+prixie joins regular phone calls — actual phone numbers, not app-based meetings. this is where call-e.com and livekit come in.
+
+**call-e (call-e.com / github.com/CALLE-AI)**
+
+call-e is an AI phone call agent. it's goal-driven, not scripted — you describe a goal ("confirm tomorrow's appointment") and it handles the full call lifecycle: planning, dialing, live conversation, adapting, and returning structured results.
+
+- call-e is not fully open source (the core service is hosted), but it has open SDKs, MCP integrations, and an open integrations repo (github.com/CALLE-AI/call-e-integrations)
+- SDK available in typescript and python
+- handles: outbound dialing, IVR navigation, voicemail, call screening, hold, transfers, interruptions
+- returns: structured results, transcripts, summaries
+- new users get 20 free calls
+
+prixie integration:
+1. user creates a "phone call" capture request with a phone number + goal
+2. prixie calls call-e via SDK: `client.calls.createAndWait({ task: "Call +15550123456 and confirm tomorrow's 9am appointment." })`
+3. call-e handles the entire call
+4. prixie receives the structured result (transcript, summary, outcome)
+5. captured items are stored in memorium under the active persona
+
+this is the clean path for phone calls. call-e handles the telephony, the conversation, and the adaptation. prixie just sets the goal and processes the result.
+
+**livekit (github.com/livekit/livekit)**
+
+livekit is genuinely open source — a WebRTC-based real-time audio/video platform. self-hostable, no vendor lock-in. it's the infrastructure layer, not an agent layer.
+
+use cases in prixie:
+1. **self-hosted calling**: prixie can join livekit rooms directly via the livekit SDK. no third-party API needed. you host the livekit server, prixie connects as a participant.
+2. **voice agent infrastructure**: livekit's agent framework can be used to build prixie's voice interaction (speaking questions out loud, hearing answers) — this is an alternative to vapi/speechify for phase 5
+3. **custom meeting rooms**: if you want prixie to join calls on your own infrastructure (not zoom, not google meet, just your own WebRTC rooms), livekit is the backend
+4. **call recording + transcription**: livekit can capture per-participant audio streams (like recall.ai but self-hosted), which can be piped to assembly.ai
+
+prixie integration:
+1. prixie detects a livekit room URL (from calendar, link sourcing, or direct input)
+2. prixie joins the livekit room as a participant via livekit SDK (camera off, mic off)
+3. livekit provides per-participant audio tracks
+4. audio is streamed to assembly.ai for transcription
+5. same keyword detection + capture pipeline
+6. when the call ends, transcript + captured items are returned
+
+why both:
+- **call-e** handles outbound phone calls to real phone numbers (the PSTN world). livekit doesn't do this directly — it's WebRTC, not telephony.
+- **livekit** handles real-time audio/video rooms (the WebRTC world). call-e is a hosted agent service, not infrastructure.
+- together: call-e for "prixie calls a phone number" and livekit for "prixie joins a WebRTC room on your own infrastructure"
+
+### platform summary (phase 6)
+
+| platform | method | calls | transcript | capture | status |
+| --- | --- | --- | --- | --- | --- |
+| instagram | browserbase | browser join | yes (assembly.ai) | yes | planned (fragile, no API) |
+| twitter/x spaces | browserbase | browser join | yes (assembly.ai) | yes | planned |
+| whatsapp | browserbase (web) or business API | browser join | yes (assembly.ai) | yes | planned (no calling API yet) |
+| facetime | browserbase (link) or local mac automation | browser join or native | yes (assembly.ai) | yes | planned (most fragile) |
+| phone calls (PSTN) | call-e SDK | outbound dial | yes (call-e) | yes (structured result) | planned |
+| custom WebRTC rooms | livekit SDK | SDK join | yes (assembly.ai or livekit) | yes | planned |
+
+all of these are browserbase-first (or SDK-first for call-e/livekit) since none have official "join as a bot" APIs like recall.ai provides for zoom/meet/teams. the capture pipeline (keyword detection, link grabbing, transcript with diarization) is shared across all platforms — only the join method changes.
