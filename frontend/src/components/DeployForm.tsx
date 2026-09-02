@@ -20,14 +20,14 @@ import { CaptureRequestForm } from './CaptureRequestForm';
 
 // built-in voice presets (mirrors backend voice_config_schema.sql)
 const BUILTIN_PRESETS: Record<string, Partial<VoiceConfig> & { name: string; description: string }> = {
-  default:     { name: 'default',     description: 'general purpose — clean, neutral',         fist_score: 0.7,  fist_timing_variation: 0.35, fist_rhythm_stability: 0.72, fist_pause_pattern: 'deliberate',   fist_startup_pattern: 'brief_pause',       fist_turn_entry_pattern: 'beat',       cadence_wpm: 140, prosody: 0.4,  tone: 'neutral' },
-  warm:        { name: 'warm',        description: 'community and social contexts',            fist_score: 0.65, fist_timing_variation: 0.4,  fist_rhythm_stability: 0.68, fist_pause_pattern: 'natural',      fist_startup_pattern: 'brief_pause',       fist_turn_entry_pattern: 'filler',      cadence_wpm: 130, prosody: 0.6,  tone: 'warm' },
-  professional:{ name: 'professional', description: 'client and enterprise meetings',         fist_score: 0.85, fist_timing_variation: 0.25, fist_rhythm_stability: 0.82, fist_pause_pattern: 'deliberate',   fist_startup_pattern: 'brief_pause',       fist_turn_entry_pattern: 'beat',       cadence_wpm: 150, prosody: 0.2,  tone: 'formal' },
-  casual:      { name: 'casual',      description: 'internal team and hackathon',              fist_score: 0.55, fist_timing_variation: 0.45, fist_rhythm_stability: 0.6,  fist_pause_pattern: 'natural',      fist_startup_pattern: 'immediate',         fist_turn_entry_pattern: 'filler',      cadence_wpm: 160, prosody: 0.7,  tone: 'casual' },
-  curious:     { name: 'curious',     description: 'learning and discovery',                   fist_score: 0.6,  fist_timing_variation: 0.38, fist_rhythm_stability: 0.65, fist_pause_pattern: 'deliberate',   fist_startup_pattern: 'brief_pause',       fist_turn_entry_pattern: 'beat',       cadence_wpm: 135, prosody: 0.5,  tone: 'curious' },
-  assertive:   { name: 'assertive',   description: 'negotiation and sales',                    fist_score: 0.8,  fist_timing_variation: 0.28, fist_rhythm_stability: 0.78, fist_pause_pattern: 'deliberate',   fist_startup_pattern: 'brief_pause',       fist_turn_entry_pattern: 'beat',       cadence_wpm: 160, prosody: 0.3,  tone: 'assertive' },
-  steady:      { name: 'steady',      description: 'technical and precise — highest fist',    fist_score: 0.95, fist_timing_variation: 0.15, fist_rhythm_stability: 0.92, fist_pause_pattern: 'deliberate',   fist_startup_pattern: 'deliberate_opening', fist_turn_entry_pattern: 'deliberate', cadence_wpm: 145, prosody: 0.15, tone: 'neutral' },
-  erratic:     { name: 'erratic',     description: 'deliberately unpredictable — lowest fist', fist_score: 0.2, fist_timing_variation: 0.7,  fist_rhythm_stability: 0.25, fist_pause_pattern: 'natural',      fist_startup_pattern: 'immediate',         fist_turn_entry_pattern: 'immediate',   cadence_wpm: 155, prosody: 0.8,  tone: 'casual' },
+  default:     { name: 'default',     description: 'general purpose — clean, neutral',         fist_score: 0.7,  fist_timing_variation: 0.35, fist_rhythm_stability: 0.72, fist_pause_pattern: 'deliberate',   fist_startup_pattern: 'brief_pause',       fist_turn_entry_pattern: 'beat',       cadence_wpm: 140, prosody: 0.4,  tone: 'neutral', seriousness: 0.7, professionalism: 0.5, vocabulary: 0.5 },
+  warm:        { name: 'warm',        description: 'community and social contexts',            fist_score: 0.65, fist_timing_variation: 0.4,  fist_rhythm_stability: 0.68, fist_pause_pattern: 'natural',      fist_startup_pattern: 'brief_pause',       fist_turn_entry_pattern: 'filler',      cadence_wpm: 130, prosody: 0.6,  tone: 'warm', seriousness: 0.7, professionalism: 0.4, vocabulary: 0.45 },
+  professional:{ name: 'professional', description: 'client and enterprise meetings',         fist_score: 0.85, fist_timing_variation: 0.25, fist_rhythm_stability: 0.82, fist_pause_pattern: 'deliberate',   fist_startup_pattern: 'brief_pause',       fist_turn_entry_pattern: 'beat',       cadence_wpm: 150, prosody: 0.2,  tone: 'formal', seriousness: 0.9, professionalism: 0.9, vocabulary: 0.85 },
+  casual:      { name: 'casual',      description: 'internal team and hackathon',              fist_score: 0.55, fist_timing_variation: 0.45, fist_rhythm_stability: 0.6,  fist_pause_pattern: 'natural',      fist_startup_pattern: 'immediate',         fist_turn_entry_pattern: 'filler',      cadence_wpm: 160, prosody: 0.7,  tone: 'casual', seriousness: 0.6, professionalism: 0.25, vocabulary: 0.3 },
+  curious:     { name: 'curious',     description: 'learning and discovery',                   fist_score: 0.6,  fist_timing_variation: 0.38, fist_rhythm_stability: 0.65, fist_pause_pattern: 'deliberate',   fist_startup_pattern: 'brief_pause',       fist_turn_entry_pattern: 'beat',       cadence_wpm: 135, prosody: 0.5,  tone: 'curious', seriousness: 0.75, professionalism: 0.5, vocabulary: 0.55 },
+  assertive:   { name: 'assertive',   description: 'negotiation and sales',                    fist_score: 0.8,  fist_timing_variation: 0.28, fist_rhythm_stability: 0.78, fist_pause_pattern: 'deliberate',   fist_startup_pattern: 'brief_pause',       fist_turn_entry_pattern: 'beat',       cadence_wpm: 160, prosody: 0.3,  tone: 'assertive', seriousness: 0.85, professionalism: 0.75, vocabulary: 0.6 },
+  steady:      { name: 'steady',      description: 'technical and precise — highest fist',    fist_score: 0.95, fist_timing_variation: 0.15, fist_rhythm_stability: 0.92, fist_pause_pattern: 'deliberate',   fist_startup_pattern: 'deliberate_opening', fist_turn_entry_pattern: 'deliberate', cadence_wpm: 145, prosody: 0.15, tone: 'neutral', seriousness: 0.9, professionalism: 0.6, vocabulary: 0.7 },
+  erratic:     { name: 'erratic',     description: 'deliberately unpredictable — lowest fist', fist_score: 0.2, fist_timing_variation: 0.7,  fist_rhythm_stability: 0.25, fist_pause_pattern: 'natural',      fist_startup_pattern: 'immediate',         fist_turn_entry_pattern: 'immediate',   cadence_wpm: 155, prosody: 0.8,  tone: 'casual', seriousness: 0.35, professionalism: 0.2, vocabulary: 0.25 },
 };
 
 const TONES: ToneType[] = ['neutral', 'warm', 'formal', 'casual', 'curious', 'assertive'];
@@ -107,6 +107,9 @@ export function DeployForm() {
   const [cadenceWpm, setCadenceWpm] = useState(140);
   const [prosody, setProsody] = useState(0.4);
   const [tone, setTone] = useState<string>('neutral');
+  const [seriousness, setSeriousness] = useState(0.7);
+  const [professionalism, setProfessionalism] = useState(0.5);
+  const [vocabulary, setVocabulary] = useState(0.5);
   const [showAdvancedFist, setShowAdvancedFist] = useState(false);
 
   // behavior
@@ -128,6 +131,9 @@ export function DeployForm() {
     if (p.cadence_wpm !== undefined) setCadenceWpm(p.cadence_wpm);
     if (p.prosody !== undefined) setProsody(p.prosody);
     if (p.tone) setTone(p.tone);
+    if (p.seriousness !== undefined) setSeriousness(p.seriousness);
+    if (p.professionalism !== undefined) setProfessionalism(p.professionalism);
+    if (p.vocabulary !== undefined) setVocabulary(p.vocabulary);
   };
 
   const buildVoiceOverride = (): VoiceOverride | undefined => {
@@ -143,6 +149,9 @@ export function DeployForm() {
     if (cadenceWpm !== defaults.cadence_wpm) override.cadence_wpm = cadenceWpm;
     if (prosody !== defaults.prosody) override.prosody = prosody;
     if (tone !== defaults.tone) override.tone = tone;
+    if (seriousness !== defaults.seriousness) override.seriousness = seriousness;
+    if (professionalism !== defaults.professionalism) override.professionalism = professionalism;
+    if (vocabulary !== defaults.vocabulary) override.vocabulary = vocabulary;
     return Object.keys(override).length > 0 ? override : undefined;
   };
 
@@ -423,7 +432,7 @@ export function DeployForm() {
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">07 // proxy voice & behavior</span>
           <h2 className="text-base font-bold uppercase tracking-tight text-foreground">how does prixie sound?</h2>
           <p className="text-[11px] text-muted-foreground mt-1">
-            fist = the agent's rhythmic signature (from morse code). a good fist is clean and identifiable. a bad fist is erratic. these settings shape how prixie sounds when speaking in meetings.
+            fist = the agent's rhythmic signature (from morse code). a good fist is clean and identifiable. a bad fist is erratic. these settings shape how prixie sounds when speaking in meetings. the language style sliders (sarcastic vs serious, professionalism, vocabulary) shape how she words things — genz in one meeting, boardroom in the next.
           </p>
         </div>
         <div className="space-y-5 text-xs">
@@ -465,6 +474,34 @@ export function DeployForm() {
               <div className="flex justify-between mt-1">
                 <span className="text-[10px] text-muted-foreground">monotone</span>
                 <span className="text-[10px] text-muted-foreground">expressive</span>
+              </div>
+            </div>
+          </div>
+
+          {/* language style — sarcasm, professionalism, vocabulary */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border border-primary/20 p-3 bg-background">
+              <label className={labelClass}>seriousness — {seriousness.toFixed(2)}</label>
+              <input type="range" min={0} max={1} step={0.01} value={seriousness} onChange={e => setSeriousness(Number(e.target.value))} className={sliderClass} />
+              <div className="flex justify-between mt-1">
+                <span className="text-[10px] text-muted-foreground">sarcastic</span>
+                <span className="text-[10px] text-muted-foreground">sincere</span>
+              </div>
+            </div>
+            <div className="border border-primary/20 p-3 bg-background">
+              <label className={labelClass}>professionalism — {professionalism.toFixed(2)}</label>
+              <input type="range" min={0} max={1} step={0.01} value={professionalism} onChange={e => setProfessionalism(Number(e.target.value))} className={sliderClass} />
+              <div className="flex justify-between mt-1">
+                <span className="text-[10px] text-muted-foreground">casual</span>
+                <span className="text-[10px] text-muted-foreground">formal</span>
+              </div>
+            </div>
+            <div className="border border-primary/20 p-3 bg-background">
+              <label className={labelClass}>vocabulary — {vocabulary.toFixed(2)}</label>
+              <input type="range" min={0} max={1} step={0.01} value={vocabulary} onChange={e => setVocabulary(Number(e.target.value))} className={sliderClass} />
+              <div className="flex justify-between mt-1">
+                <span className="text-[10px] text-muted-foreground">genz slang</span>
+                <span className="text-[10px] text-muted-foreground">erudite</span>
               </div>
             </div>
           </div>

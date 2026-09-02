@@ -156,6 +156,9 @@ export interface VoiceConfig {
   cadence_wpm: number;
   prosody: number;
   tone: ToneType | string;
+  seriousness: number;
+  professionalism: number;
+  vocabulary: number;
 }
 
 export interface VoicePreset {
