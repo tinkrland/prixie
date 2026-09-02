@@ -17,7 +17,7 @@
 - browserbase fallback for discord, bluejeans, ringcentral (built, needs testing)
 - github repo: github.com/kqrla/prixie
 - inbox monitoring (gmail), live links (discord+slack), forum links (reddit, discourse, mlh)
-- voice agent: end of turn detection, interruption handling, mem0 context, clarification fork
+- voice agent: end of turn detection, interruption handling, mem0 context, clarification fork (custom logic built; voice barging to be delegated to Assembly.ai)
 - hinglish transliteration (devanagari to latin, schwa deletion, 24/26 test match)
 - luma event registration, calendly sync, multi calendar sync (google, outlook, notion, apple)
 - timezone awareness (colloquial parsing)
@@ -27,18 +27,18 @@
 - frontend not wired to real backend api (uses mock data in localStorage)
 - twitch stream joining (mlh hackathons)
 - voice interaction (prixie speaking questions out loud via TTS)
-- sandboxed persona GUI (visual separator, weighted/hierarchical memory)
-- persona sharing configuration
+- memorium: persona POV system (weighted/hierarchical memory, visual GUI, sharing)
+
 
 ---
 
-## phase 0: sandboxed persona system
+## phase 0: memorium (standalone, portable)
 
-ego.ist meets mem0. each agent that joins a meeting is a distinct persona with its own identity perspective, memory, permissions, relevance, and personality. sandboxed by default. sharing is configurable.
+memorium is a standalone, portable persona-based memory system. see memorium.md for full design. it is NOT "a persona joining a meeting" — it is switching perspective POV, like switching accounts on a shared laptop, but instead of different people, it is different perspectives of you (student you, founder you, employee you, hobbyist you). rapid POV switching is the goal. one you, many perspectives, each with its own memory, permissions, relevance, and behavior. sandboxed by default. sharing is configurable.
 
 ### the problem
 
-prixie isn't one agent. it's many agents, each attending different meetings in different contexts. the "you" at a hackathon is different from the "you" at work. a persona joining a startup pitch meeting needs different knowledge, different tone, different questions than one joining a college lecture. the agent attending your 9am standup should not bring up what was discussed at last weekend's hackathon unless you explicitly let it.
+prixie is one agent with many perspectives. the "you" at a hackathon is different from the "you" at work. when you switch from employee you to hobbyist you, you need different knowledge, different tone, different questions. the POV switch is instant — same core identity, different contextual world model. employee you at 9am should not bring up what was discussed at last weekend's hackathon unless you explicitly let it.
 
 but right now, all personas share the same flat memory. we need:
 
@@ -70,7 +70,7 @@ these are DIFFERENT axes. something can be:
 - low weight + high hierarchy: "the exam is tomorrow" (not part of my identity, but it's all i'm thinking about right now)
 - low weight + low hierarchy: "it rained last tuesday" (not core, not driving anything)
 
-this is ego.ist meets mem0: identity-weighted, behavior-hierarchical memory indexing.
+this is memorium: identity-weighted, behavior-hierarchical, associative memory indexing. wraps mem0 (github.com/mem0ai/mem0) for vector storage and semantic search. full design in memorium.md.
 
 ### visual GUI separator
 
@@ -278,7 +278,7 @@ after the meeting:
 - memory explorer (view all memories for a persona, sorted by weight or hierarchy)
 - permissions matrix (grid of personas x sources with toggle)
 - sharing configuration (visual flow diagram between persona cards)
-- drag-and-drop meeting assignment to personas
+- drag-and-drop meeting assignment to perspectives (POV switching)
 - memory weight/hierarchy sliders for manual adjustment
 
 **0e. persona assignment on deploy**
@@ -449,85 +449,9 @@ test result: screen share + filler + cursor activity = prixie stays quiet. corre
 - mem0 stores Q&A pairs for cross-turn context
 
 ### providers
+- assembly.ai: primary transcription + voice activity detection + end of turn + interruption detection (handles voice barging, silence vs pacing, turn-taking)
 - speechmatics: STT for non-english/hinglish
 - speechify: TTS for natural voice output
-- assembly.ai: primary transcription
 - vapi: full conversational voice agent
-- mem0: persistent memory layer for context window management
+- mem0: persistent memory layer (wrapped by memorium)
 
----
-
-## phase 6: transcript intelligence
-
-### hinglish transliteration (built)
-- transcript keeps latin script for hinglish
-- no devanagari, phonetically written, italicized
-- devanagari to latin phonetic mapping with schwa deletion
-- 24/26 test words exact match
-- auto-processing in meeting manager transcript pipeline
-
-### multi-speaker differentiation (working)
-- separate audio streams per participant
-- machine diarization for shared devices (conference rooms)
-- speaker labels: participant name when available
-
----
-
-## phase 7: autonomous operation
-
-### principles
-- prixie joins meetings at 3am if that's what you asked
-- prixie asks what YOU want to know, not generic summaries
-- no "here's a summary" - instead "you asked about X, here's what they said"
-- handles failures gracefully: retries or notifies you
-- handles edge cases: waiting room, password, registration, breakout rooms, late join
-
-### account switching
-- each profile has its own credentials
-- hackathon profile -> hackathon zoom account
-- professional profile -> work account
-- stored credentials are encrypted
-
-### multiple inboxes
-- each profile can have its own email inbox
-- prixie monitors all inboxes for meeting links
-
----
-
-## gui status
-
-frontend config dashboard wired to real backend api:
-- all routes: dashboard, deploy form, meetings list, meeting detail, captures, about
-- real fetch calls to backend (no more mock data)
-- deploy form includes all platforms, auth modes, camera/mic toggles, profile selection
-- backend routes (14 total): meetings, capture, transcripts, deploy, profiles, stats, browserbase, luma, calendly, hinglish, inbox, live-links, forum, voice
-- to run: npm install + npm run dev (frontend), deno task dev (backend)
-
-### persona GUI (planned)
-- persona cards with identity, memory stats, access permissions, pending questions
-- memory explorer (view memories sorted by weight or hierarchy)
-- permissions matrix (personas x sources grid)
-- sharing flow diagram (one-way, bidirectional, conditional sharing between personas)
-- drag-and-drop meeting assignment to personas
-- memory weight/hierarchy sliders for manual adjustment
-
----
-
-## dependency and hosting
-
-### what needs to be running
-1. backend (hono server) - needs 24/7 hosting for autonomous operation
-2. database (supabase) - cloud hosted, free tier works
-3. recall.ai - cloud hosted by recall.ai
-4. browserbase - cloud hosted for discord/bluejeans/ringcentral
-5. mem0 - self-hosted (open source) or cloud for persona memory
-
-### your device does not need to be on
-if backend is in the cloud, prixie joins meetings whether your laptop is open or closed.
-
-### hosting options
-- deno deploy (free tier, easiest)
-- aws (lambda + api gateway)
-- xano (backend as a service)
-- any vps ($5/mo)
-- local machine (only works while on)
