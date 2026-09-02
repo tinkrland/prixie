@@ -7,6 +7,7 @@ import transcriptsRouter from "./routes/transcripts.ts";
 import deployRouter from "./routes/deploy.ts";
 import profilesRouter from "./routes/profiles.ts";
 import statsRouter from "./routes/stats.ts";
+import browserbaseRouter from "./routes/browserbase.ts";
 
 import recallRealtimeWebhook from "./routes/webhooks/recall_realtime.ts";
 import recallStatusWebhook from "./routes/webhooks/recall_status.ts";
@@ -39,6 +40,7 @@ app.route("/api/transcripts", transcriptsRouter);
 app.route("/api/deploy", deployRouter);
 app.route("/api/profiles", profilesRouter);
 app.route("/api/stats", statsRouter);
+app.route("/api/browserbase", browserbaseRouter);
 
 // nested: POST /api/meetings/:id/capture
 app.post("/api/meetings/:id/capture", async (c) => {
