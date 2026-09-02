@@ -4,10 +4,13 @@ scoping docs for dataset construction, retrieval mechanics, and tooling. no actu
 
 ## research areas
 
-| folder | topic | feeds into |
+| item | topic | feeds into |
 | --- | --- | --- |
 | [tag-wrangling/](./tag-wrangling/readme.md) | dataset scoping for the tag wrangler — alias resolution, perspective switching, graph traversal chains, confidence boundaries, multimodal references | adaptionlabs dataset |
 | [weighting-mechanics/](./weighting-mechanics/readme.md) | dual-rate weighting (identity vs hierarchy), exponential decay, multi-signal confidence composition, permission sandboxing | adaptionlabs dataset |
+| [agenda/](./agenda/readme.md) | formal research agenda — seven investigative axes, one per pillar, each with research questions and falsifiable benchmarks | empirical study |
+| [agenda/pillars.md](./agenda/pillars.md) | the seven pillars that define the system — knowledge, weightage, nesting, associativity, priority, contextual relevance, accuracy | architecture definition |
+| [ux.md](./ux.md) | spatial-cognitive & color-coded visual architecture — the graph IS the UI: typed edge rendering, spatial clustering, in-graph filtering | pilot UI |
 
 ## tools available
 
