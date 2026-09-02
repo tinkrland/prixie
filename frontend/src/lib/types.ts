@@ -121,6 +121,7 @@ export interface DeployConfig {
   breakout_room_id?: string;
   instruction?: string;
   profile_id?: string;
+  voice_override?: VoiceOverride;
 }
 
 export interface QuickStats {
@@ -137,3 +138,42 @@ export interface TranscriptData {
   action_items?: string[];
   captured_items?: any[];
 }
+
+// proxy voice configuration — fist, cadence, prosody, tone
+// fist = the agent's rhythmic signature (morse code operator concept)
+export type FistPausePattern = 'deliberate' | 'natural' | 'minimal' | 'none';
+export type FistStartupPattern = 'immediate' | 'brief_pause' | 'deliberate_opening';
+export type FistTurnEntryPattern = 'immediate' | 'beat' | 'filler' | 'deliberate';
+export type ToneType = 'neutral' | 'warm' | 'formal' | 'casual' | 'curious' | 'assertive';
+
+export interface VoiceConfig {
+  fist_score: number;
+  fist_timing_variation: number;
+  fist_rhythm_stability: number;
+  fist_pause_pattern: FistPausePattern;
+  fist_startup_pattern: FistStartupPattern;
+  fist_turn_entry_pattern: FistTurnEntryPattern;
+  cadence_wpm: number;
+  prosody: number;
+  tone: ToneType | string;
+}
+
+export interface VoicePreset {
+  id: string;
+  name: string;
+  description?: string;
+  is_builtin: boolean;
+  fist_score: number;
+  fist_timing_variation: number;
+  fist_rhythm_stability: number;
+  fist_pause_pattern: FistPausePattern;
+  fist_startup_pattern: FistStartupPattern;
+  fist_turn_entry_pattern: FistTurnEntryPattern;
+  cadence_wpm: number;
+  prosody: number;
+  tone: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type VoiceOverride = Partial<VoiceConfig>;

@@ -17,6 +17,21 @@ export interface Profile {
   context: string | null;          // instructions/context for this persona
   shared_memory: boolean;          // whether this profile shares global memory or is sandboxed
   is_default: boolean;
+  // voice config (from memorium_schema.sql + voice_config_schema.sql)
+  voice_id?: string | null;        // TTS provider voice ID
+  tone?: string;                   // emotional register
+  initiative_level?: string;       // passive | active | proactive
+  question_style?: string;         // direct | indirect | socratic
+  language_preference?: string;    // ISO code
+  // fist — rhythmic signature (morse code operator concept)
+  fist_score?: number;             // 0-1, overall fist quality
+  fist_timing_variation?: number;  // 0-1, timing variance
+  fist_rhythm_stability?: number;  // 0-1, rhythm consistency over time
+  fist_pause_pattern?: string;     // deliberate | natural | minimal | none
+  fist_startup_pattern?: string;   // immediate | brief_pause | deliberate_opening
+  fist_turn_entry_pattern?: string; // immediate | beat | filler | deliberate
+  cadence_wpm?: number;            // 80-220, words per minute
+  prosody?: number;                // 0-1, 0=monotone, 1=highly expressive
   created_at?: string;
   updated_at?: string;
 }
@@ -44,6 +59,7 @@ export interface Meeting {
   auth_mode: AuthMode;              // anonymous (default), signed_in, registration
   breakout_room_mode?: BreakoutRoomMode | null;
   breakout_room_id?: string | null;
+  voice_override?: VoiceOverride | null;  // per-meeting voice config override
   created_at?: string;
   updated_at?: string;
 }
@@ -65,6 +81,7 @@ export interface CreateMeetingInput {
   auth_mode?: AuthMode;
   breakout_room_mode?: BreakoutRoomMode;
   breakout_room_id?: string;
+  voice_override?: VoiceOverride;
 }
 
 export interface UpdateMeetingInput {
@@ -87,6 +104,7 @@ export interface UpdateMeetingInput {
   camera_off?: boolean;
   mic_off?: boolean;
   auth_mode?: AuthMode;
+  voice_override?: VoiceOverride | null;
 }
 
 export interface CaptureRequest {
@@ -245,3 +263,36 @@ export interface RecallCreateBotInput {
   };
   meeting_platform?: string;
 }
+
+// proxy voice configuration — fist (rhythmic signature), cadence, prosody, tone
+// fist: from morse code — the unique timing/rhythm pattern that identifies an operator
+// a "good fist" = clean, consistent, readable. a "bad fist" = erratic.
+export type FistPausePattern = 'deliberate' | 'natural' | 'minimal' | 'none';
+export type FistStartupPattern = 'immediate' | 'brief_pause' | 'deliberate_opening';
+export type FistTurnEntryPattern = 'immediate' | 'beat' | 'filler' | 'deliberate';
+export type Tone = 'neutral' | 'warm' | 'formal' | 'casual' | 'curious' | 'assertive' | string;
+
+export interface VoiceConfig {
+  fist_score: number;                    // 0-1, overall rhythmic signature quality
+  fist_timing_variation: number;         // 0-1, how much inter-word timing varies
+  fist_rhythm_stability: number;         // 0-1, how consistent rhythm is over time
+  fist_pause_pattern: FistPausePattern;  // pattern of micro-pauses
+  fist_startup_pattern: FistStartupPattern;  // how the agent begins speaking
+  fist_turn_entry_pattern: FistTurnEntryPattern;  // how agent enters after someone speaks
+  cadence_wpm: number;                   // 80-220, words per minute
+  prosody: number;                       // 0-1, 0=monotone, 1=highly expressive
+  tone: Tone;                            // emotional register
+}
+
+export interface VoicePreset {
+  id: string;
+  name: string;
+  description?: string;
+  is_builtin: boolean;
+  config: VoiceConfig;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// per-meeting voice override (stored as JSONB on meetings table)
+export type VoiceOverride = Partial<VoiceConfig>;
