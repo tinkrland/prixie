@@ -611,20 +611,49 @@ all of these are browserbase-first (or SDK-first for call-e/livekit) since none 
 
 ---
 
+
+---
+
 ## phase 7: proxy voice + behavior configuration (GUI)
 
 when deploying prixie to attend as a proxy, the user should be able to control how the agent sounds and behaves — not just what it captures. this is a GUI-first feature on the deploy form.
 
-### what the user controls
+### what is a "fist"?
+
+in morse code, a "fist" is the unique cadence, rhythm, and personal accent of an individual operator. even though morse code consists of standardized dots and dashes, no two humans hit the key with the exact same timing. the subtle spacing between letters, the length of dashes, the overall tempo create a rhythmic signature — a vocal fingerprint.
+
+experienced operators can recognize who is transmitting just by the "swing" of their code, before the person signs their name. during WWII, military intelligence used "fist analysis" to track specific enemy operators across radio waves — even if they changed location or call sign, their unique prosody on the key gave them away.
+
+a "good fist" means clean, rhythmic, highly readable cadence. a "bad fist" means sloppy, erratic, difficult to understand.
+
+in the digital age, this concept has evolved into keystroke dynamics — your typing rhythm (how long you hold a key, millisecond pauses between letters) is a biometric signature.
+
+for prixie: fist is the agent's **rhythmic identity**. not just how fast it speaks (cadence) or how melodic (prosody) or what emotional register (tone), but the *timing pattern* that makes it recognizable. if prixie attends three meetings as the same persona, someone should be able to identify "that's the same proxy" by rhythm alone — even without hearing the words.
+
+### the four parameters
 
 | parameter | what it does | type | default |
 | --- | --- | --- | --- |
-| pitch | how high or low the agent's voice is | slider (0-1, maps to Hz range per TTS provider) | 0.5 (neutral) |
-| cadence | how fast or slow the agent speaks | slider (words per minute, 80-220) | 140 wpm |
-| prosody | the melodic pattern — flat/monotone vs expressive/varied | slider (0-1, 0 = monotone, 1 = highly expressive) | 0.4 |
+| fist | the agent's rhythmic signature — timing variation, pause patterns, rhythm stability. a "good fist" is clean and consistent. a "bad fist" is erratic. | slider (0-1, 0 = erratic/bad fist, 1 = pristine/good fist) + style preset | 0.7 (clean, consistent) |
+| cadence | how fast or slow the agent speaks — the base tempo in words per minute | slider (80-220 wpm) | 140 wpm |
+| prosody | the melodic pattern — flat/monotone vs expressive/varied pitch contour | slider (0-1, 0 = monotone, 1 = highly expressive) | 0.4 |
 | tone | the emotional register — warm, formal, casual, curious, assertive, neutral | select (preset + custom) | neutral |
 
-these are not just TTS settings. they shape the agent's presence in the meeting. a proxy attending a client demo should sound different from a proxy attending a community hackathon kickoff.
+fist is the meta-parameter. cadence, prosody, and tone are the components it shapes. a high-fist agent has consistent cadence, deliberate prosody, and a recognizable tone pattern. a low-fist agent varies unpredictably — sometimes fast, sometimes slow, sometimes flat, sometimes expressive — with no identifiable signature.
+
+### fist decomposition
+
+fist is not a single number. it's computed from sub-parameters that the GUI can expose for fine control:
+
+| sub-parameter | what it measures | range |
+| --- | --- | --- |
+| timing_variation | how much the inter-word spacing varies (low = metronomic, high = natural human variation) | 0-1 |
+| pause_pattern | the pattern of micro-pauses — between sentences, between ideas, before questions | enum: deliberate, natural, minimal, none |
+| rhythm_stability | how consistent the rhythm is across the entire session (low = drifts over time, high = rock-steady) | 0-1 |
+| startup_pattern | how the agent begins speaking — does it launch right in, or have a characteristic opening pause? | enum: immediate, brief_pause, deliberate_opening |
+| turn_entry_pattern | how the agent enters after someone finishes speaking — immediate, after a beat, with a filler | enum: immediate, beat, filler, deliberate |
+
+the GUI shows a simplified fist slider (0-1) by default. an "advanced" toggle reveals these sub-parameters.
 
 ### where this lives in the GUI
 
@@ -638,11 +667,14 @@ the deploy form gets a new section — "06 // proxy voice & behavior" — betwee
 │  ┌────────────────────────────────────────────────────┐  │
 │  │  [persona preset ▼] or [custom]                    │  │
 │  │                                                      │  │
-│  │  pitch    ▕████████░░░░░░░░░░░░░░░░░░░░░░░░▏ 0.42   │  │
-│  │  cadence  ▕████████████░░░░░░░░░░░░░░░░░░░▏ 142wpm  │  │
+│  │  fist     ▕██████████████░░░░░░░░░░░░░░░░░▏ 0.72    │  │
+│  │           clean, consistent — identifiable          │  │
+│  │                                                      │  │
+│  │  cadence  ▕████████████░░░░░░░░░░░░░░░░░░▏ 142wpm  │  │
 │  │  prosody  ▕██████░░░░░░░░░░░░░░░░░░░░░░░░▏ 0.30    │  │
 │  │  tone     [warm] [formal] [casual] [curious] ...     │  │
 │  │                                                      │  │
+│  │  [▶] advanced fist controls                          │  │
 │  │  [▶ preview voice]                                   │  │
 │  └────────────────────────────────────────────────────┘  │
 │                                                            │
@@ -656,24 +688,47 @@ the deploy form gets a new section — "06 // proxy voice & behavior" — betwee
 └──────────────────────────────────────────────────────────┘
 ```
 
+expanded advanced fist controls:
+
+```
+ADVANCED FIST CONTROLS
+┌────────────────────────────────────────────────────┐
+│  timing variation   ▕██████░░░░░░░░░░░░░░░░░▏ 0.35  │
+│  rhythm stability   ▕████████████░░░░░░░░░░▏ 0.72  │
+│  pause pattern      [deliberate ▼]                  │
+│  startup pattern    [brief_pause ▼]                 │
+│  turn entry pattern [beat ▼]                        │
+│                                                      │
+│  fist score (computed): 0.72 — good fist            │
+│  [↻ recalculate from sub-parameters]                │
+└────────────────────────────────────────────────────┘
+```
+
 ### voice presets
 
-presets bundle pitch + cadence + prosody + tone into named profiles:
+presets bundle fist + cadence + prosody + tone into named profiles:
 
-| preset | pitch | cadence | prosody | tone | use case |
+| preset | fist | cadence | prosody | tone | use case |
 | --- | --- | --- | --- | --- | --- |
-| default | 0.5 | 140 | 0.4 | neutral | general |
-| warm | 0.55 | 130 | 0.6 | warm | community, social |
-| professional | 0.45 | 150 | 0.2 | formal | client, enterprise |
-| casual | 0.5 | 160 | 0.7 | casual | internal, hackathon |
-| curious | 0.52 | 135 | 0.5 | curious | learning, discovery |
-| assertive | 0.48 | 160 | 0.3 | assertive | negotiation, sales |
+| default | 0.7 | 140 | 0.4 | neutral | general |
+| warm | 0.65 | 130 | 0.6 | warm | community, social |
+| professional | 0.85 | 150 | 0.2 | formal | client, enterprise |
+| casual | 0.55 | 160 | 0.7 | casual | internal, hackathon |
+| curious | 0.6 | 135 | 0.5 | curious | learning, discovery |
+| assertive | 0.8 | 160 | 0.3 | assertive | negotiation, sales |
+| steady | 0.95 | 145 | 0.15 | neutral | technical, precise |
+| erratic | 0.2 | 155 | 0.8 | casual | deliberately unpredictable |
 
-presets are starting points. the user can override any parameter after selecting one.
+"steady" has the highest fist score (0.95) — extremely consistent, almost metronomic. useful for technical meetings where the agent should sound precise and unambiguous. "erratic" has the lowest (0.2) — intentionally varied, sounds more human but less identifiable.
 
 ### preview
 
-the "preview voice" button generates a short sample clip using the configured TTS provider (speechify/vapi) with the current pitch/cadence/prosody/tone settings. the user hears how prixie will sound before deploying.
+the "preview voice" button generates a short sample clip using the configured TTS provider (speechify/vapi) with the current fist/cadence/prosody/tone settings. the user hears how prixie will sound before deploying.
+
+the preview should include:
+1. a sample question (to hear turn entry pattern + pause pattern)
+2. a short statement (to hear cadence + rhythm stability)
+3. a clarification (to hear prosody variation)
 
 this requires the TTS integration (phase 5) to be at least partially wired. until then, the GUI can store the config and show a placeholder preview.
 
@@ -686,20 +741,50 @@ voice config can be set at two levels:
 
 the deploy form shows the persona's saved config as defaults, with sliders pre-set. the user can adjust per-meeting without changing the persona's defaults.
 
+### database schema (new columns on profiles)
+
+```sql
+-- proxy voice configuration
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS fist_score FLOAT DEFAULT 0.7
+  CHECK (fist_score >= 0 AND fist_score <= 1);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS fist_timing_variation FLOAT DEFAULT 0.35
+  CHECK (fist_timing_variation >= 0 AND fist_timing_variation <= 1);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS fist_rhythm_stability FLOAT DEFAULT 0.72
+  CHECK (fist_rhythm_stability >= 0 AND fist_rhythm_stability <= 1);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS fist_pause_pattern TEXT DEFAULT 'deliberate'
+  CHECK (fist_pause_pattern IN ('deliberate', 'natural', 'minimal', 'none'));
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS fist_startup_pattern TEXT DEFAULT 'brief_pause'
+  CHECK (fist_startup_pattern IN ('immediate', 'brief_pause', 'deliberate_opening'));
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS fist_turn_entry_pattern TEXT DEFAULT 'beat'
+  CHECK (fist_turn_entry_pattern IN ('immediate', 'beat', 'filler', 'deliberate'));
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS cadence_wpm INTEGER DEFAULT 140
+  CHECK (cadence_wpm >= 80 AND cadence_wpm <= 220);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS prosody FLOAT DEFAULT 0.4
+  CHECK (prosody >= 0 AND prosody <= 1);
+-- tone already exists from memorium_schema.sql
+
+-- per-meeting voice overrides (stored on meetings table)
+ALTER TABLE public.meetings ADD COLUMN IF NOT EXISTS voice_override JSONB;
+-- voice_override format: {"fist_score": 0.8, "cadence_wpm": 150, "prosody": 0.3, "tone": "formal", ...}
+```
+
 ### implementation status
 
-- persona_config table: designed in roadmap (phase 0), NOT yet built in the database
-- voice agent service: built (end-of-turn, interruption, clarification) but does NOT use pitch/cadence/prosody/tone
-- TTS integration: NOT wired (speechify/vapi mentioned, no implementation)
-- GUI voice controls: NOT built (deploy form has no voice section)
-- frontend is NOT wired to real backend (uses mock data in localStorage)
+- backend: real — deno + hono + supabase. profiles route does CRUD. memorium_schema.sql already adds tone, initiative_level, question_style, voice_id, language_preference columns.
+- voice agent service: built (end-of-turn detection, interruption handling, clarification fork) but does NOT use fist/cadence/prosody/tone.
+- TTS integration: NOT wired (speechify/vapi mentioned, no implementation).
+- GUI voice controls: NOT built (deploy form has no voice section).
+- frontend: NOT wired to real backend (uses mock data in localStorage).
 
 what's feasible now:
-- add pitch/cadence/prosody/tone columns to persona_config schema (trivial SQL)
+- add fist/cadence/prosody columns to profiles schema (trivial SQL — see above)
 - add the GUI section to the deploy form (react, can build now with mock preview)
-- store config in the meeting record alongside profile_id
+- store config in the meeting record as voice_override JSONB
+- wire profiles API to include voice config in CRUD
 
 what's not feasible yet:
-- actual TTS rendering with these parameters (needs speechify/vapi integration)
+- actual TTS rendering with fist parameters (needs speechify/vapi integration + custom timing control)
 - voice preview (needs TTS)
 - the agent actually sounding different in a meeting (needs the full phase 5 voice pipeline)
+- fist-based identification across meetings (needs multiple TTS sessions + comparison)
