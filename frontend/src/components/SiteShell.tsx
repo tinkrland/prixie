@@ -5,6 +5,7 @@ const primaryLinks = [
   { to: '/meetings', label: 'meetings' },
   { to: '/deploy', label: 'deploy proxy' },
   { to: '/captures', label: 'captured items' },
+  { to: '/memorium', label: 'memorium' },
   { to: '/about', label: 'about' }
 ] as const;
 
@@ -17,6 +18,7 @@ export function SiteShell() {
     if (pathname.startsWith('/meeting/')) return 'meeting detail';
     if (pathname.startsWith('/deploy')) return 'deploy';
     if (pathname.startsWith('/captures')) return 'captures';
+    if (pathname.startsWith('/memorium')) return 'memorium';
     if (pathname.startsWith('/about')) return 'about';
     return pathname.replace('/', '');
   };
