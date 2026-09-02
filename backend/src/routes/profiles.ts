@@ -42,6 +42,21 @@ app.post("/", async (c) => {
       context: body.context,
       shared_memory: body.shared_memory ?? true,
       is_default: false,
+      // voice config
+      voice_id: body.voice_id,
+      tone: body.tone || "neutral",
+      initiative_level: body.initiative_level || "passive",
+      question_style: body.question_style || "direct",
+      language_preference: body.language_preference || "en",
+      // fist — rhythmic signature
+      fist_score: body.fist_score ?? 0.7,
+      fist_timing_variation: body.fist_timing_variation ?? 0.35,
+      fist_rhythm_stability: body.fist_rhythm_stability ?? 0.72,
+      fist_pause_pattern: body.fist_pause_pattern || "deliberate",
+      fist_startup_pattern: body.fist_startup_pattern || "brief_pause",
+      fist_turn_entry_pattern: body.fist_turn_entry_pattern || "beat",
+      cadence_wpm: body.cadence_wpm ?? 140,
+      prosody: body.prosody ?? 0.4,
     })
     .select()
     .single();
