@@ -47,6 +47,9 @@ app.post("/", async (c) => {
       fist_turn_entry_pattern: body.fist_turn_entry_pattern || "beat",
       cadence_wpm: body.cadence_wpm ?? 140,
       prosody: body.prosody ?? 0.4,
+      seriousness: body.seriousness ?? 0.7,
+      professionalism: body.professionalism ?? 0.5,
+      vocabulary: body.vocabulary ?? 0.5,
       tone: body.tone || "neutral",
       is_builtin: false,
     })

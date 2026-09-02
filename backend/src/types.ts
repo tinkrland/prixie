@@ -282,6 +282,9 @@ export interface VoiceConfig {
   cadence_wpm: number;                   // 80-220, words per minute
   prosody: number;                       // 0-1, 0=monotone, 1=highly expressive
   tone: Tone;                            // emotional register
+  seriousness: number;                    // 0-1, 0=sarcastic, 1=sincere/serious
+  professionalism: number;                // 0-1, 0=casual/unfiltered, 1=formal professional
+  vocabulary: number;                     // 0-1, 0=genz slang, 1=erudite/formal
 }
 
 export interface VoicePreset {
