@@ -16,19 +16,276 @@
 - frontend config dashboard (react + tanstack router + tailwind v4)
 - browserbase fallback for discord, bluejeans, ringcentral (built, needs testing)
 - github repo: github.com/kqrla/prixie
-
-### in progress
-- luma event registration (api integration, routes built)
-- calendly sync (api integration, routes built)
-- multi calendar sync (google, outlook, notion, apple)
-- late join handling (waiting rooms, password prompts, "join anyway")
-- timezone awareness (colloquial timezone parsing)
+- inbox monitoring (gmail), live links (discord+slack), forum links (reddit, discourse, mlh)
+- voice agent: end of turn detection, interruption handling, mem0 context, clarification fork
+- hinglish transliteration (devanagari to latin, schwa deletion, 24/26 test match)
+- luma event registration, calendly sync, multi calendar sync (google, outlook, notion, apple)
+- timezone awareness (colloquial parsing)
+- late join handling (waiting rooms, passwords, "join anyway")
 
 ### not yet working
 - frontend not wired to real backend api (uses mock data in localStorage)
 - twitch stream joining (mlh hackathons)
-- voice interaction (prixie speaking questions out loud)
-- hinglish transliteration
+- voice interaction (prixie speaking questions out loud via TTS)
+- sandboxed persona GUI (visual separator, weighted/hierarchical memory)
+- persona sharing configuration
+
+---
+
+## phase 0: sandboxed persona system
+
+ego.ist meets mem0. each agent that joins a meeting is a distinct persona with its own identity perspective, memory, permissions, relevance, and personality. sandboxed by default. sharing is configurable.
+
+### the problem
+
+prixie isn't one agent. it's many agents, each attending different meetings in different contexts. the "you" at a hackathon is different from the "you" at work. a persona joining a startup pitch meeting needs different knowledge, different tone, different questions than one joining a college lecture. the agent attending your 9am standup should not bring up what was discussed at last weekend's hackathon unless you explicitly let it.
+
+but right now, all personas share the same flat memory. we need:
+
+1. **identity perspective** - who this persona IS (name, voice, tone, background)
+2. **memory** - what this persona knows (sandboxed, indexed, weighted, hierarchical)
+3. **contextual permissions** - what this persona can ACCESS (calendars, inboxes, apis, other personas' memory)
+4. **relevance** - what this persona CARES about (what to watch for, what to ask, what to capture)
+5. **persona** - how this persona BEHAVES (communication style, initiative level, question format)
+
+### two axes of memory (the core insight)
+
+memory is not flat. every memory has two independent properties:
+
+**weight** = how core this is to the persona's identity
+- "i am a developer" = weight 0.9 (defining trait)
+- "i prefer tea over coffee" = weight 0.3 (minor preference)
+- "the meeting is at 3pm" = weight 0.1 (transient fact)
+- high weight = this is WHO the persona is. removing it changes the identity.
+
+**hierarchy** = how much this drives the persona's behavior and discourse
+- "i am a developer" = hierarchy 0.7 (comes up often, influences what to ask)
+- "i prefer tea over coffee" = hierarchy 0.1 (rarely relevant, rarely mentioned)
+- "i care deeply about accessibility" = weight 0.8, hierarchy 0.3 (core identity but passive - doesn't drive most conversations)
+- "the hackathon deadline is friday" = weight 0.2, hierarchy 0.9 (not core to identity but drives urgent behavior)
+
+these are DIFFERENT axes. something can be:
+- high weight + high hierarchy: "i am a student" (defines me, drives my actions constantly)
+- high weight + low hierarchy: "i believe in open source" (core to who i am, but i don't bring it up unless relevant)
+- low weight + high hierarchy: "the exam is tomorrow" (not part of my identity, but it's all i'm thinking about right now)
+- low weight + low hierarchy: "it rained last tuesday" (not core, not driving anything)
+
+this is ego.ist meets mem0: identity-weighted, behavior-hierarchical memory indexing.
+
+### visual GUI separator
+
+the GUI shows each persona as a distinct visual entity with clear separation:
+
+```
++-------------------------------------------------------+
+|  PERSONAS                                              |
+|                                                        |
+|  +-------------+    +-------------+    +-----------+  |
+|  | HACKATHON   |    | WORK        |    | CLASS     |  |
+|  | -------------|    | -------------|    |-----------|  |
+|  | display:    |    | display:    |    | display:  |  |
+|  |   karl     |    |   karl.s   |    |   karl    |  |
+|  |             |    |             |    |           |  |
+|  | MEMORY (12) |    | MEMORY (47) |    | MEMORY (8)|  |
+|  | [weighted]  |    | [weighted]  |    | [weighted]|  |
+|  | [hierarchy]  |    | [hierarchy]  |    | [hierarchy]  |
+|  |             |    |             |    |           |  |
+|  | ACCESS:     |    | ACCESS:     |    | ACCESS:   |  |
+|  | [x] discord  |    | [x] work cal |    | [x] class  |
+|  | [x] mlh.io  |    | [x] workmail |    | [x] campus  |
+|  | [ ] gmail    |    | [x] slack   |    | [ ] gmail  |
+|  |             |    |             |    |           |  |
+|  | QUESTIONS:  |    | QUESTIONS:  |    | QUESTIONS:|  |
+|  | 3 pending   |    | 7 pending   |    | 2 pending |  |
+|  +-------------+    +-------------+    +-----------+   |
+|                                                        |
+|  SHARING:  hackathon -> work (one-way: project links)   |
+|            class -> hackathon (one-way: deadline info)  |
+|            [no sharing by default]                       |
++-------------------------------------------------------+
+```
+
+each persona card shows:
+- identity (display name, avatar, tone description)
+- memory count with weight/hierarchy visualization
+- contextual permissions (what sources it can access)
+- pending questions / capture requests
+- sharing rules (what flows to/from other personas)
+
+memory visualization within a persona:
+```
+HACKATHON PERSONA > MEMORY
+
+  WEIGHT (identity core)           HIERARCHY (behavior drive)
+  ─────────────────────           ──────────────────────────
+  [0.95] developer              │    [0.90] deadline friday
+  [0.85] mlh participant         │    [0.85] project = prixie
+  [0.80] team lead               │    [0.70] developer
+  [0.60] competitive             │    [0.60] team lead
+  [0.40] prefers dark mode       │    [0.20] competitive
+  [0.20] likes pizza             │    [0.10] prefers dark mode
+  [0.15] deadline friday  ←──────┼──────────────────────────
+  (transient, high urgency       │    (urgent but not identity)
+   but not WHO i am)             │
+                                 │
+  ↑ sorted by identity core      │  ↑ sorted by behavior influence
+  ↑ this is WHO i am             │  ↑ this is what DRIVES my actions
+```
+
+### contextual permissions
+
+each persona has granular access controls:
+
+| permission | hackathon | work | class |
+| --- | --- | --- | --- |
+| google calendar (work) | no | yes | no |
+| google calendar (personal) | yes | no | yes |
+| gmail (work) | no | yes | no |
+| gmail (personal) | yes | no | yes |
+| discord servers | yes | no | no |
+| slack workspaces | no | yes | no |
+| recall.ai account | hackathon key | work key | shared key |
+| browserbase | yes | yes | yes |
+| luma events | yes | no | no |
+| calendly | no | yes | no |
+
+permissions are per-source, per-persona. a persona can only see meetings, capture requests, and memories from sources it has access to.
+
+### memory sharing rules
+
+sandboxed by default. sharing is opt-in and configurable:
+
+**one-way flow**: persona A can read persona B's memory, but B can't read A's
+```
+hackathon -> work: share project links and tech stack info
+  (work persona knows what you built at hackathons,
+   but hackathon persona doesn't see your work meetings)
+```
+
+**bidirectional flow**: both personas can read each other's memory
+```
+class <-> work: share schedule info
+  (both personas know your class and work schedule
+   so neither double-books you)
+```
+
+**common traits**: shared identity facts across all personas
+```
+global: "name is karl", "timezone is EST", "prefers concise answers"
+  (every persona inherits these, they're part of the global self)
+```
+
+**conditional sharing**: share only when certain conditions are met
+```
+hackathon -> work: share only memories tagged "portfolio" or "achievement"
+  (work persona knows about your hackathon wins for resume purposes,
+   but not your 3am rambling about a bug)
+```
+
+sharing is per-memory, not all-or-nothing. you can share "i won best hack" from hackathon -> work without sharing "i forgot to eat for 18 hours."
+
+### data model
+
+existing tables (already built):
+- `profiles` - identity perspective (name, display_name, email, context, shared_memory, is_default)
+- `profile_memory` - per-profile memory (key, value, category)
+- `global_memory` - shared memory across all profiles
+
+new columns on profile_memory:
+- `weight` FLOAT (0-1) - how core this is to the persona's identity
+- `hierarchy` FLOAT (0-1) - how much this drives the persona's behavior
+- `tags` TEXT[] - tags for conditional sharing (e.g. ["portfolio", "achievement"])
+- `source` TEXT - where this memory came from (transcript, user_input, inference, shared)
+- `confidence` FLOAT (0-1) - how confident we are this memory is accurate
+- `last_recalled` TIMESTAMPTZ - when was this memory last used (for decay)
+- `recall_count` INTEGER - how many times this memory was retrieved
+
+new table: persona_permissions
+- profile_id, source_type (calendar, inbox, discord, slack, luma, calendly, recall_ai), source_id, access_level (read, write, read_write)
+
+new table: persona_sharing
+- source_profile_id, target_profile_id, direction (one_way, bidirectional), condition_tags TEXT[], condition_category TEXT, active BOOLEAN
+
+new table: persona_config
+- profile_id, tone (professional, casual, curious, etc.), initiative_level (passive, active, proactive), question_style (direct, indirect, socratic), voice_id (for TTS), language_preference
+
+### memory indexing and retrieval
+
+when prixie processes a transcript or needs to recall something:
+
+1. **indexing**: new facts from a meeting are extracted and stored with:
+   - initial weight (based on how often it's mentioned / how central it seems)
+   - initial hierarchy (based on urgency and action-orientation)
+   - tags (for sharing rules)
+   - source meeting_id + profile_id
+
+2. **retrieval**: when prixie needs to recall something for a question:
+   - search by semantic similarity (mem0 vector search)
+   - boost by hierarchy (high-hierarchy memories surface first)
+   - filter by weight threshold (for identity-sensitive questions, only use high-weight memories)
+   - filter by permissions (only memories this persona has access to)
+   - decay: memories not recalled recently have slightly reduced hierarchy (not weight - identity doesn't decay)
+
+3. **decay rules**:
+   - weight (identity) does NOT decay - you don't stop being a developer because you haven't mentioned it
+   - hierarchy (behavior drive) decays slowly - "deadline friday" stops driving behavior after friday
+   - recall_count reinforces both axes - frequently used memories strengthen
+   - confidence adjusts with corroboration - if multiple sources confirm a fact, confidence goes up
+
+### persona in meetings
+
+when a persona joins a meeting:
+1. loads identity perspective (name, display name, tone)
+2. loads persona_config (how to behave, what voice to use, initiative level)
+3. loads contextual permissions (what sources to check for this meeting)
+4. loads relevant memory (filtered by hierarchy + permissions)
+5. loads pending questions / capture requests assigned to this persona
+6. joins the meeting as THIS persona, not as a generic agent
+
+during the meeting:
+7. new facts are indexed with the current persona's identity and permissions
+8. memories are recalled with weight/hierarchy boosting
+9. questions are asked in the persona's voice and style
+10. captured items are tagged with the persona's context for later retrieval
+
+after the meeting:
+11. transcript is processed and indexed into persona memory
+12. captured items are stored with persona tags
+13. sharing rules determine what (if anything) flows to other personas
+14. memory weights and hierarchies are adjusted based on what was discussed
+
+### implementation phases
+
+**0a. data model** (schema update)
+- add weight, hierarchy, tags, source, confidence, last_recalled, recall_count to profile_memory
+- create persona_permissions, persona_sharing, persona_config tables
+- update supabase_schema.sql
+
+**0b. memory engine**
+- build memory indexing service (extract facts from transcripts, assign weight/hierarchy)
+- build memory retrieval service (semantic search + hierarchy boost + weight filter)
+- build memory decay service (periodic hierarchy decay, recall reinforcement)
+- integrate with mem0 for vector storage and semantic search
+
+**0c. persona management API**
+- CRUD for persona_config (tone, initiative, question style, voice, language)
+- CRUD for persona_permissions (grant/revoke access to sources)
+- CRUD for persona_sharing (configure one-way, bidirectional, conditional sharing)
+- assign meetings to personas (meeting.profile_id already exists)
+
+**0d. visual GUI separator**
+- persona cards with identity, memory stats, access, pending questions
+- memory explorer (view all memories for a persona, sorted by weight or hierarchy)
+- permissions matrix (grid of personas x sources with toggle)
+- sharing configuration (visual flow diagram between persona cards)
+- drag-and-drop meeting assignment to personas
+- memory weight/hierarchy sliders for manual adjustment
+
+**0e. persona assignment on deploy**
+- when deploying to a meeting, select which persona attends
+- the deploy form shows available personas and their capabilities
+- each persona loads only its own memory, permissions, and config
+- the bot joins the meeting AS that persona
 
 ---
 
@@ -61,19 +318,24 @@ how prixie finds the meeting link from anywhere.
 - auto-creates meeting record with correct platform detection
 - supports multiple luma accounts (one per profile)
 
-### 1e. inbox monitoring (planned)
+### 1e. inbox monitoring (built)
 - monitor gmail for meeting links in emails
 - parse email body for zoom/google meet/teams/join links
 - match to calendar events or create standalone meeting records
+- auto-creates meeting records from discovered links
 
-### 1f. discord and slack live links (planned)
-- monitor discord channels and slack channels for meeting links
-- "call starting in #general: https://zoom.us/j/..." 
-- links sent live during an event period (hackathon, webinar, etc.)
+### 1f. discord and slack live links (built)
+- monitor discord channels via bot api for meeting links
+- monitor slack channels via bot api for meeting links
+- auto-creates meeting records (join_delay=0 for live links)
+- batch scan multiple channels
 
-### 1g. forum and community links (planned)
-- monitor community forums for event links
-- "join the call here: [link]" posts
+### 1g. forum and community links (built)
+- reddit: scan subreddit posts for meeting links
+- discourse: scan forum topics and posts
+- mlh.io: scan mlh hackathon season page
+- generic web pages: scan any url for meeting links
+- auto-creates meeting records from forum links
 
 ---
 
@@ -108,7 +370,7 @@ when prixie arrives after the meeting has already started:
 
 ---
 
-## phase 3: timezone awareness
+## phase 3: timezone awareness (built)
 
 prixie understands colloquial timezone references:
 - "3pm est" -> America/New_York
@@ -158,20 +420,51 @@ prixie speaks. prixie listens. prixie asks your questions out loud.
 8. captures the full q&a exchange
 9. turns mic back off
 
+### end of turn detection (built)
+the pacing problem: someone says "okay so basically to explain that..." then pauses while presenting their screen. prixie must NOT barge in.
+
+multi-signal detection:
+- silence threshold (3s normal, 8s if screen sharing)
+- filler word detection ("uhh", "umm", "let me" = still thinking)
+- screen share + cursor activity (active = setup, not done)
+- sentence completeness (no terminal punctuation = mid-thought)
+- transcript activity (still flowing = still talking)
+- speech rate drop (was fast then slowed = wrapping up)
+
+test result: screen share + filler + cursor activity = prixie stays quiet. correct.
+
+### interruption handling (built)
+- direct question asked -> stop immediately, yield
+- organizer speaking -> stop, yield to organizer
+- prixie at 90%+ speech -> finish the sentence
+- prixie at <30% speech -> restart later
+- mid-speech interruption -> pause, let them finish, resume
+
+### clarification fork with mem0 (built)
+- high confidence (0.85+) -> accept answer
+- keyword match + moderate confidence -> accept
+- short/vague answer -> ask follow-up
+- hedging language ("maybe", "i think") with low confidence -> ask to confirm
+- max 2 clarifications per question, then accept best answer
+- mem0 stores Q&A pairs for cross-turn context
+
 ### providers
 - speechmatics: STT for non-english/hinglish
 - speechify: TTS for natural voice output
 - assembly.ai: primary transcription
 - vapi: full conversational voice agent
+- mem0: persistent memory layer for context window management
 
 ---
 
 ## phase 6: transcript intelligence
 
-### hinglish transliteration
+### hinglish transliteration (built)
 - transcript keeps latin script for hinglish
 - no devanagari, phonetically written, italicized
-- approach: transcribe normally, detect devanagari, transliterate to latin, wrap in italics
+- devanagari to latin phonetic mapping with schwa deletion
+- 24/26 test words exact match
+- auto-processing in meeting manager transcript pipeline
 
 ### multi-speaker differentiation (working)
 - separate audio streams per participant
@@ -207,8 +500,16 @@ frontend config dashboard wired to real backend api:
 - all routes: dashboard, deploy form, meetings list, meeting detail, captures, about
 - real fetch calls to backend (no more mock data)
 - deploy form includes all platforms, auth modes, camera/mic toggles, profile selection
-- backend routes: meetings, capture, transcripts, deploy, profiles, stats, browserbase, luma, calendly
+- backend routes (14 total): meetings, capture, transcripts, deploy, profiles, stats, browserbase, luma, calendly, hinglish, inbox, live-links, forum, voice
 - to run: npm install + npm run dev (frontend), deno task dev (backend)
+
+### persona GUI (planned)
+- persona cards with identity, memory stats, access permissions, pending questions
+- memory explorer (view memories sorted by weight or hierarchy)
+- permissions matrix (personas x sources grid)
+- sharing flow diagram (one-way, bidirectional, conditional sharing between personas)
+- drag-and-drop meeting assignment to personas
+- memory weight/hierarchy sliders for manual adjustment
 
 ---
 
@@ -219,6 +520,7 @@ frontend config dashboard wired to real backend api:
 2. database (supabase) - cloud hosted, free tier works
 3. recall.ai - cloud hosted by recall.ai
 4. browserbase - cloud hosted for discord/bluejeans/ringcentral
+5. mem0 - self-hosted (open source) or cloud for persona memory
 
 ### your device does not need to be on
 if backend is in the cloud, prixie joins meetings whether your laptop is open or closed.
