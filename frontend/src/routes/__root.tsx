@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -7,8 +6,6 @@ import {
 import type { ReactNode } from 'react';
 import { SiteShell } from '../components/SiteShell';
 import appCss from '../styles.css?url';
-
-const queryClient = new QueryClient();
 
 export const Route = createRootRouteWithContext()({
   head: () => ({
@@ -45,9 +42,5 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <SiteShell />
-    </QueryClientProvider>
-  );
+  return <SiteShell />;
 }

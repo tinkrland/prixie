@@ -1,175 +1,131 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
-import type { Meeting, CapturedItem, QuickStats } from '../lib/types';
-import { fetchMeetings, fetchAllCaptures, fetchQuickStats } from '../lib/api';
+import { useState, useEffect } from 'react';
+import { listMeetings, getStats, checkBackendHealth } from '../lib/api';
+import type { Meeting, QuickStats } from '../lib/types';
 import { MeetingCard } from '../components/MeetingCard';
 import { CapturedItemCard } from '../components/CapturedItemCard';
+import { StatusBadge } from '../components/StatusBadge';
+import { useNavigate } from '@tanstack/react-router';
 
-export const Route = createFileRoute('/')({
-  component: DashboardPage
-});
-
-function DashboardPage() {
+export function DashboardPage() {
+  const navigate = useNavigate();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [captures, setCaptures] = useState<CapturedItem[]>([]);
-  const [stats, setStats] = useState<QuickStats>({
-    meetings_attended: 0,
-    items_captured: 0,
-    total_transcripts: 0
-  });
+  const [stats, setStats] = useState<QuickStats>({ meetings_attended: 0, items_captured: 0, total_transcripts: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [backendOnline, setBackendOnline] = useState(false);
 
   useEffect(() => {
-    async function loadData() {
+    async function load() {
       try {
-        const [mList, cList, qStats] = await Promise.all([
-          fetchMeetings(),
-          fetchAllCaptures(),
-          fetchQuickStats()
+        const health = await checkBackendHealth();
+        setBackendOnline(health.status !== 'offline');
+
+        const [meetingsData, statsData] = await Promise.all([
+          listMeetings(),
+          getStats().catch(() => ({ meetings_attended: 0, items_captured: 0, total_transcripts: 0 })),
         ]);
-        setMeetings(mList);
-        setCaptures(cList);
-        setStats(qStats);
-      } catch (err) {
-        console.error('Error loading dashboard data:', err);
+        setMeetings(meetingsData);
+        setStats(statsData);
+      } catch (err: any) {
+        setError(err?.message || 'failed to load. is the backend running?');
       } finally {
         setLoading(false);
       }
     }
-    loadData();
+    load();
   }, []);
 
-  // Upcoming meetings (scheduled, sorted by start_time ascending)
-  const upcomingMeetings = meetings
-    .filter((m) => m.status === 'scheduled' || m.status === 'joining' || m.status === 'in_meeting')
+  const upcoming = meetings
+    .filter(m => m.status === 'scheduled' || m.status === 'bot_joining' || m.status === 'bot_in_meeting')
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
-  // Recent captured items (last 4)
-  const recentCaptures = captures.slice(0, 4);
+  const recent = meetings
+    .filter(m => m.status === 'completed')
+    .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
+    .slice(0, 5);
+
+  const allCaptured = meetings
+    .flatMap(m => m.captured_items || [])
+    .slice(0, 8);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground font-mono">
+        loading...
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8 font-mono lowercase">
-      {/* Intro section */}
-      <div className="border border-primary bg-card p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-primary pb-4">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-              overview // personal dashboard
-            </span>
-            <h1 className="mt-1 text-xl sm:text-2xl font-black uppercase text-foreground">
-              prixie meeting control
-            </h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              your personal agent that joins meetings, checks in, captures data, and returns with full context.
-            </p>
-          </div>
+    <div className="space-y-8 max-w-5xl mx-auto">
+      {/* status bar */}
+      <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+        <span className={`inline-block w-2 h-2 rounded-full ${backendOnline ? 'bg-green-500' : 'bg-red-500'}`} />
+        backend: {backendOnline ? 'online' : 'offline'}
+        {error && <span className="text-red-500">— {error}</span>}
+      </div>
 
-          <Link
-            to="/deploy"
-            className="border-2 border-primary bg-primary px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-primary-foreground transition-transform hover:opacity-95 active:scale-95"
-          >
-            + deploy to new meeting
-          </Link>
+      {/* stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="border border-primary bg-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">meetings attended</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{stats.meetings_attended}</p>
         </div>
-
-        {/* Quick Stats Grid */}
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="border border-primary bg-background p-4 text-center sm:text-left">
-            <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-              meetings attended
-            </div>
-            <div className="mt-2 font-mono text-3xl font-black text-primary">
-              {loading ? '...' : stats.meetings_attended}
-            </div>
-            <div className="mt-1 text-[11px] text-muted-foreground">active & completed sessions</div>
-          </div>
-
-          <div className="border border-primary bg-background p-4 text-center sm:text-left">
-            <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-              items captured
-            </div>
-            <div className="mt-2 font-mono text-3xl font-black text-leaf">
-              {loading ? '...' : stats.items_captured}
-            </div>
-            <div className="mt-1 text-[11px] text-muted-foreground">codes, links & form responses</div>
-          </div>
-
-          <div className="border border-primary bg-background p-4 text-center sm:text-left">
-            <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-              total transcripts
-            </div>
-            <div className="mt-2 font-mono text-3xl font-black text-foreground">
-              {loading ? '...' : stats.total_transcripts}
-            </div>
-            <div className="mt-1 text-[11px] text-muted-foreground">diarized speaker statements</div>
-          </div>
+        <div className="border border-primary bg-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">items captured</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{stats.items_captured}</p>
+        </div>
+        <div className="border border-primary bg-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">transcripts</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{stats.total_transcripts}</p>
         </div>
       </div>
 
-      {/* Main Grid: Upcoming Meetings & Recent Captures */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Upcoming Meetings */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-primary pb-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-              upcoming & active meetings ({upcomingMeetings.length})
-            </h2>
-            <Link to="/meetings" className="text-xs text-primary underline">
-              all meetings →
-            </Link>
+      {/* quick deploy */}
+      <button
+        onClick={() => navigate({ to: '/deploy' })}
+        className="w-full border border-primary bg-primary text-primary-foreground p-3 text-sm font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors font-mono"
+      >
+        + deploy prixie to a meeting
+      </button>
+
+      {/* upcoming meetings */}
+      <section>
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3">upcoming</h2>
+        {upcoming.length === 0 ? (
+          <p className="text-sm text-muted-foreground font-mono">no upcoming meetings.</p>
+        ) : (
+          <div className="space-y-3">
+            {upcoming.map(m => (
+              <MeetingCard key={m.id} meeting={m} onClick={() => navigate({ to: '/meeting/$id', params: { id: m.id } })} />
+            ))}
           </div>
+        )}
+      </section>
 
-          {loading ? (
-            <div className="border border-primary p-6 text-center text-xs text-muted-foreground">
-              loading upcoming meetings...
-            </div>
-          ) : upcomingMeetings.length === 0 ? (
-            <div className="border border-primary bg-card p-6 text-center text-xs text-muted-foreground">
-              <p>no scheduled or active meetings right now.</p>
-              <Link
-                to="/deploy"
-                className="mt-3 inline-block border border-primary bg-primary px-3 py-1 font-bold text-primary-foreground"
-              >
-                deploy prixie now
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {upcomingMeetings.map((meeting) => (
-                <MeetingCard key={meeting.id} meeting={meeting} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Recent Captures */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-primary pb-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-              recent captured items ({recentCaptures.length})
-            </h2>
-            <Link to="/captures" className="text-xs text-primary underline">
-              all captures →
-            </Link>
+      {/* recent captures */}
+      {allCaptured.length > 0 && (
+        <section>
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3">recent captures</h2>
+          <div className="space-y-3">
+            {allCaptured.map(item => (
+              <CapturedItemCard key={item.id} item={item} />
+            ))}
           </div>
+        </section>
+      )}
 
-          {loading ? (
-            <div className="border border-primary p-6 text-center text-xs text-muted-foreground">
-              loading captured items...
-            </div>
-          ) : recentCaptures.length === 0 ? (
-            <div className="border border-primary bg-card p-6 text-center text-xs text-muted-foreground">
-              no captured items yet. configure capture requests when deploying prixie.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {recentCaptures.map((item) => (
-                <CapturedItemCard key={item.id} item={item} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* recent meetings */}
+      {recent.length > 0 && (
+        <section>
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3">recent meetings</h2>
+          <div className="space-y-3">
+            {recent.map(m => (
+              <MeetingCard key={m.id} meeting={m} onClick={() => navigate({ to: '/meeting/$id', params: { id: m.id } })} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
