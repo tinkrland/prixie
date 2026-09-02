@@ -608,3 +608,98 @@ why both:
 | custom WebRTC rooms | livekit SDK | SDK join | yes (assembly.ai or livekit) | yes | planned |
 
 all of these are browserbase-first (or SDK-first for call-e/livekit) since none have official "join as a bot" APIs like recall.ai provides for zoom/meet/teams. the capture pipeline (keyword detection, link grabbing, transcript with diarization) is shared across all platforms — only the join method changes.
+
+---
+
+## phase 7: proxy voice + behavior configuration (GUI)
+
+when deploying prixie to attend as a proxy, the user should be able to control how the agent sounds and behaves — not just what it captures. this is a GUI-first feature on the deploy form.
+
+### what the user controls
+
+| parameter | what it does | type | default |
+| --- | --- | --- | --- |
+| pitch | how high or low the agent's voice is | slider (0-1, maps to Hz range per TTS provider) | 0.5 (neutral) |
+| cadence | how fast or slow the agent speaks | slider (words per minute, 80-220) | 140 wpm |
+| prosody | the melodic pattern — flat/monotone vs expressive/varied | slider (0-1, 0 = monotone, 1 = highly expressive) | 0.4 |
+| tone | the emotional register — warm, formal, casual, curious, assertive, neutral | select (preset + custom) | neutral |
+
+these are not just TTS settings. they shape the agent's presence in the meeting. a proxy attending a client demo should sound different from a proxy attending a community hackathon kickoff.
+
+### where this lives in the GUI
+
+the deploy form gets a new section — "06 // proxy voice & behavior" — between the instruction field and the submit button:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  06 // PROXY VOICE & BEHAVIOR                              │
+│                                                            │
+│  VOICE PROFILE                                             │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  [persona preset ▼] or [custom]                    │  │
+│  │                                                      │  │
+│  │  pitch    ▕████████░░░░░░░░░░░░░░░░░░░░░░░░▏ 0.42   │  │
+│  │  cadence  ▕████████████░░░░░░░░░░░░░░░░░░░▏ 142wpm  │  │
+│  │  prosody  ▕██████░░░░░░░░░░░░░░░░░░░░░░░░▏ 0.30    │  │
+│  │  tone     [warm] [formal] [casual] [curious] ...     │  │
+│  │                                                      │  │
+│  │  [▶ preview voice]                                   │  │
+│  └────────────────────────────────────────────────────┘  │
+│                                                            │
+│  BEHAVIOR                                                  │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  initiative: ( ) passive  (•) moderate  ( ) proactive│  │
+│  │  question style: ( ) direct  (•) indirect  ( ) socratic│ │
+│  │  max questions per meeting: [3]                     │  │
+│  │  clarification depth: [2]                            │  │
+│  └────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────┘
+```
+
+### voice presets
+
+presets bundle pitch + cadence + prosody + tone into named profiles:
+
+| preset | pitch | cadence | prosody | tone | use case |
+| --- | --- | --- | --- | --- | --- |
+| default | 0.5 | 140 | 0.4 | neutral | general |
+| warm | 0.55 | 130 | 0.6 | warm | community, social |
+| professional | 0.45 | 150 | 0.2 | formal | client, enterprise |
+| casual | 0.5 | 160 | 0.7 | casual | internal, hackathon |
+| curious | 0.52 | 135 | 0.5 | curious | learning, discovery |
+| assertive | 0.48 | 160 | 0.3 | assertive | negotiation, sales |
+
+presets are starting points. the user can override any parameter after selecting one.
+
+### preview
+
+the "preview voice" button generates a short sample clip using the configured TTS provider (speechify/vapi) with the current pitch/cadence/prosody/tone settings. the user hears how prixie will sound before deploying.
+
+this requires the TTS integration (phase 5) to be at least partially wired. until then, the GUI can store the config and show a placeholder preview.
+
+### per-meeting vs per-persona
+
+voice config can be set at two levels:
+
+1. **per-persona** (default): saved to persona_config. every meeting this persona attends uses these settings unless overridden.
+2. **per-meeting override**: the deploy form can override the persona's voice config for a specific meeting. useful for edge cases (your work persona attending a casual team social).
+
+the deploy form shows the persona's saved config as defaults, with sliders pre-set. the user can adjust per-meeting without changing the persona's defaults.
+
+### implementation status
+
+- persona_config table: designed in roadmap (phase 0), NOT yet built in the database
+- voice agent service: built (end-of-turn, interruption, clarification) but does NOT use pitch/cadence/prosody/tone
+- TTS integration: NOT wired (speechify/vapi mentioned, no implementation)
+- GUI voice controls: NOT built (deploy form has no voice section)
+- frontend is NOT wired to real backend (uses mock data in localStorage)
+
+what's feasible now:
+- add pitch/cadence/prosody/tone columns to persona_config schema (trivial SQL)
+- add the GUI section to the deploy form (react, can build now with mock preview)
+- store config in the meeting record alongside profile_id
+
+what's not feasible yet:
+- actual TTS rendering with these parameters (needs speechify/vapi integration)
+- voice preview (needs TTS)
+- the agent actually sounding different in a meeting (needs the full phase 5 voice pipeline)
