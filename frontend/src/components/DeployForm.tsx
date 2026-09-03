@@ -14,6 +14,11 @@ import type {
   FistStartupPattern,
   FistTurnEntryPattern,
   ToneType,
+  LocalizationConfig,
+  UnitSystem,
+  WeekStart,
+  Weekday,
+  AudienceScope,
 } from '../lib/types';
 import { createMeeting, deployPrixie, listProfiles } from '../lib/api';
 import { CaptureRequestForm } from './CaptureRequestForm';
@@ -111,6 +116,14 @@ export function DeployForm() {
   const [professionalism, setProfessionalism] = useState(0.5);
   const [vocabulary, setVocabulary] = useState(0.5);
   const [showAdvancedFist, setShowAdvancedFist] = useState(false);
+  // localization
+  const [localizationEnabled, setLocalizationEnabled] = useState(false);
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
+  const [weekStart, setWeekStart] = useState<WeekStart>('monday');
+  const [nonWorkDays, setNonWorkDays] = useState<Weekday[]>(['sat', 'sun']);
+  const [audience, setAudience] = useState<AudienceScope>('local');
+  const [timezoneAwareness, setTimezoneAwareness] = useState(true);
+  const [translitLangs, setTranslitLangs] = useState<{ language: string; priority: number; usage: number }[]>([]);
 
   // behavior
   const [initiative, setInitiative] = useState<'passive' | 'moderate' | 'proactive'>('moderate');
@@ -134,6 +147,47 @@ export function DeployForm() {
     if (p.seriousness !== undefined) setSeriousness(p.seriousness);
     if (p.professionalism !== undefined) setProfessionalism(p.professionalism);
     if (p.vocabulary !== undefined) setVocabulary(p.vocabulary);
+  };
+
+  // localization helpers
+  const toggleNonWorkDay = (day: Weekday) => {
+    setNonWorkDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
+
+  const addTranslitLang = (lang: string) => {
+    if (!lang || translitLangs.some(l => l.language === lang)) return;
+    setTranslitLangs(prev => [...prev, { language: lang, priority: prev.length + 1, usage: 0.5 }]);
+  };
+
+  const removeTranslitLang = (lang: string) => {
+    setTranslitLangs(prev => prev.filter(l => l.language !== lang).map((l, i) => ({ ...l, priority: i + 1 })));
+  };
+
+  const moveTranslitLang = (lang: string, dir: -1 | 1) => {
+    setTranslitLangs(prev => {
+      const idx = prev.findIndex(l => l.language === lang);
+      const swapIdx = idx + dir;
+      if (idx < 0 || swapIdx < 0 || swapIdx >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      return next.map((l, i) => ({ ...l, priority: i + 1 }));
+    });
+  };
+
+  const setTranslitUsage = (lang: string, usage: number) => {
+    setTranslitLangs(prev => prev.map(l => l.language === lang ? { ...l, usage } : l));
+  };
+
+  const buildLocalization = (): LocalizationConfig | undefined => {
+    if (!localizationEnabled) return undefined;
+    return {
+      unit_system: unitSystem,
+      week_start: weekStart,
+      non_work_days: nonWorkDays,
+      audience,
+      timezone_awareness: timezoneAwareness,
+      transliteration: translitLangs,
+    };
   };
 
   const buildVoiceOverride = (): VoiceOverride | undefined => {
@@ -194,6 +248,7 @@ export function DeployForm() {
         instruction: instruction.trim(),
         profile_id: selectedProfileId || undefined,
         voice_override: buildVoiceOverride(),
+        localization: buildLocalization(),
       } as DeployConfig;
 
       const meeting = await createMeeting(config);
@@ -642,6 +697,117 @@ export function DeployForm() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* 08 localization */}
+      <section className="border border-primary/30 p-4 md:p-6 bg-card">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">08 // localization</span>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={localizationEnabled} onChange={e => setLocalizationEnabled(e.target.checked)} className="accent-primary w-4 h-4" />
+            <span className="text-xs text-muted-foreground">enable localization</span>
+          </label>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          optional. when enabled, prixie adapts to locale — units, week conventions, cultural references, participants' local time, and language mix. same meeting, different country, different manners. off by default.
+        </p>
+
+        {localizationEnabled && (
+          <div className="space-y-4">
+            {/* unit system */}
+            <div className="border border-primary/20 p-3 bg-background">
+              <label className={labelClass}>unit system</label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(['metric', 'imperial', 'us_customary'] as UnitSystem[]).map(u => (
+                  <button key={u} type="button" onClick={() => setUnitSystem(u)}
+                    className={`px-3 py-1.5 text-xs uppercase tracking-wide border ${unitSystem === u ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/30 text-foreground hover:border-primary'}`}>
+                    {u.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">km vs miles, kg vs lbs, celsius vs fahrenheit.</p>
+            </div>
+
+            {/* week conventions */}
+            <div className="border border-primary/20 p-3 bg-background">
+              <label className={labelClass}>week conventions</label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(['monday', 'sunday'] as WeekStart[]).map(w => (
+                  <button key={w} type="button" onClick={() => setWeekStart(w)}
+                    className={`px-3 py-1.5 text-xs uppercase tracking-wide border ${weekStart === w ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/30 text-foreground hover:border-primary'}`}>
+                    {w} start
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2 mb-1">non-work days (tick friday for countries where the weekend is fri–sat):</p>
+              <div className="flex flex-wrap gap-2">
+                {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as Weekday[]).map(d => (
+                  <label key={d} className="flex items-center gap-1 text-xs cursor-pointer border border-primary/30 px-2 py-1">
+                    <input type="checkbox" checked={nonWorkDays.includes(d)} onChange={() => toggleNonWorkDay(d)} className="accent-primary" />
+                    {d}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* audience */}
+            <div className="border border-primary/20 p-3 bg-background">
+              <label className={labelClass}>audience</label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(['local', 'mixed', 'international'] as AudienceScope[]).map(a => (
+                  <button key={a} type="button" onClick={() => setAudience(a)}
+                    className={`px-3 py-1.5 text-xs uppercase tracking-wide border ${audience === a ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/30 text-foreground hover:border-primary'}`}>
+                    {a}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                local = shared context, name the festival. international = generic references ("a national holiday") — someone abroad from germany won't know which festival it was.
+              </p>
+            </div>
+
+            {/* timezone / locational awareness */}
+            <div className="border border-primary/20 p-3 bg-background">
+              <label className="flex items-center justify-between">
+                <span className={labelClass}>timezone & locational awareness</span>
+                <input type="checkbox" checked={timezoneAwareness} onChange={e => setTimezoneAwareness(e.target.checked)} className="accent-primary w-4 h-4" />
+              </label>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                when on, prixie tracks participants' local time and norms. if it's 7pm thursday for them — in a country where friday isn't a work day — she won't ask for a deliverable "in the next few hours", even if it's monday 8am for you.
+              </p>
+            </div>
+
+            {/* transliteration / language mix */}
+            <div className="border border-primary/20 p-3 bg-background">
+              <label className={labelClass}>transliteration — language mix</label>
+              <p className="text-[10px] text-muted-foreground mt-1 mb-2">
+                select languages, then order them by priority (who wins conflicts) and slide how much each carries. hindi + english = hinglish.
+              </p>
+              <select onChange={e => { addTranslitLang(e.target.value); e.target.value = ''; }}
+                className="w-full border border-primary bg-background p-2 text-sm text-foreground mb-2"
+                defaultValue="">
+                <option value="" disabled>+ add a language</option>
+                {['english', 'hindi', 'spanish', 'french', 'german', 'portuguese', 'mandarin', 'arabic', 'russian', 'japanese', 'korean', 'turkish', 'bengali', 'tamil', 'telugu', 'urdu', 'marathi', 'gujarati', 'punjabi', 'dutch', 'italian', 'hebrew', 'indonesian', 'swahili'].filter(l => !translitLangs.some(t => t.language === l)).map(l => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+              {translitLangs.length === 0 && (
+                <p className="text-[10px] text-muted-foreground">no languages selected — prixie mirrors the caller's language.</p>
+              )}
+              {translitLangs.map((l, i) => (
+                <div key={l.language} className="flex items-center gap-2 border border-primary/20 px-2 py-1.5 mb-1.5">
+                  <span className="text-xs font-bold text-primary w-4">#{l.priority}</span>
+                  <span className="text-sm text-foreground flex-1">{l.language}</span>
+                  <button type="button" onClick={() => moveTranslitLang(l.language, -1)} disabled={i === 0} className="px-1.5 border border-primary/30 text-xs disabled:opacity-30">&uarr;</button>
+                  <button type="button" onClick={() => moveTranslitLang(l.language, 1)} disabled={i === translitLangs.length - 1} className="px-1.5 border border-primary/30 text-xs disabled:opacity-30">&darr;</button>
+                  <input type="range" min={0} max={1} step={0.05} value={l.usage} onChange={e => setTranslitUsage(l.language, Number(e.target.value))} className={sliderClass + ' w-24'} />
+                  <span className="text-[10px] text-muted-foreground w-8">{l.usage.toFixed(2)}</span>
+                  <button type="button" onClick={() => removeTranslitLang(l.language)} className="px-1.5 border border-primary/30 text-xs hover:border-destructive hover:text-destructive">&times;</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* submit */}

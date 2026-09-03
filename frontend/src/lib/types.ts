@@ -101,6 +101,29 @@ export interface Meeting {
   chat_messages?: ChatMessage[];
 }
 
+// localization — optional per-meeting locale & language config
+// off by default; when enabled prixie adapts units, week conventions,
+// cultural references, time awareness, and language mix
+export type UnitSystem = 'metric' | 'imperial' | 'us_customary';
+export type WeekStart = 'sunday' | 'monday';
+export type AudienceScope = 'local' | 'mixed' | 'international';
+export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
+export interface TransliterationLanguage {
+  language: string;    // e.g. 'hindi', 'english' — pair hindi + english for hinglish
+  priority: number;    // 1 = highest — which language wins when they conflict
+  usage: number;       // 0-1 — how much of the meeting this language should carry
+}
+
+export interface LocalizationConfig {
+  unit_system: UnitSystem;
+  week_start: WeekStart;
+  non_work_days: Weekday[];                     // e.g. ['sat','sun'], or ['fri','sat'] where friday isn't a work day
+  audience: AudienceScope;                      // local = shared cultural context, international = explain generically
+  timezone_awareness: boolean;                  // respect participants' local time, norms, work hours
+  transliteration: TransliterationLanguage[];  // priority-ordered language mix
+}
+
 export interface DeployConfig {
   join_url: string;
   platform: Platform;
@@ -122,6 +145,7 @@ export interface DeployConfig {
   instruction?: string;
   profile_id?: string;
   voice_override?: VoiceOverride;
+  localization?: LocalizationConfig;
 }
 
 export interface QuickStats {

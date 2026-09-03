@@ -60,6 +60,7 @@ export interface Meeting {
   breakout_room_mode?: BreakoutRoomMode | null;
   breakout_room_id?: string | null;
   voice_override?: VoiceOverride | null;  // per-meeting voice config override
+  localization?: LocalizationConfig | null;  // per-meeting locale & language config
   created_at?: string;
   updated_at?: string;
 }
@@ -82,6 +83,7 @@ export interface CreateMeetingInput {
   breakout_room_mode?: BreakoutRoomMode;
   breakout_room_id?: string;
   voice_override?: VoiceOverride;
+  localization?: LocalizationConfig;
 }
 
 export interface UpdateMeetingInput {
@@ -105,6 +107,7 @@ export interface UpdateMeetingInput {
   mic_off?: boolean;
   auth_mode?: AuthMode;
   voice_override?: VoiceOverride | null;
+  localization?: LocalizationConfig | null;
 }
 
 export interface CaptureRequest {
@@ -271,6 +274,27 @@ export type FistPausePattern = 'deliberate' | 'natural' | 'minimal' | 'none';
 export type FistStartupPattern = 'immediate' | 'brief_pause' | 'deliberate_opening';
 export type FistTurnEntryPattern = 'immediate' | 'beat' | 'filler' | 'deliberate';
 export type Tone = 'neutral' | 'warm' | 'formal' | 'casual' | 'curious' | 'assertive' | string;
+
+// localization config — per-meeting locale & language settings
+export type UnitSystem = "metric" | "imperial" | "us_customary";
+export type WeekStart = "sunday" | "monday";
+export type AudienceScope = "local" | "mixed" | "international";
+export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+export interface TransliterationLanguage {
+  language: string;      // e.g. 'hindi', 'english' — pair them for hinglish
+  priority: number;      // 1 = highest
+  usage: number;         // 0-1, how much of the meeting this language carries
+}
+
+export interface LocalizationConfig {
+  unit_system: UnitSystem;
+  week_start: WeekStart;
+  non_work_days: Weekday[];
+  audience: AudienceScope;        // local = shared cultural context, international = generic references
+  timezone_awareness: boolean;    // respect participants' local time & norms
+  transliteration: TransliterationLanguage[];
+}
 
 export interface VoiceConfig {
   fist_score: number;                    // 0-1, overall rhythmic signature quality
