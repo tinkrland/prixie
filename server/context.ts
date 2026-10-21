@@ -1,6 +1,6 @@
 // retelldb context service. what prixie knows before she speaks: the persona's
 // voice profile, the persona's memory, and the prepared questions for this meeting.
-// retelldb runs as its own service (retelldb serve, fastapi) or in-process; yap
+// retelldb runs as its own service (retelldb serve, fastapi) or in-process; voice
 // talks to it over http so the voice loop stays decoupled.
 
 const RETELLDB_URL = Deno.env.get("RETELLDB_URL") || "http://localhost:8000";

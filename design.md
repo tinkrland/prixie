@@ -1,4 +1,4 @@
-# yap design
+# voice design
 
 ## the loop
 
@@ -36,7 +36,7 @@ vendored in this branch at `retelldb/`, reoriented from docs to persona memory. 
 
 - **the persona's voice profile** via `GET /v1/profile/{persona_id}` (or `client.load_profile`): three layers, lingvist (languages, code-switching), lexica (slang, fillers, hedges), lingvica (register per medium, tone defaults, punctuation-as-tone). voice mode reads `register_for("voice")`.
 - **the persona's memory** via `POST /v1/query` with `persona_id`: facts, preferences, relationships, events, skills. tag-signal queries traverse the tag graph, vague ones fall back to vector similarity. her own graph plus the shared graph only: no cross-persona leakage, ever.
-- **prepared questions** stay in main's CaptureRequest table; yap queries them by meeting id and feeds them into the loop.
+- **prepared questions** stay in main's CaptureRequest table; voice queries them by meeting id and feeds them into the loop.
 
 memory files land in the right head automatically: the file's frontmatter `persona:` field wins over any caller argument, so an ingest mistake cannot put a memory in the wrong graph.
 
@@ -46,7 +46,7 @@ evals: `PYTHONPATH=. python3 evals/run_evals.py` covers tag traversal, vector fa
 
 ### mem0 (conversation memory)
 
-the oss js sdk surface yap builds against:
+the oss js sdk surface voice builds against:
 
 ```js
 import { Memory } from "mem0ai/oss";
@@ -65,7 +65,7 @@ const prior = await memory.search("pricing question", { userId: `prixie-meeting-
 ```
 
 - `infer` stays on (default): mem0 extracts the facts itself, resolves pronouns against earlier turns automatically. only the new turn gets sent, never the whole history.
-- scope key is the meeting: `userId: prixie-meeting-{id}` for in-call recall. past-call persona memory belongs to memorium on main, not to yap. yap owns only conversational recall so the two never fight.
+- scope key is the meeting: `userId: prixie-meeting-{id}` for in-call recall. past-call persona memory belongs to memorium on main, not to voice. voice owns only conversational recall so the two never fight.
 - `expirationDate` on in-call memories means a stale meeting's memory ages out on its own.
 
 ## open questions

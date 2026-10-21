@@ -3,7 +3,7 @@
 // mem0 is open source: github.com/mem0ai/mem0. this uses the oss js sdk
 // (mem0ai/oss): additive add() with infer on, search() before speaking.
 //
-// scope: yap owns only conversational recall. the conversationId IS the mem0
+// scope: voice owns only conversational recall. the conversationId IS the mem0
 // userId (callers pass `prixie-meeting-${meetingId}`). cross-call persona
 // memory belongs to memorium on main, so the two never fight.
 
