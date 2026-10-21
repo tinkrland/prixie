@@ -118,17 +118,21 @@ Deno.test("the matte rides the framing chain, and the projection sets her centre
   };
   const args = buildCompositeArgs(plan);
   const graph = args[args.indexOf("-filter_complex") + 1] as string;
-  const matteChain = graph.split(";").find((c) => c.startsWith("[2:v]")) ?? "";
-  assertEquals(matteChain.includes("scale=-1:449"), true, "the matte scales to the placed height");
-  assertEquals(matteChain.includes(`pad=1280:720:(ow-iw)*0.5:142`), true,
-    "the matte is padded exactly where the person is, at the projected centre");
+  const matteLink = graph.split(";").find((c) => c.startsWith("[2:v]")) ?? "";
+  assertEquals(matteLink, "[2:v]format=gray[matte]",
+    "the matte reaches the merge untouched: gray only, no scale, no pad. the framing happens once, on the merged layer, so the matte can never stop describing her (and a yuv negotiation on the matte's pad once put limited-range black, 16, into her alpha: a 6% ghost of her rendered backdrop on every plate)");
+  const mergedChain = graph.split(";").find((c) => c.includes("alphamerge")) ?? "";
+  assertEquals(mergedChain.includes("scale=-1:449"), true, "the merged layer scales to the placed height");
+  assertEquals(mergedChain.includes(`pad=1280:720:(ow-iw)*0.5:142`), true,
+    "the merged layer is padded where she is placed, at the projected centre");
   // an off-centre projection moves the person, and the matte moves with her
   const off = buildCompositeArgs({ ...plan, placement: { ...plan.placement, anchorX: 0.34 } });
   const offGraph = off[off.indexOf("-filter_complex") + 1] as string;
-  const offPerson = offGraph.split(";")[0];
-  assertEquals(offPerson.includes("(ow-iw)*0.34"), true, "her centre comes from the projection");
-  const offMatte = offGraph.split(";").find((c) => c.startsWith("[2:v]")) ?? "";
-  assertEquals(offMatte.includes("(ow-iw)*0.34"), true, "and the matte follows her");
+  // with the merge-first graph, her centre and her alpha live on the SAME
+  // chain: the projection moving her moves both, by construction
+  const offMerged = offGraph.split(";").find((c) => c.includes("alphamerge")) ?? "";
+  assertEquals(offMerged.includes("(ow-iw)*0.34"), true,
+    "her centre comes from the projection, and the matte follows her because they are one layer");
 });
 
 Deno.test("the matte rides the person's framing chain on a vertical, never the raw frame", () => {
@@ -141,15 +145,17 @@ Deno.test("the matte rides the person's framing chain on a vertical, never the r
   };
   const args = buildCompositeArgs(plan);
   const graph = args[args.indexOf("-filter_complex") + 1] as string;
-  const matteChain = graph.split(";").find((c) => c.startsWith("[2:v]")) ?? "";
-  assertEquals(matteChain.includes("scale=-1:1382"), true, "the matte scales to the placed height");
-  assertEquals(matteChain.includes("pad=1080:1920:(ow-iw)/2:269"), true,
-    "the matte is padded where the person is");
-  assertEquals(matteChain.includes("format=gray"), true, "the matte stays the alpha");
+  const matteLink = graph.split(";").find((c) => c.startsWith("[2:v]")) ?? "";
+  assertEquals(matteLink, "[2:v]format=gray[matte]", "the matte reaches the merge untouched");
+  const mergedChain = graph.split(";").find((c) => c.includes("alphamerge")) ?? "";
+  assertEquals(mergedChain.includes("scale=-1:1382"), true, "the merged layer scales to the placed height");
+  assertEquals(mergedChain.includes(`pad=1080:1920:(ow-iw)/2:269`), true,
+    "the merged layer is padded where the person is");
+  assertEquals(matteLink.includes("format=gray"), true, "the matte stays the alpha");
   // no placement: the matte follows the same fit-and-centre chain as the person
   const flat = buildCompositeArgs({ ...plan, placement: undefined });
   const flatGraph = flat[flat.indexOf("-filter_complex") + 1] as string;
-  const flatMatte = flatGraph.split(";").find((c) => c.startsWith("[2:v]")) ?? "";
+  const flatMatte = flatGraph.split(";").find((c) => c.includes("alphamerge")) ?? "";
   assertEquals(flatMatte.includes("force_original_aspect_ratio=decrease"), true,
     "without placement both layers fit the frame the same way");
 });

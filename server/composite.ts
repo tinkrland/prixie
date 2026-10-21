@@ -154,21 +154,40 @@ function plateInput(plate: string): string[] {
     : ["-stream_loop", "-1", "-i", plate];
 }
 
+// the person's colour, before any framing: rgba so alphamerge has an
+// alpha plane to overwrite, key and grade applied at the clip's own
+// pixels, where the key colour and the grade were measured.
+export function personColorFilters(plan: CompositePlan): string {
+  const filters = ["format=rgba"];
+  if (plan.key) {
+    filters.push(
+      `colorkey=${plan.key.color}:${plan.key.similarity}:${plan.key.blend}`,
+    );
+    if (plan.key.despill) filters.push("despill=type=green:mix=0.5:expand=0.4");
+  }
+  filters.push(...gradeFilters(plan.grade));
+  return filters.join(",");
+}
+
 export function buildCompositeArgs(plan: CompositePlan): string[] {
   const fps = plan.fps ?? 30;
   const args = ["-y", ...plateInput(plan.plate), "-i", plan.person];
   let personChain: string;
   if (plan.matte) {
     args.push("-i", plan.matte);
-    // the matte rides the person's framing chain exactly: same scale, same
-    // pad, same width cap. a matte stretched to the full frame stops
-    // describing her the moment a placement moves her, and alphamerge turns
-    // the disagreement into opaque black where it mattered least.
-    const matteChain = [...framingFilters(plan), "format=gray"].join(",");
+    // merge her alpha FIRST, at the clip's own resolution, then run ONE
+    // framing chain on the merged layer. the matte is the clip's own
+    // frame (matte.py writes it frame-for-frame at the clip's dims), so
+    // the merge happens before placement and the two can never disagree.
+    // framing the matte on its own chain was the bug: ffmpeg negotiated
+    // yuv for the matte's scale and pad, limited-range black (16) reached
+    // alphamerge as alpha 16/255, and her rendered backdrop ghosted
+    // through at ~6% over every plate. gray in, gray only to the merge:
+    // the matte IS the alpha channel, full range, lossless, end to end.
     personChain =
-      `[1:v]${personLayerFilters(plan)}[person];` +
-      `[2:v]${matteChain}[matte];` +
-      `[person][matte]alphamerge[fg]`;
+      `[1:v]${personColorFilters(plan)}[person];` +
+      `[2:v]format=gray[matte];` +
+      `[person][matte]alphamerge,${[...framingFilters(plan), "format=rgba"].join(",")}[fg]`;
   } else {
     personChain = `[1:v]${personLayerFilters(plan)}[fg]`;
   }
