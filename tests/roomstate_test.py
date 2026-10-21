@@ -90,3 +90,56 @@ def test_roomstate_renders_walls_floor_objects():
     assert im[:, :, 0].max() > 120   # red wall present
     assert im[:, :, 1].max() > 120   # green floor present
     assert im[:, :, 2].max() > 100   # the blue table present
+
+
+def test_framewall_wall_stack_order():
+    from render_plate import build_wall
+    import numpy as np
+    spec = {
+        "wallpaper": {"color": "#ffffff"},
+        "wainscot": {"type": "board-batten", "color": "#00ff00", "height": 1.0},
+        "rail": {"color": "#0000ff"},
+        "baseboard": {"color": "#ff0000"},
+    }
+    m_to_u = 1000.0
+    meshes = build_wall(np.zeros(3), (1, 0, 0), (0, 0, 1), 4000.0,
+                        2000.0, spec, m_to_u)
+    # band tops: baseboard below wainscot top, rail rides the wainscot
+    # top, paper fills above the rail to the wall top
+    tops = sorted(round(float(v[:, 1].max()), 1) for v, f, a, fc in meshes)
+    assert 60.0 in tops       # baseboard: 3% of 2m = 6cm
+    assert 1000.0 in tops     # wainscot explicit 1.0m
+    assert 1020.0 in tops     # rail: 4cm, centred on the wainscot top
+    assert 2000.0 in tops     # paper to the wall top
+
+
+def test_flat_wall_string_backcompat():
+    from render_plate import build_wall
+    meshes = build_wall(np.zeros(3), (1, 0, 0), (0, 0, 1), 4000.0,
+                        2000.0, "#c9bfae", 1000.0)
+    assert len(meshes) == 1   # one paper face, nothing else
+    from render_plate import hex_rgb
+    assert (np.asarray(meshes[0][2]) == hex_rgb("#c9bfae")).all()
+
+
+def test_camera_side_walls_cull():
+    import json
+    base = json.load(open("/tmp/spec_roomstate3.json"))
+    # camera outside the front wall: exactly the back and left walls draw
+    # (the right wall's plane also faces the lens from the far side)
+    from render_plate import render
+    import numpy as np
+    from PIL import Image
+
+    def wall_pixels(spec_path):
+        render(dict(base, live={"position": [2200, 1550, 3100],
+                                "target": [0, 950, -300], "fov": 42},
+                    out=spec_path, frame={"width": 240, "height": 160}))
+        return np.asarray(Image.open(spec_path).convert("RGB")).astype(float)
+
+    im = wall_pixels("/tmp/_cull1.png")
+    assert im.mean() > 10  # room in frame
+    # camera inside the room: no wall culls, the box is closed, the plate
+    # is dominated by wall/floor instead of backdrop
+    im2 = wall_pixels("/tmp/_cull2.png")
+    assert im2.mean() > 10

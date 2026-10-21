@@ -281,6 +281,113 @@ def _euler_xyz(rx, ry, rz):
     return Rx @ Ry @ Rz
 
 
+def oriented_box(origin, along, outward, length, y0, y1, depth, color):
+    """a slab standing on a wall: spans `length` along the wall, y0..y1
+    high, and `depth` into the room along `outward`. a wall layer with a
+    depth of a few cm catches the key light and reads as trim; a zero
+    depth layer is just the wall face."""
+    o = np.asarray(origin, dtype=float)
+    a = np.asarray(along, dtype=float)
+    w = np.asarray(outward, dtype=float)
+    corners = []
+    for u in (0.0, length):
+        for y in (y0, y1):
+            for d in (0.0, depth):
+                corners.append(o + a * u + np.array([0.0, y, 0.0]) + w * d)
+    v = np.array(corners, dtype=float)
+    quads = [(0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (0, 4, 6, 2), (1, 3, 7, 5)]
+    f = []
+    for a2, b, c, d2 in quads:
+        f.append([a2, b, c])
+        f.append([a2, c, d2])
+    return v, np.array(f, dtype=int), color, None
+
+
+def wainscot_meshes(origin, along, outward, length, y0, y1, spec, m_to_u):
+    origin = np.asarray(origin, dtype=float)
+    along = np.asarray(along, dtype=float)
+    outward = np.asarray(outward, dtype=float)
+    """a wainscot panel: beadboard strips, board-and-batten battens,
+    raised panels, or a plain face. framewall renders these as css on a
+    flat wall; here they are shallow geometry so the key light does the
+    work."""
+    out = []
+    color = hex_rgb(spec.get("color", "#c9b89a"))
+    kind = spec.get("type", "plain")
+    h = y1 - y0
+    out.append(oriented_box(origin, along, outward, length, y0, y1, 0.001, color))
+    if kind == "beadboard":
+        step, w = 0.075 * m_to_u, 0.028 * m_to_u
+        x = w
+        while x < length - w:
+            out.append(oriented_box(origin + along * x, along, outward, w,
+                                    y0 + 0.01 * m_to_u, y1 - 0.01 * m_to_u,
+                                    0.012 * m_to_u, color))
+            x += step
+    elif kind == "board-batten":
+        step, w = 0.45 * m_to_u, 0.07 * m_to_u
+        x = step * 0.5
+        while x < length - w * 0.5:
+            out.append(oriented_box(origin + along * x, along, outward, w,
+                                    y0, y1, 0.022 * m_to_u,
+                                    hex_rgb(spec.get("battenColor", spec.get("color", "#c9b89a")))))
+            x += step
+    elif kind == "raised-panel":
+        panels = max(2, int(length / (0.9 * m_to_u)))
+        gap = length / panels
+        for i in range(panels):
+            px = i * gap + gap * 0.12
+            out.append(oriented_box(origin + along * px, along, outward, gap * 0.76,
+                                    y0 + h * 0.10, y1 - h * 0.10, 0.016 * m_to_u,
+                                    hex_rgb(spec.get("panelColor", spec.get("color", "#c9b89a")))))
+    elif kind == "wood-plank":
+        rows = max(2, int(h / (0.16 * m_to_u)))
+        rh = h / rows
+        for i in range(rows):
+            out.append(oriented_box(origin, along, outward, length,
+                                    y0 + i * rh + 0.004 * m_to_u,
+                                    y0 + (i + 1) * rh - 0.004 * m_to_u,
+                                    0.010 * m_to_u, color))
+    return out
+
+
+def build_wall(origin, along, outward, length, wall_h, wall_spec, m_to_u):
+    origin = np.asarray(origin, dtype=float)
+    along = np.asarray(along, dtype=float)
+    outward = np.asarray(outward, dtype=float)
+    """framewall's wall, as a vertical stack: baseboard, wainscot, rail,
+    wallpaper. layer heights and order come from the app (baseboard sits
+    on the floor, the rail rides the wainscot top, paper fills above);
+    the app's 33%-of-the-wall dado ratio is kept as the default wainscot
+    top, with an explicit height overriding it."""
+    if isinstance(wall_spec, str):
+        wall_spec = {"wallpaper": {"color": wall_spec}}
+    base = wall_spec.get("baseboard", {}) or {}
+    wain = wall_spec.get("wainscot", {}) or {}
+    rail = wall_spec.get("rail", {}) or {}
+    paper = wall_spec.get("wallpaper", {}) or {}
+    out = []
+
+    # framewall's ratios, relative to wall height: baseboard 3%, rail 2%,
+    # wainscot top at 32%. an explicit per-layer height (meters) overrides.
+    h = wall_h / m_to_u
+    bh = float(base.get("height", 0.03 * h)) * m_to_u
+    if base.get("color"):
+        out.append(oriented_box(origin, along, outward, length, 0.0, bh,
+                                0.028 * m_to_u, hex_rgb(base["color"])))
+    ws_top = float(wain.get("height", 0.32 * h)) * m_to_u
+    if wain.get("color") or wain.get("type"):
+        out += wainscot_meshes(origin, along, outward, length, bh, ws_top, wain, m_to_u)
+    rh = float(rail.get("height", 0.02 * h)) * m_to_u
+    if rail.get("color"):
+        out.append(oriented_box(origin, along, outward, length, ws_top - rh / 2,
+                                ws_top + rh / 2, 0.036 * m_to_u, hex_rgb(rail["color"])))
+    paper_c = paper.get("color", wall_spec.get("color", "#e8e2d9"))
+    out.append(oriented_box(origin, along, outward, length, ws_top + rh / 2, wall_h,
+                            0.001, hex_rgb(paper_c)))
+    return out
+
+
 def load_kit_prop(path, colors=None):
     """a kit model: meshes in scene-graph order, one material slot each.
     colors[i] (hex string) paints slot i, falling back to room-main's
@@ -431,22 +538,37 @@ def render(spec):
     if rs:
         sx, sz = float(rs["size"]["x"]), float(rs["size"]["z"])
         m_to_u = 1000.0 * scene_scale
-        wall_c = hex_rgb(rs.get("wallColor", "#f1f1f1"))
+        wall_h = float(rs.get("wallHeight", 2.0)) * m_to_u
         floor_c = hex_rgb(rs.get("floorColor", "#a1a1a1"))
-        half_x, half_z, h = sx / 2 * m_to_u, sz / 2 * m_to_u, 2.0 * m_to_u
-        # floor, back wall (z-, faces +z), left wall (x-, faces +x)
+        half_x, half_z = sx / 2 * m_to_u, sz / 2 * m_to_u
         meshes.append((np.array([[-half_x, 0, -half_z], [half_x, 0, -half_z],
                                   [half_x, 0, half_z], [-half_x, 0, half_z]]),
                        np.array([[0, 2, 1], [0, 3, 2]]), "lit",
                        np.tile(floor_c, (2, 1))))
-        meshes.append((np.array([[-half_x, 0, -half_z], [half_x, 0, -half_z],
-                                  [half_x, h, -half_z], [-half_x, h, -half_z]]),
-                       np.array([[0, 2, 1], [0, 3, 2]]), "lit",
-                       np.tile(wall_c, (2, 1))))
-        meshes.append((np.array([[-half_x, 0, -half_z], [-half_x, 0, half_z],
-                                  [-half_x, h, half_z], [-half_x, h, -half_z]]),
-                       np.array([[0, 2, 1], [0, 3, 2]]), "lit",
-                       np.tile(wall_c, (2, 1))))
+        # all four walls, each a framewall composition (back-compat: a
+        # flat wallColor, or a per-wall string). the camera decides which
+        # walls render: a wall the lens stands outside of is the wall
+        # that would be cut off, so it is never drawn and can never be in
+        # view. camera inside the room: all four walls draw.
+        cam_pos = np.array(spec["live"]["position"], dtype=float) * scene_scale
+        default_wall = rs.get("wallColor", "#f1f1f1")
+        walls = rs.get("walls", {})
+        for name, (origin, along, inside, length) in {
+            "back":  ((-half_x, 0, -half_z), (1, 0, 0), (0, 0, 1), 2 * half_x),
+            "left":  ((-half_x, 0, -half_z), (0, 0, 1), (1, 0, 0), 2 * half_z),
+            "right": ((half_x, 0, half_z), (0, 0, -1), (-1, 0, 0), 2 * half_z),
+            "front": ((half_x, 0, half_z), (-1, 0, 0), (0, 0, -1), 2 * half_x),
+        }.items():
+            origin, along, inside = (np.array(origin, dtype=float),
+                                     np.array(along, dtype=float),
+                                     np.array(inside, dtype=float))
+            center = origin + along * (length / 2) + np.array([0, wall_h / 2, 0])
+            if np.dot(cam_pos - center, inside) <= 0:
+                continue  # the lens is outside this wall: cut off, never in view
+            spec_w = walls.get(name, default_wall)
+            for v, f, alb, fc in build_wall(origin, along, inside, length,
+                                            wall_h, spec_w, m_to_u):
+                meshes.append((v, f, alb, fc))
         for obj in rs.get("objects", []):
             kind = obj["kind"]
             placement = obj.get("placement", "floor")
