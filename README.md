@@ -74,15 +74,15 @@ all platforms share the same flow: open the meeting url in the headless browser,
 | `backend/src/routes/` | meetings, capture, transcripts, deploy, profiles, stats |
 | `backend/src/routes/webhooks/` | realtime capture events, google calendar |
 | `backend/src/scheduler/` | meeting manager cron (deploys bots, retrieves transcripts) |
-| `backend/src/services/` | bot_provider.ts, browserbase_provider.ts, browserbase.ts, supabase.ts, calendar.ts |
+| `backend/src/services/` | bot_provider.ts, browserbase_provider.ts, browserbase.ts, supabase.ts, calendar.ts, calendar_sync.ts (one adapter per source: google, microsoft/outlook, apple/caldav, notion, cal.com, zcal) |
 | `backend/supabase_schema.sql` | run this in supabase to create all tables |
 | `frontend/` | react + tanstack router + tailwind v4 |
 | `frontend/src/routes/` | dashboard, deploy form, meetings list, meeting detail, captures, about |
 | `frontend/src/components/` | deploy form, meeting card, transcript view, captured item card, capture request form, status badge, site shell |
 | `frontend/src/lib/` | api.ts (fetch calls to backend), types.ts |
-| `yap/` | docs site content: about, features, behind the scenes, technobabble, problem |
+| `yap/` | docs site content: about, features, behind the scenes, technobabble, problem (the folder name predates the voice branch rename) |
 | `website/` | the prixy web app |
-| `memorium.md` | the memory design: weighted, hierarchical, per-persona |
+| the `context` branch | memorium.md (the memory design), retelldb/, persona/: the context lives on its own branch, not in this tree |
 | `roadmap.md` | the current state of every branch + the proxy-era phase history |
 
 ## dependencies and hosting
