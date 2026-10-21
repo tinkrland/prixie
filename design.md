@@ -55,7 +55,7 @@ masky avatars can delegate chat-mode thinking to an external agent over nostr (P
 
 1. ~~api key + docs land, fill in the client~~ done: server/masky.ts is wired and smoke-tested live (oct 21: image -> avatar -> conversation -> speak turn -> 6.04s h264 clip in ~20s, ~$0.16 total)
 2. the prixie avatar exists (avatarId UgVXv5xGRjd4YVLePtl8, voice: alice bennett); per-persona faces via ensurePersonaAvatar
-3. camera track publishing into a livekit room (voice seam)
+3. ~~camera track publishing into a livekit room~~ done (the owner, oct 21 2026): server/lk_publisher.ts. ffmpeg -re demuxes the render (rgba frames + 48k mono s16), the room publishes them as her camera and audio tracks at native speed. rtc-node loads lazily behind LkRtc; geometry comes from ffprobe, never a default. unpublishAudio is the camera-off handoff leg; publishFaceOff stays with yap, one voice two rooms
 4. agent binding for prixie-as-brain once the voice side decides on nostr
 
 ## cantina.com: no api, so talk to them

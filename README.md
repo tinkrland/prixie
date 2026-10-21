@@ -6,7 +6,7 @@ the proskena-derived pieces live in studioify/ (the plate builder that speaks pr
 
 why decoupled: the join engine (main) and the voice (voice) do not care what she looks like. video only matters where the platform renders a face, and it plugs in at the camera stream level once the other layers are solid.
 
-status: wired. server/masky.ts talks to the real api (https://masky.ai/masky-api.md) and the full flow is smoke-tested live: portrait image -> prixie avatar -> conversation -> speak turn -> lip-synced 6s h264 clip, ~20s end to end, ~$0.16 in credits.
+status: wired. server/masky.ts talks to the real api (https://masky.ai/masky-api.md) and the full flow is smoke-tested live: portrait image -> prixie avatar -> conversation -> speak turn -> lip-synced 6s h264 clip, ~20s end to end, ~$0.16 in credits. camera publishing is wired too (server/lk_publisher.ts, the owner oct 21 2026): the render demuxes with ffmpeg -re (native-rate pacing, the pipe IS the clock) and publishes into the livekit room as her camera and audio tracks; rtc-node loads lazily, geometry from ffprobe, publishFaceOff stays with yap.
 
 ## flow: one voice, two rooms
 
