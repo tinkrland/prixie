@@ -64,6 +64,7 @@ all platforms share the same flow: open the meeting url in the headless browser,
 | breakout room support | planned | browser automation of the zoom room invite popup (recall.ai used to handle this) |
 | capture requests | working | keywords, links, codes, questions, with context |
 | owner notify | working | a capture matched mid-meeting pushes to the owner instantly (agentmail email), because a code whose redemption window is the meeting itself is useless in a post-meeting recap. more channels plug into the same notifyOwner call |
+| scarcity + self-redeem | working | she hears "first come first serve" / "first 50 people" spoken in the call, and a redeem-enabled capture request (redeem: true) makes her open the dropped link in her own session, fill the owner's email/name, and submit before the meeting ends. the receipt (before/after screenshots) is emailed either way. attendance_method "form" enters attendance forms the same way. migrations/20261021_capture_redeem.sql must be applied to supabase |
 | term detector | working | a keyword-less capture request fires when an utterance carries code shape or a figure (tech words, proper nouns, math, codes). shape, not meaning, ranked candidates, never conclusions |
 | prepared questions | planned | ask your questions out loud during q&a (needs voice feature) |
 | profile / persona system | designed | sandboxed identities, per profile memory, shared global memory |

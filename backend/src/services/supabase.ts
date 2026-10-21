@@ -224,6 +224,7 @@ export async function createCaptureRequest(input: CreateCaptureRequestInput): Pr
         question: input.question || null,
         screenshot_enabled: input.screenshot_enabled ?? false,
         check_chat: input.check_chat ?? true,
+        redeem: input.redeem ?? false,
         status: "pending",
       },
     ])

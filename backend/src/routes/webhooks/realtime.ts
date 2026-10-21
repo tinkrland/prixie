@@ -8,6 +8,13 @@ import { captureScreenshot } from "../../services/screenshots.ts";
 import { registerDefaultScreenshotEngines } from "../../services/screenshot_engines.ts";
 import { detectTerms } from "../../services/term_detector.ts";
 import { notifyCaptureMatch } from "../../services/notify.ts";
+import { detectScarcity } from "../../services/scarcity.ts";
+import { redeemAndNotify } from "../../services/form_entry.ts";
+
+// scarcity she has heard per meeting (the announcement usually precedes
+// the link by minutes). in-memory by design: it is live-call urgency,
+// not durable truth. supabase keeps the capture.
+const scarcityHeard = new Map<string, string>();
 
 registerDefaultScreenshotEngines();
 
@@ -67,6 +74,18 @@ realtimeWebhook.post("/", async (c) => {
           const matches = questionWords.filter((qw) => lowerText.includes(qw));
           if (matches.length >= Math.min(2, questionWords.length)) {
             matched = true;
+          }
+        }
+
+        // "this code is first come first serve" spoken in the call is the
+        // trigger to escalate from notify to act
+        if (req.redeem) {
+          const scarcity = detectScarcity(text);
+          if (scarcity.scarce) {
+            scarcityHeard.set(meeting.id, `${speaker}: ${text}`);
+            console.log(
+              `prixie: scarcity heard in ${meeting.id}: ${scarcity.matched.join(", ")}`,
+            );
           }
         }
 
@@ -139,15 +158,29 @@ realtimeWebhook.post("/", async (c) => {
               : chatSnippet,
           });
 
-          // same instant push for chat: forms and links dropped mid-call
-          // often close when the call does
-          await notifyCaptureMatch({
-            meetingTitle: meeting.title,
-            captureTitle: req.title,
-            snippet: chatSnippet,
-            link: links[0],
-            capturedAt: new Date(),
-          }).catch(() => false);
+          // a redeem-enabled request is the fcfs case: she enters the
+          // owner's email herself in her own session (never the meeting
+          // session) and pushes the receipt. fire-and-forget: the capture
+          // in supabase is the record of truth.
+          if (req.redeem && links.length > 0) {
+            redeemAndNotify(links[0], {
+              meetingTitle: meeting.title,
+              captureTitle: req.title,
+              scarce: scarcityHeard.get(meeting.id),
+            }).catch((err: any) =>
+              console.warn(`prixie: redeem attempt failed: ${err.message}`)
+            );
+          } else {
+            // same instant push for chat: forms and links dropped mid-call
+            // often close when the call does
+            await notifyCaptureMatch({
+              meetingTitle: meeting.title,
+              captureTitle: req.title,
+              snippet: chatSnippet,
+              link: links[0],
+              capturedAt: new Date(),
+            }).catch(() => false);
+          }
         }
       }
     }

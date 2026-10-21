@@ -164,6 +164,7 @@ export interface CaptureRequest {
   captured_screenshot_url?: string | null;
   screenshot_enabled: boolean;
   check_chat: boolean;
+  redeem?: boolean | null;
   status: CaptureStatus;
   created_at?: string;
   updated_at?: string;
@@ -178,6 +179,7 @@ export interface CreateCaptureRequestInput {
   question?: string;
   screenshot_enabled?: boolean;
   check_chat?: boolean;
+  redeem?: boolean;
 }
 
 export interface UpdateCaptureRequestInput {

@@ -13,6 +13,7 @@ import { searchForKeywords } from "../services/browserbase_transcript.ts";
 import { processTranscript, containsDevanagari, hinglishStats } from "../services/hinglish.ts";
 import { calendarService } from "../services/calendar.ts";
 import { shouldJoinNow } from "./join_trigger.ts";
+import { enterForm, getOwnerIdentity } from "../services/form_entry.ts";
 
 // every platform goes through the same provider. no per-platform forks anymore.
 const provider = botProvider;
@@ -127,6 +128,7 @@ export class MeetingManager {
           }
 
           await this.maybeSendAttendanceMessage(meeting);
+          await this.maybeEnterAttendanceForm(meeting);
         }
 
         // session over, or meeting end time passed by a healthy margin
@@ -141,6 +143,43 @@ export class MeetingManager {
       } catch (err: any) {
         console.warn(`prixie scheduler: error checking status for ${meeting.bot_id}:`, err);
       }
+    }
+  }
+
+  // attendance does not have to be a chat message: sometimes it is
+  // entering an email into a form. she opens the form in her own session,
+  // fills the owner's identity, submits, and keeps the screenshot receipt.
+  private async maybeEnterAttendanceForm(meeting: any) {
+    if (meeting.attendance_method !== "form" || meeting.attendance_messages_sent) return;
+    if (!meeting.attendance_form_url) {
+      console.warn(`prixie: form attendance for ${meeting.id} but no attendance_form_url`);
+      return;
+    }
+
+    try {
+      const identity = getOwnerIdentity();
+      if (!identity) {
+        console.warn("prixie: form attendance skipped, no PRIXIE_OWNER_EMAIL");
+        return;
+      }
+
+      const receipt = await enterForm(meeting.attendance_form_url, identity);
+      const detail = receipt.submitted
+        ? `form submitted: ${receipt.detail}`
+        : `form entry failed: ${receipt.detail}`;
+
+      await createAttendanceMessage({
+        meeting_id: meeting.id,
+        message_text: `form entry attempt for ${meeting.attendance_form_url}. ${detail}`,
+        trigger: "on_join",
+        sent_status: receipt.submitted ? "sent" : "failed",
+        sent_at: new Date().toISOString(),
+      });
+      if (receipt.submitted) {
+        await updateMeeting(meeting.id, { attendance_messages_sent: true });
+      }
+    } catch (err: any) {
+      console.error(`prixie: attendance form entry failed in meeting ${meeting.id}`, err);
     }
   }
 
