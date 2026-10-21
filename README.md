@@ -8,14 +8,15 @@ she is not a tool you open. she is someone who exists online, and you delegate t
 
 | branch | surface | what |
 | --- | --- | --- |
-| `main` | the proxy + the context | she joins meetings for you: hono + supabase backend, dashboard, browserbase join engine. this readme covers this branch. main also owns the persona context: `retelldb/` (the memory graphs) and `persona/` (the voice adapter bridge), synced into every surface branch by `tools/sync-context.sh` |
-| `voice` | her voice (renamed from yap) | livekit in the already joined call, no second participant: she speaks into the call she is already in. end-of-turn detection, interruption handling (assembly.ai), retelldb persona memory as the knowledge source, and the obs + twitch bridge (ours, not masky's) |
-| `video` | her face and room | masky renders voice + lip-sync as one turn, proskena authors the set (the proskena-derived pieces live in `studioify/`), rembg + ffmpeg composite her over the plate, camera angle and light adjust from the proskena level; a camera-off handoff never cuts a sentence |
-| `video` | her face and room | masky renders voice + lip-sync as one turn, proskena authors the set, rembg + ffmpeg composite her over the plate, our own obs-websocket bridge runs obs and streams to twitch. camera angle and light adjust from the proskena level; a camera-off handoff never cuts a sentence |
+| `main` | the proxy | she joins meetings for you: hono + supabase backend, dashboard, browserbase join engine. meeting link sources: google calendar, microsoft calendar (graph), apple calendar (caldav), notion, cal.com (v2 bookings api), zcal (bookings arrive via the host calendar and confirmation mail; no public api to pull). this readme covers this branch |
+| `context` | her head | the persona context, and nothing else: `retelldb/` (the memory graphs), `persona/` (the voice adapter bridge, the one profile -> delivery cues mapping), `memorium.md` (the design). surface branches pull byte-identical copies with `sh tools/sync-context.sh` |
+| `voice` | her voice | livekit in the already joined call, no second participant: she speaks into the call she is already in. end-of-turn detection, interruption handling (assembly.ai), retelldb persona memory as the knowledge source, and the obs + twitch bridge (ours, not masky's) |
+| `video` | her face and room | masky renders voice + lip-sync as one turn, proskena authors the set (the proskena-derived pieces live in `studioify/`), rembg + ffmpeg composite her over the plate, `integrations/` holds the stream targets (twitch, kick) on our obs-websocket bridge. camera angle and light adjust from the proskena level; a camera-off handoff never cuts a sentence |
 | `socmed` | her feed | the same pipeline sized for instagram 4:5, reels and tiktok 9:16 with the 14 percent ui bands, pinterest 2:3, square 1:1. it renders, it does not publish |
+| `recap` | the after | you missed the session; there is a recording (an unlisted youtube link, a private stream vod). she watches it, finds what you asked for, and brings it back: fetch, transcribe, ingest, answer |
 | `website/` | her site | the prixy web app (on main) |
 
-her memory is the same across every surface: retelldb personas (what she knows, how she says it) with memorium.md as the design for the weighted, hierarchical whole. main is the context branch: `retelldb/` and `persona/` live here and only here; the surface branches carry byte-identical synced copies (`sh tools/sync-context.sh` from the surface branch), so her voice and her memories can never drift between video and voice.
+her memory is the same across every surface: retelldb personas (what she knows, how she says it) with memorium.md as the design for the weighted, hierarchical whole. the context branch owns the context and nothing else; the surface branches carry byte-identical synced copies (`sh tools/sync-context.sh` from the surface branch), so her voice and her memories can never drift between video and voice.
 
 ## why the proxy is different
 

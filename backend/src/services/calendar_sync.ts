@@ -1,6 +1,12 @@
 // multi calendar sync service
-// supports google calendar, microsoft outlook, notion calendar, apple calendar
-// each calendar source has its own adapter but they all produce the same MeetingCandidate format
+// one adapter per source, all producing the same MeetingCandidate:
+//   pull sources:  google calendar, microsoft calendar (outlook/graph),
+//                  notion calendar, apple calendar (caldav), cal.com (booking api)
+//   pushed source: zcal (no public api: its bookings land in the host's own
+//                  calendar and send confirmation mail; the webhook/inbox
+//                  route parses them)
+// the shape an adapter must produce is MeetingCandidate; adding a source means
+// adding one function and one config key in syncAllCalendars, nothing else.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -9,7 +15,15 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-export type CalendarSource = "google" | "outlook" | "notion" | "apple" | "calendly" | "luma";
+export type CalendarSource =
+  | "google"      // google calendar api
+  | "outlook"     // microsoft calendar via graph
+  | "notion"      // notion calendar database
+  | "apple"       // apple calendar via caldav
+  | "calcom"      // cal.com v2 bookings api
+  | "zcal"        // zcal bookings (webhook/inbox, no public api)
+  | "calendly"
+  | "luma";
 
 export interface MeetingCandidate {
   title: string;
@@ -219,7 +233,7 @@ export async function syncAppleCalendar(serverUrl: string, username: string, pas
 
       candidates.push({
         title: summary,
-        start_time: dtstart ? parseICalDate(dtstart) : undefined,
+        start_time: dtstart ? parseICalDate(dtstart) : "",
         end_time: dtend ? parseICalDate(dtend) : undefined,
         join_url: joinUrl,
         platform: detectPlatform(joinUrl || location),
@@ -254,6 +268,9 @@ export function extractMeetingUrl(text: string, hangoutLink?: string): string | 
   if (!text) return undefined;
 
   const patterns = [
+    // bare zoom.us/j/... is the canonical join link zoom sends; the subdomain
+    // form (company.zoom.us) is the account vanity link. both are joins.
+    /https:\/\/zoom\.us\/[^\s]+/i,
     /https:\/\/[a-z0-9-]+\.zoom\.us\/[^\s]+/i,
     /https:\/\/meet\.google\.com\/[^\s]+/i,
     /https:\/\/teams\.microsoft\.com\/[^\s]+/i,
@@ -263,6 +280,8 @@ export function extractMeetingUrl(text: string, hangoutLink?: string): string | 
     /https:\/\/[a-z0-9-]+\.ringcentral\.com\/[^\s]+/i,
     /https:\/\/[a-z0-9-]+\.webex\.com\/[^\s]+/i,
     /https:\/\/twitch\.tv\/[^\s]+/i,
+    /https:\/\/[a-z0-9-]+\.zcal\.to\/[^\s]+/i,
+    /https:\/\/cal\.com\/[^\s]+/i,
   ];
 
   for (const pattern of patterns) {
@@ -283,16 +302,119 @@ export function detectPlatform(url: string): string {
   if (lower.includes("ringcentral.com")) return "ringcentral";
   if (lower.includes("webex.com")) return "webex";
   if (lower.includes("twitch.tv")) return "twitch";
+  if (lower.includes("cal.com")) return "calcom";   // cal video / cal.com booking rooms
+  if (lower.includes("zcal.to")) return "zcal";
   return "custom";
+}
+
+// --- cal.com (booking pages) ---
+
+// cal.com's public api v2. an api key (cal_api_key_...) is enough for the
+// organizer's own bookings; the version header is what keeps the endpoint
+// stable while v2 evolves (the docs' pinned date, not "latest").
+//
+// bookings here are already-committed meetings with a person, which is the
+// point: prixie reads the calendar she booked THROUGH, not only the calendar
+// the booking landed in.
+const CALCOM_API = "https://api.cal.com/v2";
+const CALCOM_API_VERSION = "2024-08-13";
+
+export interface CalComBooking {
+  uid: string;
+  title?: string;
+  description?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// one cal.com booking -> one candidate. the join link hides in any of three
+// places depending on how the event type was built, so all three are read.
+export function calComBookingToCandidate(booking: CalComBooking): MeetingCandidate {
+  const text = [booking.location, booking.description, JSON.stringify(booking.metadata ?? {})]
+    .filter(Boolean)
+    .join(" ");
+  const joinUrl = extractMeetingUrl(text);
+  return {
+    title: booking.title || "cal.com booking",
+    start_time: booking.startTime ?? "",
+    end_time: booking.endTime,
+    join_url: joinUrl,
+    platform: detectPlatform(joinUrl || booking.location || ""),
+    source: "calcom",
+    source_event_id: booking.uid,
+    raw_location: booking.location,
+  };
+}
+
+export async function syncCalCom(apiKey: string): Promise<MeetingCandidate[]> {
+  if (!apiKey) return [];
+
+  const res = await fetch(`${CALCOM_API}/bookings?status=upcoming`, {
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "cal-api-version": CALCOM_API_VERSION,
+    },
+  });
+
+  if (!res.ok) {
+    console.warn(`prixie: cal.com bookings fetch failed: ${res.status}`);
+    return [];
+  }
+
+  const data = await res.json();
+  const bookings: CalComBooking[] = data.data ?? data.bookings ?? [];
+  return bookings.map(calComBookingToCandidate).filter(c => c.start_time);
+}
+
+// --- zcal (booking pages) ---
+
+// zcal has no public booking api. two real routes, both already wired in this
+// backend, so zcal works without pretending an api exists:
+//
+// 1. zcal writes the booking into the host's connected google/outlook
+//    calendar, so the existing adapters pick it up (the reliable route).
+// 2. zcal's confirmation mail carries the join link, so the inbox monitor
+//    sees it. parseZcalBooking handles the payload a zapier/webhook
+//    ("new booking" trigger) forwards, for the direct route.
+//
+// what is NOT claimed: a zcal bookings endpoint. there isn't one.
+export interface ZcalBooking {
+  title?: string;
+  start_time?: string;
+  end_time?: string;
+  description?: string;
+  location?: string;
+  meeting_url?: string;
+  uid?: string;
+  url?: string;
+}
+
+export function parseZcalBooking(booking: ZcalBooking): MeetingCandidate {
+  const joinUrl = booking.meeting_url ||
+    extractMeetingUrl([booking.location, booking.description].filter(Boolean).join(" "));
+  return {
+    title: booking.title || "zcal booking",
+    start_time: booking.start_time ?? "",
+    end_time: booking.end_time,
+    join_url: joinUrl,
+    platform: detectPlatform(joinUrl || booking.location || ""),
+    source: "zcal",
+    source_event_id: booking.uid || booking.url || joinUrl || booking.start_time || "unknown",
+    raw_location: booking.location,
+  };
 }
 
 // --- unified sync ---
 
 export async function syncAllCalendars(config: {
   google?: { calendarId: string };
-  outlook?: { accessToken: string };
+  outlook?: { accessToken: string };            // microsoft calendar
   notion?: { databaseId: string; accessToken: string };
   apple?: { serverUrl: string; username: string; password: string };
+  calcom?: { apiKey: string };
+  zcal?: { bookings: ZcalBooking[] };            // pushed (webhook / zapier), not pulled
 }): Promise<MeetingCandidate[]> {
   const all: MeetingCandidate[] = [];
 
@@ -322,6 +444,20 @@ export async function syncAllCalendars(config: {
       const a = await syncAppleCalendar(config.apple.serverUrl, config.apple.username, config.apple.password);
       all.push(...a);
     } catch (e) { console.warn("apple calendar sync failed:", e); }
+  }
+
+  if (config.calcom) {
+    try {
+      const c = await syncCalCom(config.calcom.apiKey);
+      all.push(...c);
+    } catch (e) { console.warn("cal.com booking sync failed:", e); }
+  }
+
+  // zcal arrives pushed: a zapier/webhook "new booking" triggers this call
+  // with the payload. the pull sources above cannot see it, which is why
+  // route 1 (its event in the host calendar) exists.
+  if (config.zcal?.bookings?.length) {
+    all.push(...config.zcal.bookings.map(parseZcalBooking).filter(c => c.start_time));
   }
 
   // deduplicate by source_event_id
