@@ -54,9 +54,17 @@ def create_app(config: RetellDBConfig = default_config) -> FastAPI:
     engine = RetrievalEngine(graph_store, vector_store, config)
 
     def verify_api_key(key: Optional[str] = Security(api_key_header)):
-        if config.api_key:
-            if not key or key != config.api_key:
-                raise HTTPException(status_code=401, detail="Invalid or missing X-API-Key header")
+        # unset key = CLOSED (the owner, oct 21 2026): a retelldb without an
+        # api key configured refuses requests rather than letting them
+        # all through. a misconfigured deployment fails loudly, never
+        # silently open.
+        if not config.api_key:
+            raise HTTPException(
+                status_code=503,
+                detail="retelldb api key is not configured (RETELLDB_API_KEY). refusing all requests. closed is closed.",
+            )
+        if not key or key != config.api_key:
+            raise HTTPException(status_code=401, detail="Invalid or missing X-API-Key header")
         return key
 
     @app.get("/health")
