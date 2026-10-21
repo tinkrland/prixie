@@ -232,6 +232,29 @@ def backdrop_mesh(env, scene_scale):
     return np.array(verts), np.array(faces), None, np.array(colors)  # unlit
 
 
+def floor_mesh(color, span=4000.0):
+    """the floor under a room: one quad at y=0, centre x/z at 0"""
+    h = span / 2
+    v = np.array([[-h, 0, -h], [h, 0, -h], [h, 0, h], [-h, 0, h]], dtype=float)
+    f = np.array([[0, 2, 1], [0, 3, 2]], dtype=int)
+    return v, f, np.tile(srgb_to_linear(hex_rgb(color)) * 255, (2, 1))
+
+
+def load_room(path, vox_mm, origin=(0.0, 0.0, 0.0)):
+    """the lowpoly room (scripts/vox_room.py): a rooms.xyz room walked through
+    marching cubes and quadric decimation. floor at y=0, centre x/z at 0.
+    face colours are the room's own palette with baked crease AO, and they
+    are LIT by the rig (albedo=None says so)."""
+    d = np.load(path)
+    v = np.asarray(d["verts"], dtype=float) * vox_mm
+    f = np.asarray(d["faces"], dtype=int)
+    fc = np.asarray(d["face_colors"], dtype=float)
+    v[:, 0] += origin[0]
+    v[:, 1] += origin[1]
+    v[:, 2] += origin[2]
+    return (v, f, "lit", fc)
+
+
 def load_subject(path):
     """proskena's subject models: a glb that already exists in the repo
     (bust.glb, hand.glb). scaled like proskena loads it."""
@@ -284,8 +307,18 @@ def render(spec):
     ground_l = srgb_to_linear(HEMI_GROUND)
 
     meshes = []  # (verts, faces, albedo_rgb, face_colors or None)
-    bv, bf, _, bcols = backdrop_mesh(spec["environment"], scene_scale)
-    meshes.append((bv, bf, None, bcols))
+    room = spec.get("room")
+    if room:
+        # the room shell (the editor's base floor/walls) is not model
+        # geometry, so the plate adds the floor the room sits on
+        meshes.append(load_room(room["mesh"], room.get("vox_mm", 46.0),
+                                room.get("origin", (0.0, 0.0, 0.0))))
+        span = float(room.get("floor_span", 4000.0))
+        fv, ff, fcols = floor_mesh(room.get("floor_color", "#c9b49a"), span)
+        meshes.append((fv, ff, None, fcols))
+    else:
+        bv, bf, _, bcols = backdrop_mesh(spec["environment"], scene_scale)
+        meshes.append((bv, bf, None, bcols))
 
     for p in spec.get("props", []):
         builder = PROP_LIBRARY[p["prop"]]
@@ -355,7 +388,19 @@ def render(spec):
             if not paint.any():
                 continue
             if face_colors is not None:
-                col = np.clip(face_colors[t], 0, 255)
+                if albedo == "lit" and rig:
+                    # lit palette faces (the room): flat lambert per face
+                    nt = n[t]
+                    shade = np.zeros(3)
+                    for color, intensity, direction, _r in rig:
+                        ndl = max(0.0, float(nt @ direction))
+                        shade = shade + color * (intensity * ndl)
+                    w = 0.5 + 0.5 * float(nt[1])
+                    shade = shade + (sky_l * w + ground_l * (1 - w)) * amb
+                    lit = srgb_to_linear(face_colors[t]) * shade / math.pi
+                    col = np.clip(linear_to_srgb(lit), 0, 1) * 255
+                else:
+                    col = np.clip(face_colors[t], 0, 255)
             else:
                 alb = srgb_to_linear(albedo)
                 nt = n[t]
