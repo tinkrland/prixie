@@ -131,6 +131,7 @@ export class MeetingManager {
 
           await this.maybeSendAttendanceMessage(meeting);
           await this.maybeEnterAttendanceForm(meeting);
+          await this.maybeRecordHost(meeting);
         }
 
         // session over, or meeting end time passed by a healthy margin
@@ -151,6 +152,41 @@ export class MeetingManager {
   // attendance does not have to be a chat message: sometimes it is
   // entering an email into a form. she opens the form in her own session,
   // fills the owner's identity, submits, and keeps the screenshot receipt.
+  // who is running the room (the owner, oct 21 2026): she reads the
+  // participant list with roles once she is inside and records the
+  // host's display name on the meeting. engines that cannot tell
+  // leave it null: honest, never guessed. one read per meeting.
+  private async maybeRecordHost(meeting: any) {
+    if (meeting.host_name || meeting.host_read) return;
+    try {
+      const participants = provider.getParticipants
+        ? await provider.getParticipants(meeting.bot_id!)
+        : null;
+      if (!participants) {
+        // she could not tell (yet). mark read so the check is cheap but
+        // retry once on a later pass: the list may populate late.
+        if (meeting.host_retries >= 2) {
+          await updateMeeting(meeting.id, { host_name: null, host_read: true } as any);
+        } else {
+          await updateMeeting(meeting.id, { host_retries: (meeting.host_retries || 0) + 1 } as any);
+        }
+        return;
+      }
+      const host = participants.find((p: any) => p.is_host) ||
+        participants.find((p: any) => p.is_cohost);
+      await updateMeeting(meeting.id, {
+        host_name: host?.name || null,
+        host_read: true,
+      } as any);
+      console.log(
+        `prixie: room read for ${meeting.id}: ${participants.length} participants` +
+          (host ? `, host is ${host.name}` : ", host role not visible"),
+      );
+    } catch (err: any) {
+      console.warn(`prixie: host read failed in ${meeting.id}: ${err.message}`);
+    }
+  }
+
   private async maybeEnterAttendanceForm(meeting: any) {
     if (meeting.attendance_method !== "form" || meeting.attendance_messages_sent) return;
     if (!meeting.attendance_form_url) {

@@ -59,6 +59,9 @@ export interface Meeting {
   transcript_id?: string | null;
   profile_id?: string | null;       // which persona to use
   camera_off: boolean;              // bot joins with camera off (default true)
+  // who is running the room, as best she could read it. null = she
+  // could not tell (honest, never guessed).
+  host_name?: string | null;
   mic_off: boolean;                 // bot joins with mic off (default true, until voice feature ready)
   auth_mode: AuthMode;              // anonymous (default), signed_in, registration
   breakout_room_mode?: BreakoutRoomMode | null;
@@ -84,6 +87,7 @@ export interface CreateMeetingInput {
   zoom_user_email?: string;
   profile_id?: string;
   camera_off?: boolean;
+  host_name?: string | null;
   mic_off?: boolean;
   auth_mode?: AuthMode;
   breakout_room_mode?: BreakoutRoomMode;

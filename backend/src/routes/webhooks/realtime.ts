@@ -90,13 +90,13 @@ async function advanceQna(
   }
 
   if (outcome.action === "hands_clear" && state) {
-    const sent = await botProvider.sendChatMessage(botId, buildPermissionChatMessage());
+    const sent = await botProvider.sendChatMessage(botId, buildPermissionChatMessage(meeting.host_name));
     if (sent) {
       state.phase = "asked_permission";
       state.permissionAskedAt = Date.now();
       await createAttendanceMessage({
         meeting_id: meeting.id,
-        message_text: buildPermissionChatMessage(),
+        message_text: buildPermissionChatMessage(meeting.host_name),
         sent_status: "sent",
         trigger: "qna",
       }).catch(() => {});

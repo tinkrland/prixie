@@ -17,6 +17,7 @@ import {
   sendChatInSession,
   heartbeatSession,
   unmuteAndSpeakInSession,
+  getParticipantsInSession,
 } from "./browserbase.ts";
 import { transcribeBrowserbaseSession } from "./browserbase_transcript.ts";
 import { readPreJoinParticipantCount } from "./browserbase_extended.ts";
@@ -75,6 +76,10 @@ export class BrowserbaseProvider implements BotProvider {
 
   async unmuteAndSpeak(botId: string, question: string): Promise<boolean> {
     return unmuteAndSpeakInSession(botId, question);
+  }
+
+  async getParticipants(botId: string): Promise<import("./browserbase.ts").ParticipantInfo[] | null> {
+    return getParticipantsInSession(botId);
   }
 
   async getTranscript(botId: string): Promise<ProviderTranscript> {

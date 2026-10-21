@@ -25,6 +25,8 @@ export interface CreateBotOptions {
   realtimeWebhookUrl?: string;
 }
 
+import type { ParticipantInfo } from "./browserbase.ts";
+
 export interface BotProvider {
   readonly name: string;
 
@@ -38,6 +40,11 @@ export interface BotProvider {
   // pre-join / waiting room page). engines that cannot tell return null;
   // that is a hold, never a fake count.
   participantCount?(meeting: Meeting): Promise<number | null>;
+
+  // optional: the participant list WITH ROLES, read from inside the
+  // room. who is host, who is cohost, by display name. engines that
+  // cannot tell return null: a "we do not know", never a guess.
+  getParticipants?(botId: string): Promise<ParticipantInfo[] | null>;
 
   // send a chat message as prixie from inside the meeting
   sendChatMessage(botId: string, messageText: string): Promise<boolean>;

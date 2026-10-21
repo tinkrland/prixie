@@ -558,6 +558,55 @@ export async function sendChatInSession(sessionId: string, messageText: string):
   return result?.result?.value === "sent";
 }
 
+// who is running the room (the owner, oct 21 2026): read the participant
+// list WITH ROLES from the join page. the page seam is a
+// window.prixieAttendees helper when the hosted page defines one
+// (preferred: it knows the sdk's attendee shape), else a best-effort
+// scan of the zoom sdk globals. engines that cannot tell return null:
+// that is a "we do not know", never a guess.
+export interface ParticipantInfo {
+  name: string;
+  is_host: boolean;
+  is_cohost: boolean;
+}
+
+export async function getParticipantsInSession(sessionId: string): Promise<ParticipantInfo[] | null> {
+  try {
+    const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+      expression: `
+        (() => {
+          const norm = (list) => (list || []).map((p) => ({
+            name: String(p.name || p.displayName || p.userName || "").trim(),
+            is_host: !!(p.isHost || p.is_host),
+            is_cohost: !!(p.isCoHost || p.is_cohost),
+          })).filter((p) => p.name);
+          if (typeof window.prixieAttendees === "function") {
+            return JSON.stringify(norm(window.prixieAttendees()));
+          }
+          if (typeof ZoomMtg !== "undefined" && ZoomMtg.getAttendeeslist) {
+            try { return JSON.stringify(norm(ZoomMtg.getAttendeeslist())); } catch (e) {}
+          }
+          if (window.__zoomMeetingAttendees) {
+            return JSON.stringify(norm(window.__zoomMeetingAttendees));
+          }
+          return null;
+        })()
+      `,
+      returnByValue: true,
+    });
+    const raw = result?.result?.value;
+    if (!raw || raw === "null") return null;
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
 // --- in-page chat monitor ---
 
 // injects a script into the session that scans the chat DOM every few seconds and

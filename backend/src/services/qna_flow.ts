@@ -128,9 +128,12 @@ export function interpretResponse(text: string): QnaResponse {
   return "unrelated";
 }
 
-// her permission ask in the chat. lowercase, honest about why.
-export function buildPermissionChatMessage(): string {
-  return "quick question: the q&a isn't enabled here, so is it okay if i drop a question in the chat? happy to unmute and ask out loud if that's easier";
+// her permission ask in the chat. lowercase, honest about why. when
+// she read the room and knows who is running it, she asks THEM by
+// name: a host is likelier to answer, and it is the polite thing.
+export function buildPermissionChatMessage(hostName?: string | null): string {
+  const greeting = hostName ? `hey ${hostName}, quick question` : "quick question";
+  return greeting + ": the q&a isn't enabled here, so is it okay if i drop a question in the chat? happy to unmute and ask out loud if that's easier";
 }
 
 // pure: the state transitions. each call is one event observed.

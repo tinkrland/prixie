@@ -38,11 +38,15 @@ Deno.test("responses split: speak invitations vs chat-ok vs decline", () => {
   assertEquals(interpretResponse("so chapter three covers..."), "unrelated");
 });
 
-Deno.test("the permission chat message says why, and offers the mic", () => {
+Deno.test("the permission chat message says why, offers the mic, and addresses the host when she knows", () => {
   const msg = buildPermissionChatMessage();
   assertEquals(msg.includes("q&a isn't enabled"), true);
   assertEquals(msg.includes("chat"), true);
   assertEquals(msg.includes("unmute"), true);
+
+  const toHost = buildPermissionChatMessage("priya");
+  assertEquals(toHost.startsWith("hey priya, quick question"), true);
+  assertEquals(buildPermissionChatMessage(null).startsWith("quick question"), true);
 });
 
 const state = (phase: QnaAskState["phase"], at?: number): QnaAskState => ({
