@@ -58,6 +58,34 @@ masky avatars can delegate chat-mode thinking to an external agent over nostr (P
 3. camera track publishing into a livekit room (yap seam)
 4. agent binding for prixie-as-brain once the voice side decides on nostr
 
+## cantina.com: no api, so talk to them
+
+cantina.com (wearecantina) is the closest thing to prixie's natural habitat
+that she cannot enter: a social platform where members keep AI avatars that
+hang out in video rooms. a rendered persona that joins a room, watches, and
+speaks when spoken to is exactly what cantina already hosts natively. the
+problem: cantina exposes no public api. neither seam works:
+
+- the livekit track path dead-ends: cantina rooms are a closed web app, not
+  a livekit room an outside participant can join.
+- the live url / OBS path dead-ends too: there is no way to feed her camera
+  page into a cantina room.
+- browserbase (the fallback for join engines on unsupported platforms) can
+  drive the cantina web app from a cloud browser, but publishing prixie's
+  camera and mic into a third-party web app is fragile DOM work and squarely
+  in ToS-question territory for a closed platform.
+
+so the right next move is outreach, not automation. contact cantina about a
+guest avatar / bot participant path (devrel or partnerships). the pitch
+writes itself from their own product: cantina rooms already host AI
+characters; an api that lets an external agent join as a rendered participant
+(publishing an mp4/webm camera track and mic, subscribing to room audio)
+would let proxy agents like prixie drop in. if they expose livekit or
+web rtc under the hood, the video branch handoff (audio track + video track
+from one masky render) plugs straight into it. until then, cantina stays off
+the supported platform list and does not get the browserbase treatment: a
+broken bot in a social room costs more than it earns.
+
 ## gotchas found live
 
 - /conversations 400s without avatarOwnerUserId even though the api reference example omits it. the client passes it.

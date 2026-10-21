@@ -1,0 +1,213 @@
+{
+  "source": "hand-written seed for the profile to cue mapping",
+  "cases": [
+    {
+      "name": "warm_host_greeting",
+      "source": "seed",
+      "profile": {
+        "tone": {
+          "warmth": 0.8,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.5,
+          "confidence": 0.6
+        }
+      },
+      "medium": "call",
+      "utterance": "hey, good to see everyone. let's get started.",
+      "required": [
+        "emotion=affection"
+      ],
+      "forbidden": []
+    },
+    {
+      "name": "playful_weekly_update",
+      "source": "seed",
+      "profile": {
+        "tone": {
+          "warmth": 0.6,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.8,
+          "confidence": 0.5
+        }
+      },
+      "medium": "call",
+      "utterance": "okay, the bugs and i have come to an arrangement.",
+      "required": [
+        "emotion=enthusiasm",
+        "prosody=expressive_high"
+      ],
+      "forbidden": []
+    },
+    {
+      "name": "dry_sarcastic_aside",
+      "source": "seed",
+      "profile": {
+        "tone": {
+          "warmth": 0.4,
+          "sarcasm_level": 0.75,
+          "playfulness": 0.5,
+          "confidence": 0.6
+        }
+      },
+      "medium": "call",
+      "utterance": "sure, that timeline is extremely realistic.",
+      "required": [
+        "emotion=amusement"
+      ],
+      "forbidden": []
+    },
+    {
+      "name": "confident_commitment",
+      "source": "seed",
+      "profile": {
+        "tone": {
+          "warmth": 0.4,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.4,
+          "confidence": 0.85
+        }
+      },
+      "medium": "meeting",
+      "utterance": "i will have the transcript to you by six.",
+      "required": [
+        "emotion=determination"
+      ],
+      "forbidden": []
+    },
+    {
+      "name": "hesitant_first_question",
+      "source": "seed",
+      "profile": {
+        "tone": {
+          "warmth": 0.5,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.3,
+          "confidence": 0.25
+        }
+      },
+      "medium": "call",
+      "utterance": "so, i had one question about scope.",
+      "required": [
+        "prosody=speed_slow",
+        "prosody=expressive_low"
+      ],
+      "forbidden": [
+        "emotion=enthusiasm"
+      ]
+    },
+    {
+      "name": "hushed_side_room",
+      "source": "seed",
+      "profile": {
+        "tone": {
+          "warmth": 0.5,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.5,
+          "confidence": 0.5
+        },
+        "register": {
+          "call": "whispered, side conversations"
+        }
+      },
+      "medium": "call",
+      "utterance": "i am here, just listening in.",
+      "required": [
+        "style=whispering"
+      ],
+      "forbidden": []
+    },
+    {
+      "name": "no_profile_falls_back",
+      "source": "seed",
+      "profile": {
+        "tone": null
+      },
+      "medium": "call",
+      "utterance": "noted.",
+      "required": [],
+      "forbidden": [
+        "emotion",
+        "style",
+        "prosody"
+      ]
+    },
+    {
+      "name": "GAP_reflective_pause",
+      "source": "seed",
+      "gap": true,
+      "profile": {
+        "tone": {
+          "warmth": 0.6,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.4,
+          "confidence": 0.5
+        }
+      },
+      "medium": "meeting",
+      "utterance": "i keep thinking about what she said about the deadline.",
+      "required": [
+        "emotion=contemplation",
+        "prosody=long_pause"
+      ],
+      "forbidden": []
+    },
+    {
+      "name": "GAP_laughing_at_own_joke",
+      "source": "seed",
+      "gap": true,
+      "profile": {
+        "tone": {
+          "warmth": 0.7,
+          "sarcasm_level": 0.2,
+          "playfulness": 0.85,
+          "confidence": 0.5
+        }
+      },
+      "medium": "call",
+      "utterance": "and that is how the demo broke. <|sfx:laughter|>haha, sorry.",
+      "required": [
+        "sfx=laughter"
+      ],
+      "forbidden": []
+    },
+    {
+      "name": "GAP_surprised_by_result",
+      "source": "seed",
+      "gap": true,
+      "profile": {
+        "tone": {
+          "warmth": 0.5,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.6,
+          "confidence": 0.5
+        }
+      },
+      "medium": "call",
+      "utterance": "wait, we actually won?",
+      "required": [
+        "emotion=surprise",
+        "prosody=pitch_high"
+      ],
+      "forbidden": []
+    },
+    {
+      "name": "GAP_relief_after_scare",
+      "source": "seed",
+      "gap": true,
+      "profile": {
+        "tone": {
+          "warmth": 0.6,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.4,
+          "confidence": 0.6
+        }
+      },
+      "medium": "meeting",
+      "utterance": "okay, the recording did save after all.",
+      "required": [
+        "emotion=relief"
+      ],
+      "forbidden": []
+    }
+  ]
+}
