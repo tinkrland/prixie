@@ -203,11 +203,22 @@ def transform(mesh, scale, rot_y, pos):
     return (v @ rot.T * scale + pos, f, col)
 
 
-def backdrop_mesh(env, scene_scale):
+def backdrop_mesh(env, scene_scale, pos=None, size=None):
     """proskena's backdrop: a plane whose material is the radial gradient
-    (center lift -> bg). unlit. ported from 42-backdrops.js."""
-    W, H = BACKDROP_SIZE[0] * scene_scale, BACKDROP_SIZE[1] * scene_scale
-    cx, cy, cz = [c * scene_scale for c in BACKDROP_POS]
+    (center lift -> bg). unlit. ported from 42-backdrops.js. a roomState
+    pass overrides pos/size: the person-stage plane sits 620mm behind the
+    bust, which is mid-room for a 4m room, so the room gets its own
+    cyclorama stood well behind the far wall instead."""
+    def _pick(val, keys):
+        if val is None:
+            return None
+        if isinstance(val, dict):
+            return tuple(val[k] for k in keys)
+        return tuple(val)
+    w_, h_ = _pick(size, ("x", "y")) or BACKDROP_SIZE
+    p_ = _pick(pos, ("x", "y", "z")) or BACKDROP_POS
+    W, H = w_ * scene_scale, h_ * scene_scale
+    cx, cy, cz = [c * scene_scale for c in p_]
     bg, center = hex_rgb(env["bg"]), hex_rgb(env["center"])
     NX, NY = 40, 28
     verts, faces, colors = [], [], []
@@ -349,6 +360,26 @@ def wainscot_meshes(origin, along, outward, length, y0, y1, spec, m_to_u):
                                     y0 + (i + 1) * rh - 0.004 * m_to_u,
                                     0.010 * m_to_u, color))
     return out
+
+
+def _wall_blocks(cam_pos, origin, along, inside, length, wall_h):
+    """true only when the wall stands between the lens and the room, i.e.
+    the sight line to the room centre crosses the wall's rectangle. a wall
+    the lens is merely outside of (looking past a side wall) still draws:
+    removing it would leave the backdrop visible as a hole where the
+    room's side should be. camera inside the room: nothing blocks."""
+    to_center = -origin - along * (length / 2) - inside * 0.0
+    room_center = np.array([0.0, wall_h / 2, 0.0])
+    seg = room_center - cam_pos
+    denom = np.dot(seg, inside)
+    if abs(denom) < 1e-9:
+        return False
+    t = np.dot(origin - cam_pos, inside) / denom
+    if not (0.0 < t < 1.0):
+        return False
+    hit = cam_pos + seg * t
+    local_along = np.dot(hit - origin, along)
+    return -0.001 <= local_along <= length + 0.001 and 0.0 <= hit[1] <= wall_h
 
 
 def build_wall(origin, along, outward, length, wall_h, wall_spec, m_to_u):
@@ -535,6 +566,7 @@ def render(spec):
     # placed objects. a room floats over the backdrop like the app's room
     # floats over the page, so the backdrop renders behind and above it.
     rs = spec.get("roomState")
+    rs_cyclo = None
     if rs:
         sx, sz = float(rs["size"]["x"]), float(rs["size"]["z"])
         m_to_u = 1000.0 * scene_scale
@@ -563,12 +595,17 @@ def render(spec):
                                      np.array(along, dtype=float),
                                      np.array(inside, dtype=float))
             center = origin + along * (length / 2) + np.array([0, wall_h / 2, 0])
-            if np.dot(cam_pos - center, inside) <= 0:
-                continue  # the lens is outside this wall: cut off, never in view
+            if _wall_blocks(cam_pos, origin, along, inside, length, wall_h):
+                continue  # this wall is between the lens and the room: cut off
             spec_w = walls.get(name, default_wall)
             for v, f, alb, fc in build_wall(origin, along, inside, length,
                                             wall_h, spec_w, m_to_u):
                 meshes.append((v, f, alb, fc))
+            # the room's own backdrop: a cyclorama stood well behind the
+            # far wall, sized to fill the frame around the room
+            depth = max(half_x, half_z) + 3200.0
+            rs_cyclo = ({"x": 0.0, "y": wall_h * 0.55, "z": -depth},
+                        {"x": depth * 3.5, "y": wall_h * 2.8})
         for obj in rs.get("objects", []):
             kind = obj["kind"]
             placement = obj.get("placement", "floor")
@@ -603,9 +640,14 @@ def render(spec):
         span = float(room.get("floor_span", 4000.0))
         fv, ff, fcols = floor_mesh(room.get("floor_color", "#c9b49a"), span)
         meshes.append((fv, ff, None, fcols))
+    elif rs_cyclo is not None:
+        # a roomState pass: its own cyclorama, behind the far wall
+        bpos, bsize = rs_cyclo
+        bv, bf, _, bcols = backdrop_mesh(spec["environment"], scene_scale, bpos, bsize)
+        meshes.append((bv, bf, None, bcols))
     else:
-        # with no vox room the backdrop is the far background: behind and
-        # above a roomState box, exactly the page behind the app's room
+        # no room at all: the person stage's own backdrop, proskena's
+        # placement (620mm behind the bust)
         bv, bf, _, bcols = backdrop_mesh(spec["environment"], scene_scale)
         meshes.append((bv, bf, None, bcols))
 
@@ -647,8 +689,9 @@ def render(spec):
     fill = np.array(spec.get("bg") or hex_rgb(spec["environment"]["bg"]), dtype=float)
     img = np.tile(fill, (H, W, 1))
     zbuf = np.full((H, W), np.inf)
+    idbuf = np.full((H, W), -1) if spec.get("debugIds") else None
 
-    for verts, faces, albedo, face_colors in meshes:
+    for mesh_i, (verts, faces, albedo, face_colors) in enumerate(meshes):
         v = np.asarray(verts, dtype=float)
         f = np.asarray(faces, dtype=int)
         if len(f) == 0:
@@ -720,8 +763,12 @@ def render(spec):
             region = img[y0:y1, x0:x1]
             region[paint] = col
             zbuf[y0:y1, x0:x1][paint] = z[paint]
+            if idbuf is not None:
+                idbuf[y0:y1, x0:x1][paint] = mesh_i
 
     Image.fromarray(img.astype(np.uint8)).save(spec["out"])
+    if spec.get("debugIds"):
+        np.save(str(spec["out"]) + ".ids.npy", idbuf)
     return (W, H)
 
 

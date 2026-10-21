@@ -122,6 +122,30 @@ def test_flat_wall_string_backcompat():
     assert (np.asarray(meshes[0][2]) == hex_rgb("#c9bfae")).all()
 
 
+def test_wall_blocks_only_blocking_walls():
+    import numpy as np
+    from render_plate import _wall_blocks
+    o = np.array([-2000.0, 0, -2000.0])
+    along = np.array([1.0, 0, 0])
+    inside = np.array([0.0, 0, 1.0])
+    # front wall (at z=+2m, interior -z): a camera out at z=3.1 looking in
+    # has this wall between it and the room: culled
+    of = np.array([2000.0, 0, 2000.0])
+    af = np.array([-1.0, 0, 0])
+    inf = np.array([0.0, 0, -1.0])
+    cam = np.array([2200.0, 1550.0, 3100.0])
+    assert _wall_blocks(cam, of, af, inf, 4000.0, 2000.0)
+    # right wall (at x=+2m, interior -x): same camera looks PAST it, the
+    # sight line to the room centre never crosses it: kept, no hole
+    orr = np.array([2000.0, 0, 2000.0])
+    ar = np.array([0.0, 0, -1.0])
+    ir = np.array([-1.0, 0, 0])
+    assert not _wall_blocks(cam, orr, ar, ir, 4000.0, 2000.0)
+    # camera inside the room: nothing blocks, the box is closed
+    assert not _wall_blocks(np.array([0.0, 1200.0, 0.0]),
+                            of, af, inf, 4000.0, 2000.0)
+
+
 def test_camera_side_walls_cull():
     import json
     base = json.load(open("/tmp/spec_roomstate3.json"))
