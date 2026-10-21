@@ -107,3 +107,26 @@ Deno.test("a proskena-level shot places the person in the frame by arithmetic", 
   assertEquals(filters.includes("force_original_aspect_ratio=decrease"), false,
     "placement replaces the default fit-the-frame behaviour");
 });
+
+Deno.test("the matte rides the framing chain, and the projection sets her centre", () => {
+  const plan = {
+    ...base,
+    matte: "matte.mp4",
+    placement: { fitHeight: 0.624, anchorY: 0.197, anchorX: 0.5 },
+    width: 1280,
+    height: 720,
+  };
+  const args = buildCompositeArgs(plan);
+  const graph = args[args.indexOf("-filter_complex") + 1] as string;
+  const matteChain = graph.split(";").find((c) => c.startsWith("[2:v]")) ?? "";
+  assertEquals(matteChain.includes("scale=-1:449"), true, "the matte scales to the placed height");
+  assertEquals(matteChain.includes(`pad=1280:720:(ow-iw)*0.5:142`), true,
+    "the matte is padded exactly where the person is, at the projected centre");
+  // an off-centre projection moves the person, and the matte moves with her
+  const off = buildCompositeArgs({ ...plan, placement: { ...plan.placement, anchorX: 0.34 } });
+  const offGraph = off[off.indexOf("-filter_complex") + 1] as string;
+  const offPerson = offGraph.split(";")[0];
+  assertEquals(offPerson.includes("(ow-iw)*0.34"), true, "her centre comes from the projection");
+  const offMatte = offGraph.split(";").find((c) => c.startsWith("[2:v]")) ?? "";
+  assertEquals(offMatte.includes("(ow-iw)*0.34"), true, "and the matte follows her");
+});

@@ -56,10 +56,12 @@ export interface CompositePlan {
   key?: ChromaKey;
   matte?: string; // grayscale matte video/image, person-shaped, white on black
   grade?: Grade;
-  // where she sits in the frame, from the proskena-level camera
-  // (placementForShot). absent = fill the frame, the default framing. the
-  // camera and the avatar are stationary, so this is arithmetic on the lens,
-  // not a generation.
+  // where she sits in the frame. projected from the room camera when there
+  // is one (projectPlacement in scene.ts: she is a foreground subject at a
+  // real distance from the lens, the environment is all background); the
+  // legacy placementForShot percentages still work for cases without a room
+  // model. absent = fill the frame. the camera and the avatar are
+  // stationary, so this is arithmetic, not a generation.
   placement?: Placement;
   width: number;
   height: number;
@@ -69,6 +71,9 @@ export interface CompositePlan {
 export interface Placement {
   fitHeight: number; // fraction of frame height the person fills
   anchorY: number; // where her top sits, fraction of frame height
+  // her horizontal centre, fraction of frame width, projected from the room's
+  // camera (scene.ts). undefined = centred, the pre-projection behaviour.
+  anchorX?: number;
 }
 
 function gradeFilters(grade?: Grade): string[] {
@@ -88,25 +93,36 @@ function gradeFilters(grade?: Grade): string[] {
   return filters;
 }
 
-// the person layer: clip in, alpha out (as the overlay's second input).
-export function personLayerFilters(plan: CompositePlan): string {
-  let framing: string[];
+// the framing chain: where the person sits in the frame. shared by the person
+// layer and the matte (they must describe the same shape in the same place),
+// and the only place placement is decided.
+export function framingFilters(plan: CompositePlan): string[] {
   if (plan.placement) {
     // a proskena-level shot: the lens says how much of the frame she fills
-    // and where her top sits. she is centred horizontally either way.
+    // and where her top sits. her horizontal centre is projected from the
+    // room camera when there is one (scene.ts), centred otherwise.
     const targetH = Math.round(plan.placement.fitHeight * plan.height);
     const top = Math.round(plan.placement.anchorY * plan.height);
-    framing = [
+    const centreX = plan.placement.anchorX !== undefined
+      ? `(ow-iw)*${plan.placement.anchorX}`
+      : "(ow-iw)/2";
+    return [
       `scale=-1:${targetH}`,
-      `pad=${plan.width}:${plan.height}:(ow-iw)/2:${top}:color=black@0`,
-    ];
-  } else {
-    framing = [
-      `scale=${plan.width}:${plan.height}:force_original_aspect_ratio=decrease`,
-      `pad=${plan.width}:${plan.height}:(ow-iw)/2:(oh-ih)/2:color=black@0`,
+      // a vertical frame is narrower than she is tall: cap her width to the
+      // frame (the second scale is a no-op when she already fits).
+      `scale=w='min(iw,${plan.width})':h=-2`,
+      `pad=${plan.width}:${plan.height}:${centreX}:${top}:color=black@0`,
     ];
   }
-  const filters: string[] = [...framing, "format=rgba"];
+  return [
+    `scale=${plan.width}:${plan.height}:force_original_aspect_ratio=decrease`,
+    `pad=${plan.width}:${plan.height}:(ow-iw)/2:(oh-ih)/2:color=black@0`,
+  ];
+}
+
+// the person layer: clip in, alpha out (as the overlay's second input).
+export function personLayerFilters(plan: CompositePlan): string {
+  const filters: string[] = [...framingFilters(plan), "format=rgba"];
   if (plan.key) {
     // colorkey works in rgb, which is what a model's rendered backdrop is.
     filters.push(
@@ -144,9 +160,14 @@ export function buildCompositeArgs(plan: CompositePlan): string[] {
   let personChain: string;
   if (plan.matte) {
     args.push("-i", plan.matte);
+    // the matte rides the person's framing chain exactly: same scale, same
+    // pad, same width cap. a matte stretched to the full frame stops
+    // describing her the moment a placement moves her, and alphamerge turns
+    // the disagreement into opaque black where it mattered least.
+    const matteChain = [...framingFilters(plan), "format=gray"].join(",");
     personChain =
       `[1:v]${personLayerFilters(plan)}[person];` +
-      `[2:v]scale=${plan.width}:${plan.height},format=gray[matte];` +
+      `[2:v]${matteChain}[matte];` +
       `[person][matte]alphamerge[fg]`;
   } else {
     personChain = `[1:v]${personLayerFilters(plan)}[fg]`;
