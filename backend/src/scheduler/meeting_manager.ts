@@ -12,6 +12,7 @@ import { botProvider } from "../services/browserbase_provider.ts";
 import { searchForKeywords } from "../services/browserbase_transcript.ts";
 import { processTranscript, containsDevanagari, hinglishStats } from "../services/hinglish.ts";
 import { calendarService } from "../services/calendar.ts";
+import { shouldJoinNow } from "./join_trigger.ts";
 
 // every platform goes through the same provider. no per-platform forks anymore.
 const provider = botProvider;
@@ -66,6 +67,21 @@ export class MeetingManager {
           continue;
         }
 
+        // the join gate. delay: N minutes after start. participants: hold
+        // until N humans are already inside (the engine reads the count
+        // from the pre-join page; a page that will not say is a hold).
+        let participantCount: number | null | undefined = undefined;
+        if ((meeting.join_trigger || "delay") === "participants") {
+          participantCount = provider.participantCount
+            ? await provider.participantCount(meeting).catch(() => null)
+            : null;
+        }
+        const decision = shouldJoinNow(meeting, new Date(), participantCount);
+        if (!decision.join) {
+          console.log(`prixie scheduler: ${meeting.title}: ${decision.reason}`);
+          continue;
+        }
+
         console.log(`prixie scheduler: deploying ${provider.name} bot for "${meeting.title}" (${meeting.platform})`);
 
         const bot = await provider.createBot(meeting, {
@@ -104,7 +120,7 @@ export class MeetingManager {
 
         if (status === "in_meeting") {
           // keep the session from looking idle + send attendance once
-          await provider.heartbeat(meeting.bot_id);
+          if (provider.heartbeat) await provider.heartbeat(meeting.bot_id);
 
           if (meeting.status !== "bot_in_meeting") {
             await updateMeeting(meeting.id, { status: "bot_in_meeting", prixie_attended: true });

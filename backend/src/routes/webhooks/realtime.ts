@@ -4,6 +4,10 @@ import {
   getPendingCaptureRequestsByMeeting,
   updateCaptureRequest,
 } from "../../services/supabase.ts";
+import { captureScreenshot } from "../../services/screenshots.ts";
+import { registerDefaultScreenshotEngines } from "../../services/screenshot_engines.ts";
+
+registerDefaultScreenshotEngines();
 
 // generic realtime webhook. whatever engine prixie runs on (browserbase in-page
 // chat monitor today, anything else later) pushes events here in a neutral shape:
@@ -58,11 +62,24 @@ realtimeWebhook.post("/", async (c) => {
           console.log(`prixie: keyword matched for capture request "${req.title}" in meeting ${meeting.id}`);
           const captureSnippet = `${speaker}: ${text}`;
 
+          // a capture with screenshot_enabled grabs the frame at the
+          // moment of the hit, through whichever engine rendered the
+          // meeting. the pipeline does not know or care which.
+          let screenshotUrl: string | undefined;
+          if (req.screenshot_enabled && payload.session_id) {
+            try {
+              screenshotUrl = await captureScreenshot(payload.session_id, meeting.platform);
+            } catch (err: any) {
+              console.warn(`prixie: screenshot on capture failed: ${err.message}`);
+            }
+          }
+
           await updateCaptureRequest(req.id, {
             status: req.type === "ask" ? "answered" : "captured",
             captured_content: req.captured_content
               ? `${req.captured_content}\n${captureSnippet}`
               : captureSnippet,
+            captured_screenshot_url: screenshotUrl || req.captured_screenshot_url || undefined,
             answer: req.type === "ask" ? text : req.answer,
           });
         }

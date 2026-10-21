@@ -43,7 +43,7 @@ export async function searchEvents(query: string): Promise<LumaEvent[]> {
 
 // get event details (including meeting link)
 export async function getEvent(eventId: string): Promise<LumaEvent> {
-  const res = await fetch(`${LUMA_BASE}/event/get?event=${${eventId}}`, {
+  const res = await fetch(`${LUMA_BASE}/event/get?event=${encodeURIComponent(eventId)}`, {
     headers: { "Authorization": `Bearer ${LUMA_API_KEY}` },
   });
   if (!res.ok) throw new Error(`luma get event failed: ${res.statusText}`);
@@ -104,17 +104,34 @@ export async function registerForEvent(
   };
 }
 
-// register and create a meeting record in supabase
+// register and create a meeting record in supabase. the signup gate is the
+// point: many events only expose the meeting link to registered guests, so
+// the order is register first, read second. when even a registered read
+// returns no meeting_url, the link is gated behind the confirmation email
+// or the calendar entry: this returns needs_link: true and the caller
+// leaves sourcing open (the inbox webhook completes it when the
+// confirmation arrives). no link is ever invented.
 export async function registerAndCreateMeeting(
   eventId: string,
   profileData: { name: string; email: string; display_name: string }
-): Promise<{ registration: LumaRegistration; event: LumaEvent }> {
+): Promise<{
+  registration: LumaRegistration;
+  event: LumaEvent;
+  needs_link: boolean;
+}> {
   const reg = await registerForEvent(eventId, {
     name: profileData.display_name || profileData.name,
     email: profileData.email,
   });
 
   const event = await getEvent(eventId);
+  const needs_link = !event.meeting_url;
 
-  return { registration: reg, event };
+  if (needs_link) {
+    console.log(
+      `prixie: luma event ${eventId} registered, but the meeting link is not visible yet; waiting on the confirmation path`,
+    );
+  }
+
+  return { registration: reg, event, needs_link };
 }

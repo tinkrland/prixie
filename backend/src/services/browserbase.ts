@@ -4,13 +4,13 @@
 const BROWSERBASE_API_KEY = Deno.env.get("BROWSERBASE_API_KEY")!;
 const BROWSERBASE_BASE = "https://api.browserbase.com/v1";
 
-interface BrowserbaseSession {
+export interface BrowserbaseSession {
   id: string;
   status: string;
   createdAt: string;
 }
 
-interface JoinResult {
+export interface JoinResult {
   session_id: string;
   status: "joined" | "failed" | "waiting_room";
   error?: string;
@@ -61,6 +61,17 @@ export async function navigateTo(sessionId: string, url: string): Promise<void> 
   }
 }
 
+// the page's text, read through cdp. used by the pre-join reads (the
+// participant count gate) and anything else that needs to see what the
+// page shows rather than what it owns.
+export async function readPageText(sessionId: string): Promise<string> {
+  const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: "document.body?.innerText || ''",
+    returnByValue: true,
+  });
+  return result?.result?.value || "";
+}
+
 export async function takeScreenshot(sessionId: string): Promise<string> {
   const res = await fetch(`${BROWSERBASE_BASE}/sessions/${sessionId}/screenshot`, {
     method: "GET",
@@ -92,7 +103,7 @@ export async function getSessionStatus(sessionId: string): Promise<any> {
 
 // --- CDP (Chrome DevTools Protocol) actions ---
 
-async function cdpExecute(sessionId: string, method: string, params: any): Promise<any> {
+export async function cdpExecute(sessionId: string, method: string, params: any): Promise<any> {
   const res = await fetch(`${BROWSERBASE_BASE}/sessions/${sessionId}/cdp`, {
     method: "POST",
     headers: {
@@ -113,7 +124,7 @@ async function cdpExecute(sessionId: string, method: string, params: any): Promi
 
 // --- element interaction (via CDP) ---
 
-async function findAndClick(sessionId: string, selector: string, timeoutMs = 10000): Promise<boolean> {
+export async function findAndClick(sessionId: string, selector: string, timeoutMs = 10000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const result = await cdpExecute(sessionId, "Runtime.evaluate", {
@@ -131,7 +142,7 @@ async function findAndClick(sessionId: string, selector: string, timeoutMs = 100
   return false;
 }
 
-async function findAndType(sessionId: string, selector: string, text: string, timeoutMs = 10000): Promise<boolean> {
+export async function findAndType(sessionId: string, selector: string, text: string, timeoutMs = 10000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const result = await cdpExecute(sessionId, "Runtime.evaluate", {
@@ -339,7 +350,7 @@ export async function getRecordingUrl(sessionId: string): Promise<string | null>
 
 // --- text-based element finder (more resilient than css selectors for join buttons) ---
 
-async function findAndClickByText(sessionId: string, texts: string[], selectorScope = "button, a, div[role='button']", timeoutMs = 15000): Promise<boolean> {
+export async function findAndClickByText(sessionId: string, texts: string[], selectorScope = "button, a, div[role='button']", timeoutMs = 15000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const result = await cdpExecute(sessionId, "Runtime.evaluate", {

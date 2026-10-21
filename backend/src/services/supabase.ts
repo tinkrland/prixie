@@ -46,6 +46,8 @@ export async function createMeeting(input: CreateMeetingInput): Promise<Meeting>
         end_time: input.end_time || null,
         instruction: input.instruction || null,
         join_delay_minutes: input.join_delay_minutes !== undefined ? input.join_delay_minutes : 2,
+        join_trigger: (input as any).join_trigger || "delay",
+        join_after_participants: (input as any).join_after_participants ?? null,
         attendance_method: input.attendance_method || "none",
         attendance_form_url: input.attendance_form_url || null,
         zoom_user_email: input.zoom_user_email || null,

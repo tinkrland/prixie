@@ -1,3 +1,17 @@
+// browserbase service additions: twitch streams, late join, and the
+// pre-join participant count (the "join after N people" gate).
+
+import {
+  createSession,
+  navigateTo,
+  stopSession,
+  readPageText,
+  findAndClick,
+  findAndType,
+  cdpExecute,
+  type JoinResult,
+} from "./browserbase.ts";
+
 // browserbase service additions for twitch streams and late join handling
 
 // ... (existing functions from browserbase.ts remain the same)
@@ -94,4 +108,42 @@ function extractPasswordFromUrl(url: string): string | null {
   if (hashMatch) return decodeURIComponent(hashMatch[1]);
 
   return null;
+}
+
+
+// the "join after N people" gate needs eyes on the room from outside.
+// this opens the join page in a throwaway session and reads the count
+// the pre-join/waiting room surface states. patterns cover the platforms
+// that actually say it out loud (zoom's "x participants are in",
+// meet's tile count text, teams' lobby). a page that does not state a
+// count returns null: a hold, never a guess.
+export async function readPreJoinParticipantCount(meetingUrl: string): Promise<number | null> {
+  let sessionId: string | null = null;
+  try {
+    const session = await createSession({ keepalive: true });
+    sessionId = session.id;
+    if (!sessionId) return null;
+
+    await navigateTo(sessionId, meetingUrl);
+    // the pre-join surface takes a moment to render its people count
+    await new Promise((r) => setTimeout(r, 6000));
+
+    const text = await readPageText(sessionId);
+    if (!text) return null;
+
+    // "3 participants are in the meeting" / "12 people are in this call"
+    const inMeeting = text.match(/(\d+)\s+(?:other\s+)?(?:participants?|people)\s+(?:are\s+)?(?:in|inside)/i);
+    if (inMeeting) return parseInt(inMeeting[1], 10);
+
+    // "waiting for the host" with a count: "2 participants waiting"
+    const waiting = text.match(/(\d+)\s+(?:participants?|people)\s+waiting/i);
+    if (waiting) return parseInt(waiting[1], 10);
+
+    return null;
+  } catch (err: any) {
+    console.warn(`prixie: pre-join participant count failed: ${err.message}`);
+    return null;
+  } finally {
+    if (sessionId) await stopSession(sessionId).catch(() => {});
+  }
 }

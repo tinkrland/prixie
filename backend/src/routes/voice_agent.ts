@@ -161,7 +161,7 @@ app.post("/answer", async (c) => {
   session.state = transitionVoiceState(session, "answer_received");
   session.context.resolved_questions.push({
     question: question.question,
-    answer: question.answer,
+    answer: question.answer || "",
     resolved_at: new Date().toISOString(),
     confidence: question.answer_confidence,
   });

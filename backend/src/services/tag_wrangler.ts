@@ -272,14 +272,20 @@ export async function mergeTags(
     .update({ canonical_tag_id: winnerId })
     .eq("canonical_tag_id", loserId);
 
-  // add loser's canonical name as an alias of winner
+  // both names are needed: the loser's becomes an alias of the winner,
+  // and the winner's replaces it in every memory node's tag array.
   const { data: loser } = await supabase
     .from("canonical_tags")
     .select("canonical")
     .eq("id", loserId)
     .single();
+  const { data: winner } = await supabase
+    .from("canonical_tags")
+    .select("canonical")
+    .eq("id", winnerId)
+    .single();
 
-  if (loser) {
+  if (loser && winner) {
     await addAlias(winnerId, loser.canonical, "synonym");
   }
 
@@ -296,6 +302,8 @@ export async function mergeTags(
   // update memory node tags (replace loser with winner in tag arrays)
   // this requires finding all memory_nodes with the loser's canonical in their tags
   // and replacing it with the winner's canonical
+  if (!loser || !winner) return;
+
   const { data: memories } = await supabase
     .from("memory_nodes")
     .select("id, tags")
@@ -303,7 +311,7 @@ export async function mergeTags(
 
   if (memories) {
     for (const mem of memories) {
-      const newTags = mem.tags.map((t: string) => t === loser.canonical ? winner_canonical : t);
+      const newTags = mem.tags.map((t: string) => t === loser.canonical ? winner.canonical : t);
       await supabase
         .from("memory_nodes")
         .update({ tags: newTags })

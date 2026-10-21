@@ -18,6 +18,7 @@ import {
   heartbeatSession,
 } from "./browserbase.ts";
 import { transcribeBrowserbaseSession } from "./browserbase_transcript.ts";
+import { readPreJoinParticipantCount } from "./browserbase_extended.ts";
 
 // session statuses browserbase reports, normalized to prixie lifecycle states
 function normalizeSessionStatus(raw: any): ProviderBotStatus {
@@ -50,6 +51,12 @@ export class BrowserbaseProvider implements BotProvider {
     }
 
     return { id: result.session_id, status: "in_meeting" };
+  }
+
+  // the "join after N people" gate: a throwaway session reads the
+  // pre-join page's stated count. null when the page does not say.
+  async participantCount(meeting: Meeting): Promise<number | null> {
+    return readPreJoinParticipantCount(meeting.join_url);
   }
 
   async getStatus(botId: string): Promise<{ status: ProviderBotStatus; detail?: string }> {

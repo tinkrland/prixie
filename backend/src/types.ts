@@ -47,6 +47,10 @@ export interface Meeting {
   bot_id?: string | null;
   instruction?: string | null;
   join_delay_minutes: number;
+  // which gate she waits at: minutes after start (delay, the default) or
+  // until N participants are already inside (participants)
+  join_trigger?: JoinTrigger;
+  join_after_participants?: number | null;
   attendance_method: AttendanceMethod;
   attendance_form_url?: string | null;
   zoom_user_email?: string | null;
@@ -73,6 +77,8 @@ export interface CreateMeetingInput {
   end_time?: string;
   instruction?: string;
   join_delay_minutes?: number;
+  join_trigger?: JoinTrigger;
+  join_after_participants?: number | null;
   attendance_method?: AttendanceMethod;
   attendance_form_url?: string;
   zoom_user_email?: string;
@@ -96,6 +102,8 @@ export interface UpdateMeetingInput {
   bot_id?: string | null;
   instruction?: string;
   join_delay_minutes?: number;
+  join_trigger?: JoinTrigger;
+  join_after_participants?: number | null;
   attendance_method?: AttendanceMethod;
   attendance_form_url?: string;
   zoom_user_email?: string;
@@ -135,6 +143,12 @@ export interface LocalizationConfig {
   accent?: string;
   transliteration?: "latin-phonetic";
 }
+
+// the join gate. "delay": she joins N minutes after start (the existing
+// behavior). "participants": she holds until N humans are already in the
+// room, which is the join-when-it-actually-started trigger: a scheduled
+// time is a promise, a participant count is a fact.
+export type JoinTrigger = "delay" | "participants";
 
 export interface CaptureRequest {
   id: string;

@@ -33,6 +33,7 @@ export interface MemoryNode {
   last_recalled: string | null;
   created_at: string;
   updated_at: string;
+  decay_rate?: number;
 }
 
 export interface MemoryAssociation {
@@ -472,7 +473,9 @@ async function traverseAssociations(
 // ============================================================================
 
 // apply exponential decay to hierarchy
-export function applyDecay(mem: MemoryNode): number {
+export function applyDecay(
+  mem: Partial<MemoryNode> & { hierarchy: number },
+): number {
   if (!mem.last_recalled) return mem.hierarchy;
 
   const daysSinceRecall = (Date.now() - new Date(mem.last_recalled).getTime()) / (1000 * 60 * 60 * 24);
@@ -626,17 +629,23 @@ export async function canShareMemory(
 // increment recall count for retrieved memories
 async function incrementRecallCounts(nodeIds: string[]): Promise<void> {
   for (const id of nodeIds) {
-    await supabase.rpc("increment_recall_count", { node_id: id }).catch(() => {
+    try {
+      const { error } = await supabase.rpc("increment_recall_count", { node_id: id });
+      if (error) throw error;
+    } catch {
       // rpc might not exist yet, do manual update
-      supabase
-        .from("memory_nodes")
-        .update({
-          recall_count: supabase.raw("recall_count + 1"),
-          last_recalled: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .then(() => {});
-    });
+      try {
+        await supabase
+          .from("memory_nodes")
+          .update({
+            recall_count: (await supabase.from("memory_nodes").select("recall_count").eq("id", id).single()).data?.recall_count + 1,
+            last_recalled: new Date().toISOString(),
+          })
+          .eq("id", id);
+      } catch {
+        // a failed counter is not worth a crash
+      }
+    }
   }
 }
 
@@ -663,9 +672,13 @@ async function logRetrieval(
 
 // get memory tree for a perspective
 export async function getMemoryTree(perspectiveId: string): Promise<any[]> {
-  const { data, error } = await supabase
-    .rpc("get_memory_tree", { p_perspective_id: perspectiveId })
-    .catch(() => null);
+  let data: any[] | null = null;
+  try {
+    const res = await supabase.rpc("get_memory_tree", { p_perspective_id: perspectiveId });
+    data = res.data;
+  } catch {
+    data = null;
+  }
 
   if (data) return data;
 

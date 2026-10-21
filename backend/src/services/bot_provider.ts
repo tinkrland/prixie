@@ -34,6 +34,11 @@ export interface BotProvider {
   // current lifecycle state of the bot
   getStatus(botId: string): Promise<{ status: ProviderBotStatus; detail?: string }>;
 
+  // how many humans are already inside, read from outside the room (the
+  // pre-join / waiting room page). engines that cannot tell return null;
+  // that is a hold, never a fake count.
+  participantCount?(meeting: Meeting): Promise<number | null>;
+
   // send a chat message as prixie from inside the meeting
   sendChatMessage(botId: string, messageText: string): Promise<boolean>;
 

@@ -65,7 +65,8 @@ all platforms share the same flow: open the meeting url in the headless browser,
 | capture requests | working | keywords, links, codes, questions, with context |
 | prepared questions | planned | ask your questions out loud during q&a (needs voice feature) |
 | profile / persona system | designed | sandboxed identities, per profile memory, shared global memory |
-| link sourcing (discord, slack, luma) | planned | agentmail (forward to her, she joins) already shipped; the rest are next |
+| link sourcing (discord, slack, luma) | partial | agentmail shipped, luma register-then-source shipped (signup-gated events wait on the confirmation path, needs_link says so); discord calls, slack huddles, forums are next. the honest map is docs/features/link-sourcing.md |
+| join triggers | working | delay (default, n minutes after start) or participants: she holds until n humans are already inside, read from the pre-join page. a page that will not say is a hold, never a guess |
 | hinglish transliteration | planned | latin script, italicized, phonetically written |
 | voice interaction | planned | TTS to speak questions, STT to hear answers |
 | browserbase fallback | planned | headless browser for unsupported platforms |

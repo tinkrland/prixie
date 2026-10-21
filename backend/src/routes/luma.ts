@@ -58,7 +58,7 @@ app.post("/register", async (c) => {
   }
 
   try {
-    const { registration, event } = await registerAndCreateMeeting(event_id, profileData);
+    const { registration, event, needs_link } = await registerAndCreateMeeting(event_id, profileData);
 
     // create meeting record in supabase if we got a meeting url
     if (event.meeting_url) {
@@ -84,7 +84,9 @@ app.post("/register", async (c) => {
       return c.json({ registration, event, meeting });
     }
 
-    return c.json({ registration, event });
+    // registered, but the link lives behind the confirmation path: the
+    // inbox webhook completes sourcing when the confirmation email arrives.
+    return c.json({ registration, event, needs_link, note: "registered; the meeting link arrives via confirmation email or the host calendar" });
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
   }

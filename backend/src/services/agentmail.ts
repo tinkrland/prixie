@@ -16,6 +16,7 @@
 
 import { createMeeting } from "./supabase.ts";
 import { detectPlatform, extractMeetingUrl } from "./calendar_sync.ts";
+import { parseColloquialTime } from "./colloquial_time.ts";
 
 export interface AgentMailMessage {
   message_id: string;
@@ -75,7 +76,17 @@ export async function agentMailInbound(msg: AgentMailMessage): Promise<AgentMail
   }
 
   const platform = detectPlatform(joinUrl) || "custom";
-  const startTime = msg.date || new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+  // the email's own date is the truth when the mailer sent one. prose
+  // time is next: "see you at 3pm est" in the body is a real schedule,
+  // converted to utc by the colloquial parser. only when the email says
+  // neither do we fall back to "be there in five minutes": forwarding it
+  // to her is the instruction to be there.
+  const body = [msg.text, stripHtml(msg.html || "")].filter(Boolean).join(" ");
+  const prose = body ? parseColloquialTime(body) : null;
+  const startTime = msg.date
+    || (prose?.iso && !prose.partial ? prose.iso : null)
+    || new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
   try {
     const meeting = await createMeeting({
