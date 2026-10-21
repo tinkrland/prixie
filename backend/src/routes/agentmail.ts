@@ -18,6 +18,22 @@ function authorized(headerSecret: string | undefined): boolean {
   return headerSecret === expected;
 }
 
+// the forward whitelist (the owner, oct 21 2026): only mail forwarded by
+// whitelisted senders is a viable meeting joining request. PRIXIE_FORWARD_WHITELIST
+// is a comma separated list of email addresses in env, never in the repo.
+// unset whitelist = the door stays closed, same rule as the secret.
+function senderWhitelisted(from: string | undefined): boolean {
+  const raw = Deno.env.get("PRIXIE_FORWARD_WHITELIST");
+  if (!raw) return false;
+  const address = (from || "").match(/[\w.+-]+@[\w.-]+/)?.[0]?.toLowerCase();
+  if (!address) return false;
+  return raw
+    .split(",")
+    .map((e) => e.trim().match(/[\w.+-]+@[\w.-]+/)?.[0]?.toLowerCase())
+    .filter(Boolean)
+    .includes(address);
+}
+
 agentMailRouter.post("/inbound", async (c) => {
   if (!authorized(c.req.header("x-agentmail-secret"))) {
     return c.json({ error: "unauthorized" }, 401);
@@ -32,6 +48,13 @@ agentMailRouter.post("/inbound", async (c) => {
 
   if (!body.message_id || (!body.text && !body.html)) {
     return c.json({ error: "message_id and a body are required" }, 400);
+  }
+
+  // the whitelist check comes after shape validation but before she acts:
+  // a forwarded invite from a stranger is not a meeting she joins.
+  if (!senderWhitelisted(body.from as string | undefined)) {
+    console.warn(`prixie: inbound mail from unwhitelisted sender rejected: ${body.from}`);
+    return c.json({ error: "sender not whitelisted" }, 403);
   }
 
   const result = await agentMailInbound({
@@ -51,7 +74,7 @@ agentMailRouter.get("/status", (c) =>
   c.json({
     inbox: "prixie",
     listening: Deno.env.get("AGENTMAIL_WEBHOOK_SECRET") ? true : false,
-    note: "set AGENTMAIL_WEBHOOK_SECRET to open the inbox; forward a meeting invite to her address and she joins",
+    note: "set AGENTMAIL_WEBHOOK_SECRET and PRIXIE_FORWARD_WHITELIST to open the inbox; only whitelisted senders' forwards are join requests",
   }));
 
 export { agentMailRouter };

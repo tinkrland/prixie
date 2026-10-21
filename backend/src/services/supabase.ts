@@ -225,6 +225,7 @@ export async function createCaptureRequest(input: CreateCaptureRequestInput): Pr
         screenshot_enabled: input.screenshot_enabled ?? false,
         check_chat: input.check_chat ?? true,
         redeem: input.redeem ?? false,
+        form_email_mode: input.form_email_mode ?? null,
         status: "pending",
       },
     ])

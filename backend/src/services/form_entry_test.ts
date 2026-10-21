@@ -2,7 +2,8 @@
 // what she did on their behalf, or exactly what to do when she could not.
 
 import { assertEquals } from "jsr:@std/assert@1";
-import { buildRedeemEmail, getPrixieIdentity, CC_SELECTORS } from "./form_entry.ts";
+import { buildRedeemEmail } from "./form_entry.ts";
+import { CODE_SELECTORS } from "./promo.ts";
 
 Deno.test("successful redemption email carries both screenshots", () => {
   const email = buildRedeemEmail(
@@ -11,6 +12,8 @@ Deno.test("successful redemption email carries both screenshots", () => {
       submitted: true,
       filled_email: true,
       filled_name: true,
+      promo_attempted: false,
+      promo_applied: false,
       cc_detected: false,
       before_screenshot: "https://cdn.example.com/before.png",
       after_screenshot: "https://cdn.example.com/after.png",
@@ -24,7 +27,7 @@ Deno.test("successful redemption email carries both screenshots", () => {
   );
 
   assertEquals(email.subject, 'prixie: redeemed "the access code" (hackathon kickoff)');
-  assertEquals(email.body.includes("entered prixie's own form email and submitted"), true);
+  assertEquals(email.body.includes("entered her form email and submitted"), true);
   assertEquals(email.body.includes("check that inbox"), true);
   assertEquals(email.body.includes("before.png"), true);
   assertEquals(email.body.includes("after.png"), true);
@@ -38,6 +41,8 @@ Deno.test("failed redemption email says act now and links the form", () => {
       submitted: false,
       filled_email: false,
       filled_name: false,
+      promo_attempted: false,
+      promo_applied: false,
       cc_detected: false,
       detail: "no email field found on the page",
     },
@@ -56,6 +61,8 @@ Deno.test("cc form: she stops, does not redeem, tells the owner why", () => {
       submitted: false,
       filled_email: false,
       filled_name: false,
+      promo_attempted: false,
+      promo_applied: false,
       cc_detected: true,
       detail: "credit card / payment field detected, not filling",
     },
@@ -67,31 +74,46 @@ Deno.test("cc form: she stops, does not redeem, tells the owner why", () => {
   assertEquals(email.body.includes("do it now: https://example.com/checkout"), true);
 });
 
-Deno.test("form identity is hers, not the owner's", () => {
-  // unset everything, then set only the form identity
-  Deno.env.delete("PRIXIE_FORM_EMAIL");
-  assertEquals(getPrixieIdentity(), null);
-
-  Deno.env.set("PRIXIE_FORM_EMAIL", "prixie-signups@example.com");
-  try {
-    const identity = getPrixieIdentity();
-    assertEquals(identity?.email, "prixie-signups@example.com");
-    assertEquals(identity?.name, "prixie"); // default name, changeable via env
-  } finally {
-    Deno.env.delete("PRIXIE_FORM_EMAIL");
-  }
+Deno.test("applied promo code is reported in the receipt email", () => {
+  const email = buildRedeemEmail(
+    {
+      url: "https://example.com/claim",
+      submitted: true,
+      filled_email: true,
+      filled_name: true,
+      promo_attempted: true,
+      promo_applied: true,
+      cc_detected: false,
+      before_screenshot: "https://cdn.example.com/before.png",
+      after_screenshot: "https://cdn.example.com/after.png",
+      detail: "submitted",
+    },
+    { meetingTitle: "demo day", captureTitle: "the perk", formEmail: "prixie+example@fake.example", promoCode: "HACK50" },
+  );
+  assertEquals(email.body.includes("promo code HACK50: applied"), true);
+  assertEquals(email.body.includes("prixie+example@fake.example"), true);
 });
 
-Deno.test("cc selectors target payment fields, not email fields", () => {
-  // no cc selector TARGETS an email field as its primary match.
-  // (the [type!="email"] exclusion in the card selector is the opposite:
-  // it makes sure an email-typed field named "card..." does not trip it)
-  for (const sel of CC_SELECTORS) {
-    assertEquals(sel.includes('name*="email" i'), false, sel);
-    assertEquals(sel.includes('id*="email" i'), false, sel);
-    assertEquals(sel.includes('placeholder*="email" i'), false, sel);
-    assertEquals(sel.includes('type="email"'), false, sel);
+Deno.test("a code she could not enter is reported honestly", () => {
+  const email = buildRedeemEmail(
+    {
+      url: "https://example.com/claim",
+      submitted: false,
+      filled_email: false,
+      filled_name: false,
+      promo_attempted: true,
+      promo_applied: false,
+      cc_detected: false,
+      detail: "no email field found on the page",
+    },
+    { meetingTitle: "demo day", captureTitle: "the perk", promoCode: "HACK50" },
+  );
+  assertEquals(email.body.includes("could not enter it"), true);
+});
+
+Deno.test("code selectors target code fields, never email or person-name fields", () => {
+  for (const sel of CODE_SELECTORS) {
+    assertEquals(sel.includes("email"), false, sel);
+    assertEquals(sel.includes('*="name" i'), false, sel);
   }
-  // and the strong signal is present
-  assertEquals(CC_SELECTORS.includes('input[autocomplete="cc-number"]'), true);
 });

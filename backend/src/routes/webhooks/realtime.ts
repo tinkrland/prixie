@@ -10,6 +10,7 @@ import { detectTerms } from "../../services/term_detector.ts";
 import { notifyCaptureMatch } from "../../services/notify.ts";
 import { detectScarcity } from "../../services/scarcity.ts";
 import { redeemAndNotify } from "../../services/form_entry.ts";
+import { extractPromoCode } from "../../services/promo.ts";
 
 // scarcity she has heard per meeting (the announcement usually precedes
 // the link by minutes). in-memory by design: it is live-call urgency,
@@ -167,6 +168,8 @@ realtimeWebhook.post("/", async (c) => {
               meetingTitle: meeting.title,
               captureTitle: req.title,
               scarce: scarcityHeard.get(meeting.id),
+              promoCode: extractPromoCode(chatSnippet),
+              emailMode: (req.form_email_mode as any) ?? null,
             }).catch((err: any) =>
               console.warn(`prixie: redeem attempt failed: ${err.message}`)
             );

@@ -43,6 +43,7 @@ captureRouter.post("/", async (c) => {
       screenshot_enabled: body.screenshot_enabled ?? false,
       check_chat: body.check_chat ?? true,
       redeem: body.redeem ?? false,
+      form_email_mode: body.form_email_mode ?? null,
     });
 
     return c.json(

@@ -165,6 +165,7 @@ export interface CaptureRequest {
   screenshot_enabled: boolean;
   check_chat: boolean;
   redeem?: boolean | null;
+  form_email_mode?: string | null;
   status: CaptureStatus;
   created_at?: string;
   updated_at?: string;
@@ -180,6 +181,7 @@ export interface CreateCaptureRequestInput {
   screenshot_enabled?: boolean;
   check_chat?: boolean;
   redeem?: boolean;
+  form_email_mode?: "regular" | "plus" | "disposable" | "business";
 }
 
 export interface UpdateCaptureRequestInput {
