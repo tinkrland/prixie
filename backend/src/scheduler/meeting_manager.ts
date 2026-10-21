@@ -13,7 +13,7 @@ import { searchForKeywords } from "../services/browserbase_transcript.ts";
 import { processTranscript, containsDevanagari, hinglishStats } from "../services/hinglish.ts";
 import { calendarService } from "../services/calendar.ts";
 import { shouldJoinNow } from "./join_trigger.ts";
-import { enterForm, getOwnerIdentity } from "../services/form_entry.ts";
+import { enterForm, getPrixieIdentity } from "../services/form_entry.ts";
 
 // every platform goes through the same provider. no per-platform forks anymore.
 const provider = botProvider;
@@ -157,9 +157,9 @@ export class MeetingManager {
     }
 
     try {
-      const identity = getOwnerIdentity();
+      const identity = getPrixieIdentity();
       if (!identity) {
-        console.warn("prixie: form attendance skipped, no PRIXIE_OWNER_EMAIL");
+        console.warn("prixie: form attendance skipped, no PRIXIE_FORM_EMAIL");
         return;
       }
 

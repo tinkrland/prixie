@@ -1,11 +1,21 @@
 // form entry: the "enter an email or smth" primitive. attendance forms,
 // webinar signups, and first-come-first-served code redemption are the
-// same action: open a page in her own session, fill it with the owner's
-// identity, submit, and keep the receipts. it is never done in the
-// meeting session: navigating that away would drop the meeting.
+// same action: open a page in her own session, fill it, submit, keep
+// the receipts. it is never done in the meeting session: navigating
+// that away would drop the meeting.
+//
+// identity split (the owner, oct 21 2026): the email that goes INTO a form is
+// prixie's own, not the owner's. it is changeable later (retired
+// identities just stop receiving), so a burnt signup costs nothing that
+// matters. the owner's email is only ever the destination she reports
+// TO, never the identity she acts AS.
+//
+// the gate: she only auto-redeems no-cc redemptions. a form asking for
+// payment is a hard stop, probed before anything is filled.
 
 import {
   createSession,
+  elementExists,
   findAndClickByText,
   findAndType,
   navigateTo,
@@ -18,7 +28,7 @@ import { registerDefaultScreenshotEngines } from "./screenshot_engines.ts";
 // if it runs before the realtime webhook module ever loads
 registerDefaultScreenshotEngines();
 
-export interface OwnerIdentity {
+export interface PrixieIdentity {
   email: string;
   name?: string;
 }
@@ -28,19 +38,33 @@ export interface FormEntryReceipt {
   submitted: boolean;
   filled_email: boolean;
   filled_name: boolean;
+  cc_detected: boolean;
   before_screenshot?: string;
   after_screenshot?: string;
   detail: string;
 }
 
-export function getOwnerIdentity(): OwnerIdentity | null {
-  const email = Deno.env.get("PRIXIE_OWNER_EMAIL");
+export function getPrixieIdentity(): PrixieIdentity | null {
+  const email = Deno.env.get("PRIXIE_FORM_EMAIL");
   if (!email) return null;
-  return { email, name: Deno.env.get("PRIXIE_OWNER_NAME") || undefined };
+  return { email, name: Deno.env.get("PRIXIE_FORM_NAME") || "prixie" };
 }
 
+// the selectors that mean "this form wants money". autocomplete cc-* is
+// the strong signal; name/id/placeholder shapes catch hand-rolled ones.
+export const CC_SELECTORS = [
+  'input[autocomplete*="cc" i]',
+  'input[name*="card" i][type!="email"]',
+  'input[id*="card" i][type!="email"]',
+  'input[placeholder*="card" i]',
+  'input[name*="cvc" i]',
+  'input[name*="cvv" i]',
+  'input[name*="csc" i]',
+  'input[autocomplete="cc-number"]',
+];
+
 // pure: the notify email for a redemption attempt, so the owner can
-// verify what she did on their behalf or do it themselves if she failed
+// verify what she did or do it themselves when she (correctly) did not
 export function buildRedeemEmail(
   receipt: FormEntryReceipt,
   context: { meetingTitle: string; captureTitle: string; scarce?: string },
@@ -53,8 +77,13 @@ export function buildRedeemEmail(
   if (context.scarce) {
     lines.push(`scarcity heard mid-meeting: ${context.scarce}`, "");
   }
-  if (receipt.submitted) {
-    lines.push("she entered your details and submitted the form.");
+  if (receipt.cc_detected) {
+    lines.push("she stopped: the form asks for payment/card details.");
+    lines.push("no-cc only by design, she does not spend money on your behalf.");
+    lines.push("if you want it anyway, do it now: " + receipt.url);
+  } else if (receipt.submitted) {
+    lines.push("she entered prixie's own form email and submitted.");
+    lines.push("check that inbox if the form sends a confirmation or code.");
     lines.push("before: " + (receipt.before_screenshot || "(no screenshot)"));
     lines.push("after: " + (receipt.after_screenshot || "(no screenshot)"));
   } else {
@@ -62,8 +91,10 @@ export function buildRedeemEmail(
     lines.push("if it is first come first serve, do it now: " + receipt.url);
   }
   return {
-    subject: receipt.submitted
-      ? `prixie: redeemed "${context.captureTitle}" for you (${context.meetingTitle})`
+    subject: receipt.cc_detected
+      ? `prixie: payment form, did NOT redeem "${context.captureTitle}" (${context.meetingTitle})`
+      : receipt.submitted
+      ? `prixie: redeemed "${context.captureTitle}" (${context.meetingTitle})`
       : `prixie: could NOT redeem "${context.captureTitle}", act now (${context.meetingTitle})`,
     body: lines.join("\n"),
   };
@@ -89,7 +120,7 @@ const SUBMIT_TEXTS = ["submit", "sign up", "signup", "register", "rsvp", "join",
 // happened after the email landed. the screenshots are the proof.
 export async function enterForm(
   url: string,
-  identity: OwnerIdentity,
+  identity: PrixieIdentity,
 ): Promise<FormEntryReceipt> {
   const session = await createSession();
   const receipt: FormEntryReceipt = {
@@ -97,12 +128,23 @@ export async function enterForm(
     submitted: false,
     filled_email: false,
     filled_name: false,
+    cc_detected: false,
     detail: "",
   };
 
   try {
     await navigateTo(session.id, url);
     await new Promise((r) => setTimeout(r, 4000)); // let the form settle
+
+    // the no-cc gate, probed before a single field is touched
+    for (const sel of CC_SELECTORS) {
+      if (await elementExists(session.id, sel, 2500)) {
+        receipt.cc_detected = true;
+        receipt.detail = "credit card / payment field detected, not filling";
+        receipt.before_screenshot = await captureScreenshot(session.id, "browserbase");
+        return receipt;
+      }
+    }
 
     for (const sel of EMAIL_SELECTORS) {
       if (await findAndType(session.id, sel, identity.email, 4000)) {
@@ -157,15 +199,17 @@ export async function enterForm(
   }
 }
 
-// redeem a link for the owner and push the receipt. fire-and-forget by
-// contract: the capture stays the record of truth in supabase.
+// redeem a link and push the receipt. fire-and-forget by contract: the
+// capture stays the record of truth in supabase.
 export async function redeemAndNotify(
   url: string,
   context: { meetingTitle: string; captureTitle: string; scarce?: string },
 ): Promise<boolean> {
-  const identity = getOwnerIdentity();
+  const identity = getPrixieIdentity();
   if (!identity) {
-    console.warn("prixie: redeem skipped, no PRIXIE_OWNER_EMAIL configured");
+    console.warn(
+      "prixie: redeem skipped, no PRIXIE_FORM_EMAIL configured (the form identity is hers, not the owner's)",
+    );
     return false;
   }
 

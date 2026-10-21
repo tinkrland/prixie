@@ -147,6 +147,24 @@ export async function findAndClick(sessionId: string, selector: string, timeoutM
   return false;
 }
 
+// elementExists: a findAndType that never types. the redeem flow uses it
+// to probe for credit card fields before filling anything: finding one
+// is a hard stop, not something to write into.
+export async function elementExists(sessionId: string, selector: string, timeoutMs = 8000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+      expression: `document.querySelector(${JSON.stringify(selector)}) !== null`,
+      returnByValue: true,
+    });
+    if (result?.result?.value === true) {
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return false;
+}
+
 export async function findAndType(sessionId: string, selector: string, text: string, timeoutMs = 10000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
