@@ -97,6 +97,232 @@ export function buildTranscribePlan(localPath: string): {
   };
 }
 
+// --- default transport implementations ---
+
+export async function defaultFetchRecording(plan: FetchPlan): Promise<string> {
+  if (plan.refusal) {
+    throw new Error(`recap: ${plan.refusal}`);
+  }
+  if (!plan.command || plan.command.length === 0) {
+    throw new Error("recap: no fetch command specified in plan");
+  }
+
+  const [cmd, ...args] = plan.command;
+  const command = new Deno.Command(cmd, {
+    args,
+    stdout: "piped",
+    stderr: "piped",
+  });
+
+  const output = await command.output();
+  if (!output.success) {
+    const errText = new TextDecoder().decode(output.stderr);
+    throw new Error(`recap: fetch command failed (${cmd}): ${errText.trim()}`);
+  }
+
+  const oIndex = args.indexOf("-o");
+  if (oIndex !== -1 && oIndex + 1 < args.length) {
+    return args[oIndex + 1];
+  }
+  return "recap_media";
+}
+
+export async function defaultTranscribe(
+  mediaPath: string,
+): Promise<{ segments: TranscriptSegment[]; doc: string }> {
+  const apiKey = Deno.env.get("ASSEMBLYAI_API_KEY");
+  if (!apiKey) {
+    throw new Error("recap: ASSEMBLYAI_API_KEY is required for transcription transport");
+  }
+
+  const plan = buildTranscribePlan(mediaPath);
+
+  let fileData: Uint8Array;
+  try {
+    fileData = await Deno.readFile(mediaPath);
+  } catch (e: any) {
+    throw new Error(`recap: failed to read media file at ${mediaPath}: ${e.message}`);
+  }
+
+  const uploadRes = await fetch(plan.uploadUrl, {
+    method: "POST",
+    headers: {
+      "Authorization": apiKey,
+      "Content-Type": "application/octet-stream",
+    },
+    body: fileData as unknown as BodyInit,
+  });
+
+  if (!uploadRes.ok) {
+    const errText = await uploadRes.text();
+    throw new Error(`recap: assembly.ai upload failed (${uploadRes.status}): ${errText}`);
+  }
+
+  const uploadJson = await uploadRes.json();
+  const audioUrl = uploadJson.upload_url;
+
+  const submitRes = await fetch("https://api.assemblyai.com/v2/transcript", {
+    method: "POST",
+    headers: {
+      "Authorization": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      audio_url: audioUrl,
+      speaker_labels: true,
+      speech_model: "best",
+    }),
+  });
+
+  if (!submitRes.ok) {
+    const errText = await submitRes.text();
+    throw new Error(`recap: assembly.ai submit failed (${submitRes.status}): ${errText}`);
+  }
+
+  const submitJson = await submitRes.json();
+  const transcriptId = submitJson.id;
+
+  const pollUrl = plan.pollPath(transcriptId);
+  let status = "queued";
+  let transcriptData: any = null;
+  const startTime = Date.now();
+  const timeoutMs = 600000;
+
+  while (Date.now() - startTime < timeoutMs) {
+    const pollRes = await fetch(pollUrl, {
+      headers: { "Authorization": apiKey },
+    });
+    if (!pollRes.ok) {
+      throw new Error(`recap: assembly.ai poll failed (${pollRes.status})`);
+    }
+    transcriptData = await pollRes.json();
+    status = transcriptData.status;
+
+    if (status === "completed") break;
+    if (status === "error") {
+      throw new Error(`recap: assembly.ai transcription failed: ${transcriptData.error}`);
+    }
+
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+
+  if (status !== "completed") {
+    throw new Error("recap: assembly.ai transcription timed out");
+  }
+
+  const segments: TranscriptSegment[] = [];
+
+  if (transcriptData.utterances && Array.isArray(transcriptData.utterances)) {
+    for (const u of transcriptData.utterances) {
+      segments.push({
+        start_ms: u.start,
+        end_ms: u.end,
+        speaker: u.speaker ? `speaker ${u.speaker}` : undefined,
+        text: u.text,
+      });
+    }
+  } else if (transcriptData.words && Array.isArray(transcriptData.words)) {
+    const start_ms = transcriptData.words[0]?.start ?? 0;
+    const end_ms = transcriptData.words[transcriptData.words.length - 1]?.end ?? 0;
+    segments.push({ start_ms, end_ms, text: transcriptData.text || "" });
+  } else {
+    segments.push({
+      start_ms: 0,
+      end_ms: Math.floor((transcriptData.audio_duration || 0) * 1000),
+      text: transcriptData.text || "",
+    });
+  }
+
+  const docLines = segments.map((s) =>
+    s.speaker ? `[${s.speaker}] ${s.text}` : s.text
+  );
+  const doc = `# transcript\n\n${docLines.join("\n")}`;
+
+  return { segments, doc };
+}
+
+export async function defaultIngest(
+  transcriptDoc: string,
+  meta: { url: string; title: string; personaId: string },
+): Promise<void> {
+  const tempFile = await Deno.makeTempFile({ prefix: "recap_transcript_", suffix: ".md" });
+  try {
+    await Deno.writeTextFile(tempFile, transcriptDoc);
+
+    const command = new Deno.Command("python3", {
+      args: [
+        "scripts/recap_ingest.py",
+        "ingest",
+        "--transcript",
+        tempFile,
+        "--title",
+        meta.title,
+        "--url",
+        meta.url,
+        "--persona-id",
+        meta.personaId,
+      ],
+      stdout: "piped",
+      stderr: "piped",
+    });
+
+    const output = await command.output();
+    if (!output.success) {
+      const errText = new TextDecoder().decode(output.stderr);
+      throw new Error(`recap: retelldb ingest failed: ${errText.trim()}`);
+    }
+  } finally {
+    try {
+      await Deno.remove(tempFile);
+    } catch {
+      // ignore temp file removal errors
+    }
+  }
+}
+
+export async function defaultQuery(
+  request: CaptureRequest,
+  personaId = "prixie",
+): Promise<string | null> {
+  const queryText = request.keywords.length > 0 ? request.keywords.join(" ") : request.title;
+
+  const command = new Deno.Command("python3", {
+    args: [
+      "scripts/recap_ingest.py",
+      "query",
+      "--query-text",
+      queryText,
+      "--persona-id",
+      personaId,
+    ],
+    stdout: "piped",
+    stderr: "piped",
+  });
+
+  const output = await command.output();
+  if (!output.success) {
+    const errText = new TextDecoder().decode(output.stderr);
+    throw new Error(`recap: retelldb query failed: ${errText.trim()}`);
+  }
+
+  const stdout = new TextDecoder().decode(output.stdout).trim();
+  // blank stdout is the seam's honest "no meaning pass hit"
+  if (!stdout) {
+    return null;
+  }
+
+  return stdout;
+}
+
+export function createDefaultTransports(personaId = "prixie"): RecapSessionDeps {
+  return {
+    fetchRecording: defaultFetchRecording,
+    transcribe: defaultTranscribe,
+    ingest: (doc, meta) => defaultIngest(doc, meta),
+    query: (req) => defaultQuery(req, personaId),
+  };
+}
+
 // --- answers: the exact pass over the transcript ---
 
 export function formatTimestamp(ms: number): string {
@@ -181,11 +407,12 @@ export class RecapSession {
   // capture requests run both passes: exact citations from the transcript,
   // then meaning from retelldb. not found stays not found.
   async answer(requests: CaptureRequest[], segments: TranscriptSegment[]): Promise<RecapAnswer[]> {
+    const queryFn = this.require(this.deps.query, "query");
     const answers: RecapAnswer[] = [];
 
     for (const request of requests) {
       const exact = searchTranscript(request, segments);
-      const meaning = await this.deps.query?.(request) ?? null;
+      const meaning = await queryFn(request);
 
       if (exact.status === "found") {
         answers.push({

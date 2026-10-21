@@ -35,12 +35,12 @@ you wanted a summary you would not have sent prixie.
 
 | path | what |
 | --- | --- |
-| `server/recap.ts` | classifySource, buildFetchPlan, buildTranscribePlan, RecapSession (ingest + answer, the pure orchestration; the external calls throw at the transport, as everywhere in prixie) |
-| `scripts/recap_ingest.py` | the retelldb seam: ingest the transcript, query per capture request, answer with transcript citations |
+| `server/recap.ts` | classifySource, buildFetchPlan, buildTranscribePlan, RecapSession (ingest + answer), the default transports (yt-dlp fetch, assembly.ai transcribe, retelldb seam), and searchTranscript (the exact pass with h:mm:ss citations) |
+| `scripts/recap_ingest.py` | the retelldb seam: ingest the transcript via the embedded sdk (the cli's --url is the remote server url, so the recording url rides in source_uri), query per capture request |
 | `retelldb/`, `persona/` | byte-identical copies synced from the context branch (`sh tools/sync-context.sh`) |
 
 ## tests
 
 ```
-deno test --allow-env tests/
+deno test server/recap_test.ts
 ```
