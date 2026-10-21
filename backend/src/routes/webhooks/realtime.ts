@@ -26,6 +26,20 @@ import {
   alreadyAttempted,
   markAttempted,
 } from "../../services/chat_form_attendance.ts";
+import {
+  type DocAccessReceipt,
+  extractSharedDocLink,
+  pageState,
+  buildAccessNudge,
+  alreadyAttempted as docAlreadyAttempted,
+  markAttempted as docMarkAttempted,
+} from "../../services/doc_access.ts";
+import {
+  createSession,
+  navigateTo,
+  stopSession,
+  cdpExecute,
+} from "../../services/browserbase.ts";
 
 // the door rule of this repo: unset secret = route closed, not open.
 // whoever posts transcript/chat events (the recall webhook, a relay)
@@ -144,6 +158,138 @@ async function advanceQna(
     state.phase = "done";
     console.log(`prixie: qna ask declined in ${meeting.id}, standing down`);
   }
+}
+
+// shared doc access (the owner, oct 21 2026): the host shares a google
+// link, she clicks it from a side session (the call session never
+// navigates away from the join page), and if she lacks access she
+// requests it and asks in the chat, addressing the host by name when
+// she read the room. honest caveat in the service: the request only
+// goes through if the page accepts her email; confirmation is read
+// from the page, never assumed.
+async function maybeHandleSharedDocAccess(meeting: any, botId: string, chatText: string): Promise<void> {
+  const url = extractSharedDocLink(chatText);
+  if (!url) return;
+  if (docAlreadyAttempted(meeting.id, url)) return;
+  docMarkAttempted(meeting.id, url);
+
+  const email = Deno.env.get("PRIXIE_GOOGLE_EMAIL");
+  if (!email) {
+    console.warn("prixie: shared doc without PRIXIE_GOOGLE_EMAIL, cannot ask for access");
+    return;
+  }
+
+  console.log(`prixie: shared doc link in chat for ${meeting.id}: ${url}`);
+  const receipt: DocAccessReceipt = { url, denied: false, requested: false, nudged_in_chat: false, detail: "" };
+
+  // a side session, NOT the call session: the call tab is untouched
+  const side = await createSession();
+  try {
+    await assertLinkSafeFor(url);
+    await navigateTo(side.id, url);
+    await new Promise((r) => setTimeout(r, 5000)); // google pages settle slowly
+
+    const state = await readDocPageState(side.id);
+    if (state === "open") {
+      receipt.detail = "doc is open to her, no request needed";
+      console.log(`prixie: shared doc already accessible in ${meeting.id}`);
+    } else {
+      receipt.denied = true;
+      if (state === "requested") {
+        // a request already exists from a previous attempt
+        receipt.requested = true;
+        receipt.detail = "access request already pending";
+      } else {
+        receipt.requested = await tryRequestAccess(side.id, email);
+        receipt.detail = receipt.requested
+          ? "access request submitted"
+          : "request flow did not confirm, falling back to asking in chat";
+      }
+
+      // back to the meeting tab: the nudge IS the synchronous path
+      const nudge = buildAccessNudge(meeting.host_name, email, receipt.requested);
+      const sent = await botProvider.sendChatMessage(botId, nudge);
+      receipt.nudged_in_chat = sent;
+      if (sent) {
+        await createAttendanceMessage({
+          meeting_id: meeting.id,
+          message_text: nudge,
+          trigger: "access",
+          sent_status: "sent",
+          sent_at: new Date().toISOString(),
+        }).catch(() => {});
+        console.log(`prixie: access nudge sent in chat for ${meeting.id} (requested: ${receipt.requested})`);
+      }
+    }
+  } catch (err: any) {
+    console.error(`prixie: shared doc handling failed in ${meeting.id}: ${err.message}`);
+    receipt.detail = `failed: ${err.message}`;
+  } finally {
+    await stopSession(side.id);
+  }
+}
+
+// reads the access state off the page text
+async function readDocPageState(sessionId: string): Promise<"denied" | "requested" | "open"> {
+  const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: "document.body.innerText.slice(0, 3000)",
+    returnByValue: true,
+  });
+  return pageState(result?.result?.value || "");
+}
+
+// google's own request flow, best effort, confirmed by page text.
+// a throwaway session is not signed in, so the click usually exposes
+// an email field or a sign-in wall; either way the page state decides.
+async function tryRequestAccess(sessionId: string, email: string): Promise<boolean> {
+  const click = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        const btns = [...document.querySelectorAll('button, a[role="button"]')];
+        const btn = btns.find((b) => /request access|ask for access|request permission/i.test(b.textContent || ""));
+        if (btn) { btn.click(); return "clicked"; }
+        return "no_button";
+      })()
+    `,
+    returnByValue: true,
+  });
+  if (click?.result?.value !== "clicked") return false;
+
+  await new Promise((r) => setTimeout(r, 3000));
+
+  // an email field may appear: fill it with her email, never the owner's
+  const typed = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        const input = document.querySelector('input[type="email"], input[autocomplete*="email" i]');
+        if (input) { input.value = ${JSON.stringify(email)}; input.dispatchEvent(new Event("input", { bubbles: true })); return "typed"; }
+        return "no_email_field";
+      })()
+    `,
+    returnByValue: true,
+  });
+  if (typed?.result?.value === "typed") {
+    await cdpExecute(sessionId, "Runtime.evaluate", {
+      expression: `
+        (() => {
+          const btns = [...document.querySelectorAll('button, div[role="button"]')];
+          const btn = btns.find((b) => /request access|send|submit/i.test(b.textContent || ""));
+          if (btn) btn.click();
+        })()
+      `,
+      returnByValue: true,
+    });
+    await new Promise((r) => setTimeout(r, 4000));
+  }
+
+  // the page decides: only "requested" counts
+  return (await readDocPageState(sessionId)) === "requested";
+}
+
+async function assertLinkSafeFor(url: string) {
+  const { assertLinkSafe } = await import("../../services/link_safety.ts");
+  const verdict = await assertLinkSafe(url);
+  if (!verdict.safe) throw new Error(`link blocked by safety gate: ${verdict.reason}`);
 }
 
 // the chat attendance form (the owner, oct 21 2026): the host posts a
@@ -326,6 +472,10 @@ realtimeWebhook.post("/", async (c) => {
       // sometimes the attendance IS a form posted in the chat. she
       // fills it with her form identity, once per link per meeting.
       await maybeFillChatAttendanceForm(meeting, text);
+
+      // a shared google doc she cannot open: she requests access and
+      // asks in the chat, without ever leaving the call.
+      await maybeHandleSharedDocAccess(meeting, botId, text);
 
       console.log(`prixie: chat message from ${speaker}: "${text}"`);
 
