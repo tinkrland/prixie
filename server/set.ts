@@ -88,6 +88,34 @@ export const LIGHT_RECIPES: Record<string, LightRecipe> = {
 // the set
 // ---------------------------------------------------------------------------
 
+// proskena's backdrop presets, verbatim from core/03-registry-state.js. a
+// preset is a prefill over the same two values, never a separate path.
+export const PROSKENA_BACKDROPS: Record<string, { bg: string; center: string }> = {
+  paper: { bg: "#b8b5ad", center: "#f4f1ea" },
+  warm_gray: { bg: "#8f887c", center: "#cfc8bd" },
+  charcoal: { bg: "#1b1c20", center: "#3d4046" },
+  blush: { bg: "#c9a49c", center: "#eed4cd" },
+  sage: { bg: "#9aa793", center: "#d2dacb" },
+  midnight: { bg: "#0d0e15", center: "#23273a" },
+};
+
+// set dressing, proskena's way: props are independent scene objects from its
+// prop library (setdesign/93-props.js), placed at x/z/rotY/scale, background
+// only. its clamps: x within +/-800, z within -900..-180, scale 0.4..2.
+export interface PropPlacement {
+  prop: "ottoman" | "mug" | "books" | "vase";
+  x: number;
+  z: number;
+  rotY: number;
+  scale: number;
+}
+
+// prixie's stage is a person, not a hand: proskena's stage is built around a
+// 225mm subject, so 1680mm reads at 7.5x its authored constants (backdrop,
+// prop placement, light rig distance). the scene state stays in proskena's
+// authored ranges; this scale is applied at render time.
+export const PERSON_STAGE_SCALE = 7.5;
+
 // the backdrop is two values, the way proskena's is: the edge colour and the
 // centre lift behind the subject.
 export interface Backdrop {
@@ -109,6 +137,8 @@ export interface SetSpec {
   name: string;
   backdrop: Backdrop;
   lighting: keyof typeof LIGHT_RECIPES;
+  // props from proskena's library, placed as scene objects (background only)
+  props: PropPlacement[];
   shot: PinnedShot;
   // the authored still, once proskena has exported it: added as an avatar look
   // and pinned on the conversation.
@@ -120,9 +150,27 @@ const DEFAULT_SHOT: PinnedShot = { fov: 30, focallength: 50, focaldistance: 330 
 export function defaultSet(overrides: Partial<SetSpec> = {}): SetSpec {
   return {
     name: "prixie desk",
-    backdrop: { bg: "#e8e2d8", center: "#f6f2ea" },
+    backdrop: { ...PROSKENA_BACKDROPS.warm_gray },
+    props: [
+      { prop: "ottoman", x: -320, z: -260, rotY: 20, scale: 1 },
+      { prop: "books", x: 300, z: -320, rotY: 0, scale: 1 },
+      { prop: "vase", x: 430, z: -300, rotY: 0, scale: 1 },
+    ],
     lighting: "soft_studio",
     shot: DEFAULT_SHOT,
+    ...overrides,
+  };
+}
+
+// the white background: proskena's own paper backdrop, no props, soft studio
+// light. this is the white background render.
+export function whiteStudioSet(overrides: Partial<SetSpec> = {}): SetSpec {
+  return {
+    ...defaultSet(),
+    name: "prixie white studio",
+    backdrop: { ...PROSKENA_BACKDROPS.paper },
+    props: [],
+    lighting: "soft_studio",
     ...overrides,
   };
 }
