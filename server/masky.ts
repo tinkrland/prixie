@@ -53,6 +53,14 @@ export interface ConversationHandle {
   isPublic: boolean;
 }
 
+export interface SpeakOptions {
+  voiceStyle?: VoiceStyle;
+  reinterpret?: boolean;
+  // draft is the default: cheaper per second, and the face is presence, not a
+  // render. standard/high for the lines that matter (hello clip, demo).
+  quality?: "draft" | "standard" | "high";
+}
+
 export interface Turn {
   id: string;
   role: string;
@@ -206,11 +214,12 @@ export async function enableIdleLoop(handle: ConversationHandle): Promise<void> 
 export async function speak(
   handle: ConversationHandle,
   text: string,
-  opts: { voiceStyle?: VoiceStyle; reinterpret?: boolean } = {},
+  opts: SpeakOptions = {},
 ): Promise<Turn> {
   if (text.length > 500) {
     throw new Error(`utterance too long for one turn (${text.length} > 500 chars); split it`);
   }
+  const quality = opts.quality ?? "draft";
   const data = await call<{ turn: Turn }>(
     "POST",
     `/conversations/${handle.conversationId}/turn`,
@@ -218,6 +227,12 @@ export async function speak(
       userText: text,
       mode: "speak",
       output: "video",
+      // draft by default: a meeting face is presence, not a render. a meeting
+      // face is presence, not a render: /api/videos/pricing has draft at
+      // 0.015/s vs 0.025/s full at 720p. draft is a documented boolean on the
+      // video endpoint and is accepted on turns (verified live: 202);
+      // quality is only sent for the documented standard/high enum.
+      ...(quality === "draft" ? { draft: true } : { quality }),
       ...(opts.voiceStyle ? { voiceStyle: opts.voiceStyle } : {}),
       ...(opts.reinterpret ? { reinterpret: true } : {}),
     },

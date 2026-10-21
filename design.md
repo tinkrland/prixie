@@ -14,6 +14,31 @@ the api reference lives at https://masky.ai/masky-api.md. read it before changin
 - **masky owns the tts for the face.** the speak flow takes TEXT, not audio: higgs tts + lip-sync are rendered together, with delivery cues (voiceStyle emotion/style/prosody, inline sfx/pause tags). yap's live room voice and the on-screen face are two different pipes. for full sync they need the same voice: avatar = cloned voice, yap = same source for TTS. the agent-binding bridge (below) is the other way to unify: let masky be only the face, prixie be the brain.
 - **persona faces** work natively: each persona gets its own avatar (ensurePersonaAvatar creates image + voice on first use), and a conversation pins its look via avatarImageUrl from the avatar's image variants.
 
+## the voice handoff (one voice, two rooms)
+
+a call uses livekit for voice and masky for the face. two tts providers would
+drift: the room hears one render while the mouth moves to another. so masky owns
+the voice when she is on camera. a speak turn renders higgs tts (the avatar's
+cloned voice, delivery cues via voiceStyle) and the lip-sync together, and hands
+back audioUrl + videoUrl from the same turn. yap publishes both: audioUrl as her
+livekit audio track, videoUrl as her camera track. the room hears the render the
+mouth is moving to, by construction.
+
+- retelldb decides what the voice is: the persona's memory (what she knows) and
+  the persona's voice profile (how she says it). the profile is vendored here
+  (retelldb/ from yap) so knowledge and delivery point at the same persona.
+- voiceStyleFromProfile maps tone_defaults (0..1) and the medium register onto
+  masky's named cues: sarcasm -> amusement, low confidence -> speed_slow +
+  expressive_low, a whispered register -> style whispering. this is the only
+  place the fuzzy profile vocabulary meets masky's enum.
+- draft is the default tier on every turn (0.015/s vs 0.025/s at 720p). a
+  meeting face is presence, not a render; bump the hello clip and recorded
+  demos to standard.
+- idle clips (silent renders) keep the face breathing between turns instead of
+  freezing on a still.
+- yap implements exactly one interface to take part: RoomPublisher.publish({audioUrl, videoUrl}).
+  runCall() drives the loop: hear -> say -> publish, idle when there is nothing.
+
 ## the camera publishing seam
 
 masky hands back three surfaces, in order of readiness:

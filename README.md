@@ -6,23 +6,47 @@ why decoupled: the join engine (main) and the voice (yap) do not care what she l
 
 status: wired. server/masky.ts talks to the real api (https://masky.ai/masky-api.md) and the full flow is smoke-tested live: portrait image -> prixie avatar -> conversation -> speak turn -> lip-synced 6s h264 clip, ~20s end to end, ~$0.16 in credits.
 
-## flow
+## flow: one voice, two rooms
+
+one call uses livekit for voice and masky for the face, and they must not drift.
+so there is only one voice: the speak turn renders higgs tts (the avatar's cloned
+voice) and the lip-sync together and hands back both files.
 
 ```
-prixie speaks (yap branch: livekit audio + tts)
+retelldb (persona memory)          what she knows, how she says it
+        |                          voice profile -> voiceStyle cues
+        v
+masky speak turn (text in, ~20-60s, cached per script, draft by default)
         |
-masky.ai: speak turn (text in, clip out, ~20-60s, cached per script)
+        +--> audioUrl --> livekit audio track   (what the room hears)
+        +--> videoUrl --> livekit camera track  (what the room sees)
         |
-publish: mp4 as livekit camera track (yap)
-         or live url (auto-playing live view + idle loops) as shared screen
+        +--> idle clips between turns (silent renders, blinks, head motion)
 ```
 
-the seam in server/masky.ts:
+the room hears exactly the render the mouth is moving to, by construction, not
+by syncing two providers. masky owns the voice whenever she is on camera; yap's
+own tts covers face-off turns only. server/handoff.ts is that seam, and yap
+implements one interface (RoomPublisher.publish) to take both tracks.
 
-- ensurePersonaAvatar: each persona wears its own face (image + voice created on first use)
-- startConversation + speak + waitForClip: the clip pipeline, turn id and clip 1:1 for <= 3 sentences
-- enableIdleLoop: blinks and head motion between turns (closes the clip gap on the playback side)
-- bindAgentBrain: prixie as the avatar's brain over nostr, masky as pure face
+seams:
+
+- server/masky.ts: ensurePersonaAvatar (one face per persona), startConversation,
+  speak, waitForClip, enableIdleLoop, makePublic, bindAgentBrain
+- server/handoff.ts: PersonaVoice (face + voice + memory as one object), say(),
+  recall(), runCall(), voiceStyleFromProfile() (tone 0..1 -> named tts cues)
+- retelldb/ is vendored here (from yap) so the persona's voice profile and her
+  memory live in the same graph the face speaks from
+
+## tests
+
+```
+deno test --allow-env --allow-net tests/handoff_test.ts   # 5 passing, mocked http
+```
+
+the suite pins the contract: one render feeds both tracks, draft is the default
+tier, the profile drives delivery cues, the room idles when there is nothing
+to say, over-long utterances are rejected before any api call.
 
 ## env
 
@@ -32,4 +56,17 @@ MASKY_API_KEY=your_masky_api_key   # generated at https://masky.ai/developer
 
 ## cost notes
 
-billed per second of finished render, once, on success: ~$0.025/s video, $0.005 per portrait image, 1 credit = $1. scripted speak turns are cached: the same line in the same voice renders once, replays free.
+billed per second of finished render, once, on success. live rates from
+GET /api/videos/pricing: 720p is 0.025/s full and 0.015/s draft, 1080p is
+0.05/s full and 0.03/s draft, portraits 0.005, 1 credit = $1. draft is the
+default on every turn here (a meeting face is presence, not a render). scripted
+speak turns are cached: the same line in the same voice renders once, replays
+are free.
+
+## twitch
+
+masky already ships twitch and OBS integration natively (avatars can be
+twitch-owned, ids show up as twitch:123, and the live url drops straight into
+OBS). for streamer presence that path needs none of this: it is the shortcut.
+the livekit track handoff above is for meeting joins, where she has to be a
+participant with a camera and a mic, not a browser source.
