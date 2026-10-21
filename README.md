@@ -4,20 +4,32 @@ video is prixie's face. some meetings do not want a camera-off black square. vid
 
 why decoupled: the join engine (main) and the voice (yap) do not care what she looks like. video only matters where the platform renders a face, and it plugs in at the camera stream level once the other layers are solid.
 
-status: scaffold. the masky.ai client shape is stubbed, waiting on the api key and docs to fill in the endpoints.
+status: wired. server/masky.ts talks to the real api (https://masky.ai/masky-api.md) and the full flow is smoke-tested live: portrait image -> prixie avatar -> conversation -> speak turn -> lip-synced 6s h264 clip, ~20s end to end, ~$0.16 in credits.
 
 ## flow
 
 ```
 prixie speaks (yap branch: livekit audio + tts)
         |
-masky.ai: generate talking avatar from the audio
+masky.ai: speak turn (text in, clip out, ~20-60s, cached per script)
         |
-publish as her camera track in the room
+publish: mp4 as livekit camera track (yap)
+         or live url (auto-playing live view + idle loops) as shared screen
 ```
+
+the seam in server/masky.ts:
+
+- ensurePersonaAvatar: each persona wears its own face (image + voice created on first use)
+- startConversation + speak + waitForClip: the clip pipeline, turn id and clip 1:1 for <= 3 sentences
+- enableIdleLoop: blinks and head motion between turns (closes the clip gap on the playback side)
+- bindAgentBrain: prixie as the avatar's brain over nostr, masky as pure face
 
 ## env
 
 ```
-MASKY_API_KEY=your_masky_api_key
+MASKY_API_KEY=your_masky_api_key   # generated at https://masky.ai/developer
 ```
+
+## cost notes
+
+billed per second of finished render, once, on success: ~$0.025/s video, $0.005 per portrait image, 1 credit = $1. scripted speak turns are cached: the same line in the same voice renders once, replays free.

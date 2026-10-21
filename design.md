@@ -4,17 +4,37 @@
 
 prixie's camera presence. the join engine on main joins with camera off by default. video is the optional layer that replaces the black square with a talking avatar from masky.ai.
 
-## the hard problem
+## what the docs answered (oct 21, 2026)
 
-the avatar has to track her voice in real time. a meeting is not a clip you render once. the open questions are:
+the api reference lives at https://masky.ai/masky-api.md. read it before changing server/masky.ts. the open questions from the first pass are now settled:
 
-- clip-based or streaming: does masky.ai render per utterance (clip-based, easier, adds latency between utterances) or can it drive a live face (harder, no gap)
-- publishing: a rendered avatar has to reach the platform as a camera track. livekit can publish a video track (that part belongs to yap); the join engine on main joins through a headless browser, so the avatar has to get into the web client's camera device. browserbase does support fake video inputs, this is the seam to figure out.
-- persona faces: the profile system on main has personas. video should let each persona wear its own face (AvatarRequest.personaRef).
+- **clip-based, not streaming.** masky has no live-face mode. a conversation holds a sequence of turns; each speak turn (mode: "speak", output: "video", <= 500 chars) renders a lip-synced clip, ~20-60s. there is no "stream the face" api.
+- **the gap closes on the playback side, not the render side.** the conversation's liveUrl auto-plays turns in order the moment each renders, and silent-renders (idle clips: blinks, small head motion, billed once per avatar image) fill the view whenever nothing is playing. so: speak turn for utterance N+1 while the live view plays N and idles. keep turns <= 3 sentences so turn id and clip stay 1:1 (longer text silently auto-chunks into extra turn docs).
+- **scripted speak turns are cached.** same avatar + voice + text renders once; replays across conversations are free (fromSpeakCache: true). the meeting hello clip costs once, ever.
+- **masky owns the tts for the face.** the speak flow takes TEXT, not audio: higgs tts + lip-sync are rendered together, with delivery cues (voiceStyle emotion/style/prosody, inline sfx/pause tags). yap's live room voice and the on-screen face are two different pipes. for full sync they need the same voice: avatar = cloned voice, yap = same source for TTS. the agent-binding bridge (below) is the other way to unify: let masky be only the face, prixie be the brain.
+- **persona faces** work natively: each persona gets its own avatar (ensurePersonaAvatar creates image + voice on first use), and a conversation pins its look via avatarImageUrl from the avatar's image variants.
+
+## the camera publishing seam
+
+masky hands back three surfaces, in order of readiness:
+
+1. **videoUrl**: the raw mp4 (h264+aac, ~6s for a short line). for livekit rooms (yap), publish it as a camera track; render the next turn during the current one so the track switch is seamless.
+2. **turnLiveUrl** (/live/t-...): clean single-clip player, embeddable in an iframe, no token needed.
+3. **conversation liveUrl** (/live/c-...): the orchestrated live view: auto-plays turns, idle loops between them, captions, play/pause. obs native, iframe embeddable. for browser-joined meetings (main's headless browserbase join), the realistic camera presence is this page shared as screen, or the player embedded where the platform allows custom camera input.
+
+## prixie as the avatar's brain (agent binding)
+
+masky avatars can delegate chat-mode thinking to an external agent over nostr (PUT /avatars/{avatarId}/agent-binding: pubkey + relay). the avatar publishes a masky_turn_request event; prixie's harness thinks locally and POSTs the reply; masky renders the face. this is the path where prixie keeps her own voice models and memory (retelldb on yap) and masky is purely the face. fallback: "gemini" answers hosted, "fail" errors the turn.
 
 ## order of work
 
-1. api key + docs land, fill in the client (server/masky.ts)
-2. clip-based generation from a finished TTS utterance (accept the gap)
-3. close the gap: overlap next-clip generation with the current one
-4. wire the output into the meeting as her camera
+1. ~~api key + docs land, fill in the client~~ done: server/masky.ts is wired and smoke-tested live (oct 21: image -> avatar -> conversation -> speak turn -> 6.04s h264 clip in ~20s, ~$0.16 total)
+2. the prixie avatar exists (avatarId UgVXv5xGRjd4YVLePtl8, voice: alice bennett); per-persona faces via ensurePersonaAvatar
+3. camera track publishing into a livekit room (yap seam)
+4. agent binding for prixie-as-brain once the voice side decides on nostr
+
+## gotchas found live
+
+- /conversations 400s without avatarOwnerUserId even though the api reference example omits it. the client passes it.
+- turn status on the by-slug read can be "video" (not just pending/ready/error) while videoUrl is already populated: check videoUrl, not the status string, for doneness.
+- media urls on the by-slug read are re-signed per fetch (1h ttl): do not cache them long.
