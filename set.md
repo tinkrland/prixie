@@ -104,6 +104,26 @@ it owns no protocol of its own: obs.ts speaks obs-websocket, handoff.ts owns
 never cutting a sentence, and the session just operates them in the order the
 stream needs.
 
+## the sets are 3d files (oct 2026)
+
+the background and the props are all 3d, that is the point: not painted
+plates, not flat backdrops, 3d files a camera renders.
+
+- `assets/sets/*.glb` are the sets, authored by `scripts/build_sets.py`:
+  `white_studio.glb` (a white cyclorama, the white background render) and
+  `room.glb` (floor, walls, a window, a shelf with books, a plant, a rug:
+  every one a 3d component).
+- `scripts/render_plate.py` renders a set through the pinned camera: pure
+  cpu rasterization, the same pinhole as scene.ts, lit by the set's light
+  recipe (key/fill/rim at azimuth/elevation, inverse-square falloff from a
+  rig at the subject, soft shoulder). proskena's studio renderer stays the
+  authored path; this is the same math headless, and because the camera is
+  shared, the plate and her projection agree by construction.
+- `server/plate.ts` builds the render spec (set + camera + recipe) and is
+  the pipeline's handle on the renderer.
+- the composite then does the one thing it always does: the person video
+  is the foreground, the render of the 3d files is all background.
+
 ## the camera render (oct 2026)
 
 she is IN the room, the camera is IN the room, and her rect in frame is
