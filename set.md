@@ -95,6 +95,15 @@ unpublish -> switch. voice matching between the two rooms lives on the yap
 side: the same retelldb voice profile that maps to masky's voiceStyle cues
 selects yap's voice, so the room hears one person.
 
+## the stream session
+
+`server/stream.ts` is what a streamer actually operates: go live (scene
+switch, then obs starts streaming to twitch), camera off (the full handoff,
+end to end), camera on (the face returns and masky owns the voice again), end.
+it owns no protocol of its own: obs.ts speaks obs-websocket, handoff.ts owns
+never cutting a sentence, and the session just operates them in the order the
+stream needs.
+
 ## the pipeline
 
 `server/composite.ts` builds the ffmpeg graphs (pure command builders, no
