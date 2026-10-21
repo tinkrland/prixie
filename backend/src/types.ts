@@ -110,6 +110,32 @@ export interface UpdateMeetingInput {
   localization?: LocalizationConfig | null;
 }
 
+// sync result of one calendar source pull: how many meetings joined the
+// pipeline this pass. status is "success", "skipped" (no credentials), or
+// the error message.
+export interface SyncState {
+  status: string;
+  meetings_synced: number;
+  last_synced_at: string;
+}
+
+// a per-meeting voice override: the profile's voice, but tuned for this
+// one meeting (demo pitch vs classroom).
+export interface VoiceOverride {
+  voice?: string;
+  speed?: number;
+  pitch?: number;
+  style?: string;
+}
+
+// localization for a meeting: the hinglish rule lives here too. latin
+// script, phonetically written, no devanagari.
+export interface LocalizationConfig {
+  language?: string;
+  accent?: string;
+  transliteration?: "latin-phonetic";
+}
+
 export interface CaptureRequest {
   id: string;
   meeting_id: string;

@@ -8,7 +8,7 @@ she is not a tool you open. she is someone who exists online, and you delegate t
 
 | branch | surface | what |
 | --- | --- | --- |
-| `main` | the proxy | she joins meetings for you: hono + supabase backend, dashboard, browserbase join engine. meeting link sources: google calendar, microsoft calendar (graph), apple calendar (caldav), notion, cal.com (v2 bookings api), zcal (bookings arrive via the host calendar and confirmation mail; no public api to pull). this readme covers this branch |
+| `main` | the proxy | she joins meetings for you: hono + supabase backend, dashboard, browserbase join engine. the first link source is her own inbox: forward the invite to her agentmail address and she joins. then the calendars: google, microsoft calendar (graph), apple calendar (caldav), notion, cal.com (v2 bookings api), zcal (bookings arrive via the host calendar and confirmation mail; no public api to pull). this readme covers this branch |
 | `context` | her head | the persona context, and nothing else: `retelldb/` (the memory graphs), `persona/` (the voice adapter bridge, the one profile -> delivery cues mapping), `memorium.md` (the design). surface branches pull byte-identical copies with `sh tools/sync-context.sh` |
 | `voice` | her voice | livekit in the already joined call, no second participant: she speaks into the call she is already in. end-of-turn detection, interruption handling (assembly.ai), retelldb persona memory as the knowledge source, and the obs + twitch bridge (ours, not masky's) |
 | `video` | her face and room | masky renders voice + lip-sync as one turn, proskena authors the set (the proskena-derived pieces live in `studioify/`), rembg + ffmpeg composite her over the plate, `integrations/` holds the stream targets (twitch, kick) on our obs-websocket bridge. camera angle and light adjust from the proskena level; a camera-off handoff never cuts a sentence |
@@ -51,6 +51,10 @@ all platforms share the same flow: open the meeting url in the headless browser,
 | --- | --- | --- |
 | autonomous meeting join | working | joins on schedule, no supervision needed |
 | google calendar sync | working | automatic meeting discovery |
+| microsoft calendar sync (graph) | working | same flow as google, pulled each cycle from env credentials |
+| apple calendar sync (caldav) | working | icloud app-specific password, same flow as google |
+| agentmail inbox | working | link sourcing's first citizen: forward the invite to her address, the webhook parses it and she joins |
+| zoom web sdk join | working | participant path: chat, reactions, raise hand, post-join popups. signature via /api/zoom/signature, sdk creds in env |
 | real time keyword detection | working | monitors live transcript for your keywords |
 | real time chat monitoring | working | captures links, codes, form urls from chat |
 | post meeting transcript + diarization | working | speaker labels, hybrid per participant + machine |
@@ -61,7 +65,7 @@ all platforms share the same flow: open the meeting url in the headless browser,
 | capture requests | working | keywords, links, codes, questions, with context |
 | prepared questions | planned | ask your questions out loud during q&a (needs voice feature) |
 | profile / persona system | designed | sandboxed identities, per profile memory, shared global memory |
-| link sourcing (inbox, discord, slack, luma) | planned | multiple sources for finding meeting links |
+| link sourcing (discord, slack, luma) | planned | agentmail (forward to her, she joins) already shipped; the rest are next |
 | hinglish transliteration | planned | latin script, italicized, phonetically written |
 | voice interaction | planned | TTS to speak questions, STT to hear answers |
 | browserbase fallback | planned | headless browser for unsupported platforms |
@@ -72,9 +76,9 @@ all platforms share the same flow: open the meeting url in the headless browser,
 | --- | --- |
 | `backend/` | hono server (deno). api routes, browserbase join engine, webhooks, scheduler, supabase client |
 | `backend/src/routes/` | meetings, capture, transcripts, deploy, profiles, stats |
-| `backend/src/routes/webhooks/` | realtime capture events, google calendar |
+| `backend/src/routes/webhooks/` | realtime capture events, google calendar, agentmail inbound |
 | `backend/src/scheduler/` | meeting manager cron (deploys bots, retrieves transcripts) |
-| `backend/src/services/` | bot_provider.ts, browserbase_provider.ts, browserbase.ts, supabase.ts, calendar.ts, calendar_sync.ts (one adapter per source: google, microsoft/outlook, apple/caldav, notion, cal.com, zcal) |
+| `backend/src/services/` | bot_provider.ts, browserbase_provider.ts, browserbase.ts, supabase.ts, calendar.ts, calendar_sync.ts (one adapter per source: google, microsoft/outlook, apple/caldav, notion, cal.com, zcal), agentmail.ts (her inbox: forwarded invite -> meeting), zoom_web_sdk.ts (the participant path for zoom) |
 | `backend/supabase_schema.sql` | run this in supabase to create all tables |
 | `frontend/` | react + tanstack router + tailwind v4 |
 | `frontend/src/routes/` | dashboard, deploy form, meetings list, meeting detail, captures, about |
@@ -174,9 +178,7 @@ you -> dashboard (/deploy) -> create meeting + capture requests
 
 - she does not take generic notes or summaries (you asked for specific things, she brings those)
 - in meetings she attends as your proxy, her camera and mic are off by default (her face exists, on the video branch, where she is present as herself)
-- she does not raise her hand (no browser automation for it yet)
-- she does not use the zoom q&a tab (requires custom zoom sdk app)
-- she does not answer mandatory post join popup questions (requires zoom sdk)
+- zoom, the honest split: on the bot path (recall) she cannot raise her hand, touch the q&a tab, or answer mandatory post-join popup questions. on the zoom web sdk path she can: she joins as a participant through the same web client a browser joiner gets, so chat, reactions, raise hand, and the popup question are hers. recall's limits were recall's, not zoom's. the q&a panel is webinar-scoped: if the meeting has it, she tries, and that is the whole promise.
 - she does not replace you in meetings where your presence matters (she is a proxy, not a clone)
 
 ## license

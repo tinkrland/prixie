@@ -1,6 +1,11 @@
-import { google } from "googleapis";
+import { google } from "npm:googleapis@144";
 import { createMeeting, listMeetings } from "./supabase.ts";
 import { SyncState, PlatformType } from "../types.ts";
+import {
+  syncOutlookCalendar,
+  syncAppleCalendar,
+  type MeetingCandidate,
+} from "./calendar_sync.ts";
 
 export class CalendarService {
   private getOAuth2Client() {
@@ -22,6 +27,65 @@ export class CalendarService {
   /**
    * Sync upcoming calendar events from Google Calendar into Supabase meetings table.
    */
+  // the other two pull calendars, same flow as google: candidates ->
+  // dedupe against existing join urls -> createMeeting. the meeting
+  // manager deploys her for the joined meetings like any other source.
+  async syncPullCalendars(): Promise<SyncState[]> {
+    const states: SyncState[] = [];
+
+    // google is oauth in this service's own client (the connector path);
+    // outlook + apple read their credentials from env. a source without
+    // its credentials is skipped, not faked.
+    if (Deno.env.get("OUTLOOK_ACCESS_TOKEN")) {
+      states.push(await this.syncCandidates("outlook", () =>
+        syncOutlookCalendar(Deno.env.get("OUTLOOK_ACCESS_TOKEN")!)));
+    }
+    const caldavUrl = Deno.env.get("APPLE_CALDAV_URL");
+    const caldavUser = Deno.env.get("APPLE_CALDAV_USERNAME");
+    const caldavPass = Deno.env.get("APPLE_CALDAV_PASSWORD");
+    if (caldavUrl && caldavUser && caldavPass) {
+      states.push(await this.syncCandidates("apple", () =>
+        syncAppleCalendar(caldavUrl, caldavUser, caldavPass)));
+    }
+
+    return states;
+  }
+
+  // shared candidate -> meeting flow for the pull adapters. mirrors the
+  // google path: dedupe by join url, then create.
+  private async syncCandidates(
+    source: string,
+    pull: () => Promise<MeetingCandidate[]>,
+  ): Promise<SyncState> {
+    const syncedAt = new Date().toISOString();
+    try {
+      const candidates = await pull();
+      const existing = await listMeetings();
+      const existingUrls = new Set(existing.map(m => m.join_url.toLowerCase().trim()));
+
+      let newCount = 0;
+      for (const c of candidates) {
+        if (!c.join_url) continue;
+        if (existingUrls.has(c.join_url.toLowerCase().trim())) continue;
+        await createMeeting({
+          title: c.title,
+          platform: (c.platform as PlatformType) || this.detectPlatform(c.join_url) as PlatformType,
+          join_url: c.join_url,
+          start_time: c.start_time,
+          join_delay_minutes: 2,
+          attendance_method: "none",
+        });
+        existingUrls.add(c.join_url.toLowerCase().trim());
+        newCount++;
+      }
+      console.log(`prixie: synced ${newCount} new meetings from ${source} calendar`);
+      return { status: "success", meetings_synced: newCount, last_synced_at: syncedAt };
+    } catch (err: any) {
+      console.error(`prixie: failed to sync ${source} calendar:`, err);
+      return { status: `error: ${err.message}`, meetings_synced: 0, last_synced_at: syncedAt };
+    }
+  }
+
   async syncGoogleCalendar(): Promise<SyncState> {
     const oauth2Client = this.getOAuth2Client();
 

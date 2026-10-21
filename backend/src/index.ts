@@ -18,6 +18,8 @@ import voiceAgentRouter from "./routes/voice_agent.ts";
 import memoriumRouter from "./routes/memorium.ts";
 import memoriumTagsRouter from "./routes/memorium_tags.ts";
 import voicePresetsRouter from "./routes/voice_presets.ts";
+import { agentMailRouter } from "./routes/agentmail.ts";
+import { zoomRouter } from "./routes/zoom.ts";
 
 import realtimeWebhook from "./routes/webhooks/realtime.ts";
 import googleCalendarWebhook from "./routes/webhooks/google_calendar.ts";
@@ -43,6 +45,7 @@ app.get("/", (c) => {
       "/api/profiles", "/api/stats", "/api/browserbase", "/api/luma",
       "/api/calendly", "/api/hinglish", "/api/inbox", "/api/live-links",
       "/api/forum", "/api/voice", "/api/memorium", "/api/voice-presets",
+      "/api/agentmail", "/api/zoom",
     ],
   });
 });
@@ -65,10 +68,14 @@ app.route("/api/voice", voiceAgentRouter);
 app.route("/api/memorium", memoriumRouter);
 app.route("/api/memorium", memoriumTagsRouter);
 app.route("/api/voice-presets", voicePresetsRouter);
+app.route("/api/agentmail", agentMailRouter);
+app.route("/api/zoom", zoomRouter);
 
 // webhooks
 app.route("/webhooks/realtime", realtimeWebhook);
 app.route("/webhooks/google-calendar", googleCalendarWebhook);
+// her inbox: forward a meeting invite to her agentmail address and she joins
+app.route("/webhooks/agentmail", agentMailRouter);
 
 // scheduler
 const enableScheduler = Deno.env.get("ENABLE_SCHEDULER") !== "false";

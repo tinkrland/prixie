@@ -11,6 +11,7 @@ import {
 import { botProvider } from "../services/browserbase_provider.ts";
 import { searchForKeywords } from "../services/browserbase_transcript.ts";
 import { processTranscript, containsDevanagari, hinglishStats } from "../services/hinglish.ts";
+import { calendarService } from "../services/calendar.ts";
 
 // every platform goes through the same provider. no per-platform forks anymore.
 const provider = botProvider;
@@ -36,6 +37,10 @@ export class MeetingManager {
 
   public async runCycle() {
     try {
+      // the pull calendars (outlook, apple) have no push webhook like
+      // google's, so the cycle re-reads them: candidates -> meetings ->
+      // deployed below like any other source.
+      await calendarService.syncPullCalendars();
       await this.deployUpcomingBots();
       await this.checkActiveMeetingsStatus();
       await this.processCompletedTranscripts();
