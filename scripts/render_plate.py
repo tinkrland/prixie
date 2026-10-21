@@ -255,6 +255,66 @@ def load_room(path, vox_mm, origin=(0.0, 0.0, 0.0)):
     return (v, f, "lit", fc)
 
 
+def load_glb_prop(path, face_cap=24000, units="m"):
+    """a scanned/modeled prop glb with vertex colors: proskena's parametric
+    props are boxes with a base color; props like this carry their own
+    colour on the vertices, so the loader reads COLOR_0 and lights the
+    result like the room's palette faces. the rasterizer shades per face,
+    so the mesh is decimated to face_cap first, and the vertex colours are
+    transferred through the decimation by nearest lookup on the original:
+    a decimated mesh keeps its shape, it must not lose its paint.
+    units: proskena is mm; a glb from a scan/model tool is meters, so the
+    mesh is scaled to proskena's units here, once."""
+    import trimesh
+    from scipy.spatial import cKDTree
+
+    scene = trimesh.load(path)
+    out = []
+    geoms = []
+    for node in scene.graph.nodes_geometry:
+        T, geom_name = scene.graph[node]
+        m = scene.geometry[geom_name].copy()
+        m.apply_transform(T)
+        geoms.append(m)
+    for m in geoms:
+        raw_v = np.asarray(m.vertices, dtype=float)
+        vc = None
+        try:
+            raw = np.asarray(m.visual.vertex_colors)  # (n, 4) rgba
+            vc = raw[:, :3].astype(float)
+        except Exception:
+            pass
+        f = np.asarray(m.faces, dtype=int)
+        if vc is None:
+            # flat colour from the material, like the subject loader
+            try:
+                base = np.asarray(m.visual.material.baseColorFactor[:3], float)
+                base = base / 255.0 if base.max() > 1.001 else base
+                vc = np.tile(base, (len(raw_v), 1)) * 255.0
+            except Exception:
+                vc = np.full((len(raw_v), 3), 200.0)
+        scale = 1000.0 if units == "m" else 1.0
+        raw_v = raw_v * scale
+        # sit the prop on the floor: a scan is often centered on its own
+        # origin, and a prop that arrives centered sinks half of itself
+        # under the room's floor
+        raw_v[:, 1] -= raw_v[:, 1].min()
+        if len(f) > face_cap:
+            dec = m.simplify_quadric_decimation(face_count=face_cap)
+            dv = np.asarray(dec.vertices, dtype=float) * scale
+            dv[:, 1] -= np.asarray(m.vertices, dtype=float)[:, 1].min() * scale
+            df = np.asarray(dec.faces, dtype=int)
+            # nearest vertex of the original carries the colour through
+            tree = cKDTree(raw_v)
+            _, nearest = tree.query(dv, k=4)
+            w = np.array([0.4, 0.25, 0.2, 0.15])  # close neighbours blend scan noise
+            dvc = (vc[nearest] * w[None, :, None]).sum(axis=1)
+            out.append((dv * scale, df, "lit", dvc[df].mean(axis=1)))
+        else:
+            out.append((raw_v, f, "lit", vc[f].mean(axis=1)))
+    return out
+
+
 def load_subject(path):
     """proskena's subject models: a glb that already exists in the repo
     (bust.glb, hand.glb). scaled like proskena loads it."""
@@ -321,8 +381,23 @@ def render(spec):
         meshes.append((bv, bf, None, bcols))
 
     for p in spec.get("props", []):
-        builder = PROP_LIBRARY[p["prop"]]
         rot_y = p.get("rotY", 0)
+        if "glb" in p:
+            # a real prop mesh (scan or model): vertex colours, own shape,
+            # placed in the room at proskena scale. decimated at load to
+            # face_cap, painted through the decimation.
+            parts = load_glb_prop(p["glb"], int(p.get("face_cap", 24000)),
+                                 p.get("units", "m"))
+            pos = np.array([p.get("x", 0), 0, p.get("z", 0)], dtype=float) * scene_scale
+            for v, f, mode, fc in parts:
+                v = v * float(p.get("scale", 1)) * scene_scale
+                a = math.radians(rot_y)
+                rot = np.array([[math.cos(a), 0, math.sin(a)],
+                                [0, 1, 0],
+                                [-math.sin(a), 0, math.cos(a)]])
+                meshes.append((v @ rot.T + pos, f, mode, fc))
+            continue
+        builder = PROP_LIBRARY[p["prop"]]
         scale = p.get("scale", 1) * scene_scale
         pos = np.array([p["x"], 0, p["z"]], dtype=float) * scene_scale
         for part in builder():

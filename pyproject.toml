@@ -28,6 +28,18 @@ dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
 ]
+# the plate render pipeline (scripts/render_plate.py, matte.py, vox_room.py):
+# rasterizing proskena scene state, background removal, and the rooms.xyz
+# voxel bridge. decimation of scanned props needs fast_simplification.
+plate = [
+    "numpy>=1.24",
+    "trimesh>=4.0",
+    "scipy>=1.10",
+    "scikit-image>=0.21",
+    "fast_simplification>=0.1",
+    "rembg[cpu]>=2.0",
+    "pillow>=10.0",
+]
 
 [project.scripts]
 retelldb = "retelldb.cli:main"
