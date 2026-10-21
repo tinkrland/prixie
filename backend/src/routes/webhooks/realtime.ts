@@ -6,6 +6,7 @@ import {
 } from "../../services/supabase.ts";
 import { captureScreenshot } from "../../services/screenshots.ts";
 import { registerDefaultScreenshotEngines } from "../../services/screenshot_engines.ts";
+import { detectTerms } from "../../services/term_detector.ts";
 
 registerDefaultScreenshotEngines();
 
@@ -48,6 +49,16 @@ realtimeWebhook.post("/", async (c) => {
 
         if (req.keywords && req.keywords.length > 0) {
           matched = req.keywords.some((kw) => kw && lowerText.includes(kw.toLowerCase()));
+        }
+
+        // a keyword-less capture request ("get me the access code") has no
+        // watch words to fire on, so the term detector is the trigger: a
+        // code-shaped or figure-shaped utterance is exactly the thing the
+        // request was sent for. a keyword-less request that never hears one
+        // honestly stays pending.
+        if (!matched && req.type === "capture" && (!req.keywords || req.keywords.length === 0)) {
+          const terms = detectTerms(text);
+          matched = terms.some((t) => t.kind === "code" || t.kind === "math");
         }
 
         if (!matched && req.type === "ask" && req.question) {

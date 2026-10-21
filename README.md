@@ -63,6 +63,7 @@ all platforms share the same flow: open the meeting url in the headless browser,
 | attendance marking | working | chat message, google form, or custom |
 | breakout room support | planned | browser automation of the zoom room invite popup (recall.ai used to handle this) |
 | capture requests | working | keywords, links, codes, questions, with context |
+| term detector | working | a keyword-less capture request fires when an utterance carries code shape or a figure (tech words, proper nouns, math, codes). shape, not meaning, ranked candidates, never conclusions |
 | prepared questions | planned | ask your questions out loud during q&a (needs voice feature) |
 | profile / persona system | designed | sandboxed identities, per profile memory, shared global memory |
 | link sourcing (discord, slack, luma) | partial | agentmail shipped, luma register-then-source shipped (signup-gated events wait on the confirmation path, needs_link says so); discord calls, slack huddles, forums are next. the honest map is docs/features/link-sourcing.md |
