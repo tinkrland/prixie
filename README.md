@@ -16,7 +16,7 @@ three pieces:
 
 4. **obs + twitch, ours** — the obs-websocket 5.x bridge (server/obs.ts, vendored from the video branch, tests in tests/obs_test.ts). obs runs the streamer's scenes; streaming to twitch is obs's stream key plus our toggle. no masky in the path: masky's native twitch/OBS integration exists, but a streamer's setup is their set of scenes and the bridge to it should be ours.
 
-status: retelldb vendored and working (ingest, query, voice profiles; 17 tests and the eval suite green). the seamless join is specified (session's own room, session's identity, server/room.ts) and mem0's seam is in design.md; both next to wire with the livekit sdk choice (rtc-node vs agents).
+status: retelldb vendored and working (ingest, query, voice profiles; 17 tests and the eval suite green). the seamless join is WIRED (the owner, oct 21 2026): server/room.ts mints the session token (own room, own identity) and hands off to server/audio_transport.ts, the livekit rtc-node transport behind an injectable RtcFactory: publish tts as mono pcm frames, subscribe to remote frames for stt, close on meeting end. the sdk loads lazily, so a deployment without the native bindings fails at connect time with a clear error instead of at import. mem0's seam stays in design.md.
 
 the persona context (retelldb/ + persona/voice_adapter.ts) is synced byte-identical from main with `sh tools/sync-context.sh`: main owns it, this branch carries the copy, so her voice profile and memories are the same everywhere.
 

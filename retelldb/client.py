@@ -4,6 +4,7 @@ Supports both embedded in-process execution and remote HTTP hosted API communica
 """
 
 from typing import Optional, Dict, Any, Union
+import os
 import httpx
 from retelldb.models.query import (
     QueryRequest,
@@ -32,13 +33,27 @@ class RetellDB:
         self,
         base_url: Optional[str] = None,
         config: Optional[RetellDBConfig] = None,
-        use_memory: bool = False
+        use_memory: bool = False,
+        api_key: Optional[str] = None,
     ):
         self.base_url = base_url.rstrip("/") if base_url else None
         self.config = config or default_config
+        # remote mode: the server gate is fail-closed (the owner, oct 21
+        # 2026), so an unkeyed client is refused outright. the key
+        # comes from the argument or RETELLDB_API_KEY, and a missing
+        # one is a loud constructor error, never a silent 401 loop.
+        self.api_key = api_key or os.environ.get("RETELLDB_API_KEY")
+        if self.base_url and not self.api_key:
+            raise ValueError(
+                "retelldb remote mode needs an api key (api_key= or RETELLDB_API_KEY). the server refuses unkeyed requests."
+            )
 
         if self.base_url:
-            self._http_client = httpx.Client(base_url=self.base_url, timeout=30.0)
+            self._http_client = httpx.Client(
+                base_url=self.base_url,
+                timeout=30.0,
+                headers={"X-API-Key": self.api_key},
+            )
             self._embedded = False
         else:
             self._embedded = True
