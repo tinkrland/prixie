@@ -84,10 +84,25 @@ globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
   );
 }) as typeof fetch;
 
-const { PersonaVoice, voiceStyleFromProfile, runCall } = await import(
+const { PersonaVoice, voiceStyleFromProfile, runCall, planCameraOff, CameraOffAdapter } = await import(
   "../server/handoff.ts"
 );
 const { speak } = await import("../server/masky.ts");
+
+// local shapes for the camera-off tests (dynamic imports cannot destructure types)
+interface TestRender {
+  turnId: string;
+  audioUrl: string;
+  videoUrl: string;
+  turnLiveUrl: string;
+  fromSpeakCache: boolean;
+  elapsedMs: number;
+}
+interface TestUtterance {
+  text: string;
+  medium?: string;
+  voiceStyle?: Record<string, unknown>;
+}
 
 function assert(cond: boolean, msg: string) {
   if (!cond) throw new Error(msg);
@@ -200,4 +215,65 @@ Deno.test("speak enforces the 500 char turn limit", async () => {
   }
   assert(caught, "over-long utterance rejected before any api call");
   globalThis.fetch = realFetch;
+});
+
+// ---------------------------------------------------------------------------
+// camera off, voice on
+// ---------------------------------------------------------------------------
+
+Deno.test("the camera-off plan never cuts the sentence", () => {
+  const plan = planCameraOff(4200);
+  assert(plan.hideVisual === "now", "the visual goes dark immediately");
+  assert(plan.keepAudioUntilMs === 4200, "the masky clip plays out fully");
+  const sw = plan.voiceSwitch;
+  assert(sw.atMs === 4200 && sw.to === "yap", "yap picks up after the sentence");
+  assert(plan.cutMidSentence === false, "by construction, not by discipline");
+});
+
+Deno.test("the adapter hides the camera first and unpublishes only after the clip ends", async () => {
+  const order: string[] = [];
+  const slept: number[] = [];
+  const adapter = new CameraOffAdapter(
+    {
+      hideCamera: async () => void order.push("hideCamera"),
+      unpublishMaskyAudio: async () => void order.push("unpublishAudio"),
+      onSwitched: async () => void order.push("switched"),
+    },
+    {
+      sleep: async (ms) => {
+        slept.push(ms);
+        order.push(`slept ${ms}`);
+      },
+    },
+  );
+  const render: TestRender = {
+    turnId: "t1", audioUrl: "a.mp3", videoUrl: "v.mp4", turnLiveUrl: "l",
+    fromSpeakCache: false, elapsedMs: 1500,
+  };
+  const plan = await adapter.cameraOff(render, 3000);
+  assert(order[0] === "hideCamera", "the visual switch comes first, instantly");
+  assert(order[1] === "slept 3000", "then the sentence finishes");
+  assert(order.indexOf("unpublishAudio") === 2, "audio unpublishes only after the clip");
+  assert(order[order.length - 1] === "switched", "the switch fires last");
+  assert(slept.length === 1 && slept[0] === 3000, "one sleep, exactly the clip length");
+  assert(plan.keepAudioUntilMs === 3000, "the plan matches the clip");
+});
+
+Deno.test("after camera-off, face-off turns route to yap, not to a render", async () => {
+  const said: string[] = [];
+  const published: string[] = [];
+  // a PersonaVoice that is off camera: runCall must never reach say().
+  const voice = {
+    onCamera: false,
+    say: () => {
+      throw new Error("off camera: masky must not render a face");
+    },
+  } as unknown as Parameters<typeof runCall>[0];
+  const utterances = [{ text: "still here" }, { text: "audio only" }, null];
+  await runCall(voice, {
+    publish: async () => void published.push("render"),
+    publishFaceOff: async (u: TestUtterance) => void said.push(u.text),
+  }, () => Promise.resolve(utterances.shift() as (TestUtterance | null)));
+  assert(said[0] === "still here" && said[1] === "audio only", "face-off turns go to yap");
+  assert(published.length === 0, "no masky render happens while the camera is off");
 });

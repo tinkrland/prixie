@@ -94,3 +94,16 @@ Deno.test("the flat fallback plate renders the set's two values", () => {
   assertEquals(join.includes("#f6f2ea"), true, "centre lift from the set");
   assertEquals(join.includes("gblur"), true, "the lift is soft, like the backdrop's radial gradient");
 });
+
+Deno.test("a proskena-level shot places the person in the frame by arithmetic", () => {
+  const filters = personLayerFilters({
+    ...base,
+    placement: { fitHeight: 0.78, anchorY: 0.08 },
+  });
+  // 0.78 * 720 = 561.6 -> 562; 0.08 * 720 = 57.6 -> 58
+  assertEquals(filters.includes("scale=-1:562"), true, "the lens sizes her in the frame");
+  assertEquals(filters.includes("pad=1280:720:(ow-iw)/2:58:color=black@0"), true,
+    "the lens anchors her vertically, transparent padding around");
+  assertEquals(filters.includes("force_original_aspect_ratio=decrease"), false,
+    "placement replaces the default fit-the-frame behaviour");
+});

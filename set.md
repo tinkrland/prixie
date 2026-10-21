@@ -53,6 +53,48 @@ the verified artifacts from that run (a 5s draft render, $0.0756):
 - one composite frame, for judging edge quality by eye
   (https://base44.app/api/apps/6a904b98c59a41d175150330/files/mp/public/6a904b98c59a41d175150330/cfe60db57_composite_matte_frame.png)
 
+## camera and light, adjusted from the proskena level
+
+the camera and the avatar are stationary, so "adjust the camera angle" is not a
+generation problem at all: a camera angle change is a shot change, and a shot
+change is arithmetic. `placementForShot` in `server/set.ts` maps proskena's
+pinned lens to where she sits in the frame (how much of it she fills, where
+her top anchors), and `server/composite.ts` applies it to the person layer.
+proskena re-renders the plate for the same shot; the composite re-places the
+person to match. one shot, two renderers, no model in between.
+
+lighting adjustment from the proskena level is the same idea: the light recipe
+proskena renders in three.js also decides the person's grade
+(`gradeFromLighting` in `server/set.ts`): the key's colour moves temperature,
+the ambience moves brightness, the key's strength moves saturation. the recipe
+is now rendered three times: three.js, prompt words, and the composite's
+grade. one recipe, all three layers, no drift.
+
+## our own obs + twitch bridge
+
+masky ships a native twitch/OBS integration, and the video branch does not use
+it: the bridge is ours (`server/obs.ts`, obs-websocket 5.x). the composite
+mp4 is an obs source, proskena's canvas can be another, scene and source
+switching are ours to trigger, and streaming to twitch is obs's stream key
+plus our toggle. no masky account sits in the streaming path. the protocol
+(handshake, challenge/response auth, request/response, item-id resolution) is
+exercised against a mock obs in `tests/obs_test.ts`; the one thing left to
+verify against a live instance is `SetStreamSettings`' exact params shape.
+
+## camera off, voice on
+
+if she turns off her camera mid-conversation, the voice must not notice. the
+protocol (in `server/handoff.ts`): the masky turn owns the current sentence, so
+it runs to the sentence's end and the audio clip is never cut. only the visual
+goes dark, and it goes dark at the browser level (the obs source hidden, the
+livekit camera track muted), never by cancelling the render. once the clip
+finishes, masky audio unpublishes and yap owns the voice from the next
+utterance on, so there is no odd-sounding seam and no lost context. the
+ordering is enforced by construction: hide visual -> wait out the clip ->
+unpublish -> switch. voice matching between the two rooms lives on the yap
+side: the same retelldb voice profile that maps to masky's voiceStyle cues
+selects yap's voice, so the room hears one person.
+
 ## the pipeline
 
 `server/composite.ts` builds the ffmpeg graphs (pure command builders, no
@@ -112,10 +154,25 @@ parked until the set pipeline is boring. first step when it opens: one
 persona, three outfits, each an avatar look pinned in sequence, same set, and
 a look at whether the composite needs to know the outfit at all.
 
+## props and screenshare, later versions
+
+- **interactive, pickupable props (next version).** the set's props are
+  authored 3d objects (populated via sam's 3d object work), so a prop can
+  become interactive the way a streamer's desk bottle is: reachable,
+  pickupable, put-back-able. and because a prop is real geometry, not
+  something a video model paints per frame, there is no way the form mushes:
+  a bottle stays a bottle, with the same silhouette from every angle, and
+  only the animation moves. the same lesson as the room, one layer over:
+  generated once, animated deliberately, never invented per render.
+- **agent screenshare (the version after).** the agent shares its screen into
+  the room, the way a human presenter does. with the obs bridge in place this
+  is a scene switch: screenshare becomes one more scene with its own source,
+  and the person stays in the corner of it if she wants.
+
 ## what this leaves
 
-the set is data, the wardrobe will be data, and the person is the only thing
-generated. next concrete step: author the first real plate in proskena (its
-own renderer, not the flat fallback in `composite.ts`), run one speak turn
-through matte + composite, and compare it against the uncapped render. one
-comparison tells you whether the room finally stays put.
+the set is data, the wardrobe will be data, the props will be data, and the
+person is the only thing generated. next concrete step: author the first real
+plate in proskena (its own renderer, not the flat fallback in `composite.ts`),
+run one speak turn through matte + composite, and compare it against the
+uncapped render. one comparison tells you whether the room finally stays put.

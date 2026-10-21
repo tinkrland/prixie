@@ -56,9 +56,19 @@ export interface CompositePlan {
   key?: ChromaKey;
   matte?: string; // grayscale matte video/image, person-shaped, white on black
   grade?: Grade;
+  // where she sits in the frame, from the proskena-level camera
+  // (placementForShot). absent = fill the frame, the default framing. the
+  // camera and the avatar are stationary, so this is arithmetic on the lens,
+  // not a generation.
+  placement?: Placement;
   width: number;
   height: number;
   fps?: number;
+}
+
+export interface Placement {
+  fitHeight: number; // fraction of frame height the person fills
+  anchorY: number; // where her top sits, fraction of frame height
 }
 
 function gradeFilters(grade?: Grade): string[] {
@@ -80,11 +90,23 @@ function gradeFilters(grade?: Grade): string[] {
 
 // the person layer: clip in, alpha out (as the overlay's second input).
 export function personLayerFilters(plan: CompositePlan): string {
-  const filters: string[] = [
-    `scale=${plan.width}:${plan.height}:force_original_aspect_ratio=decrease`,
-    `pad=${plan.width}:${plan.height}:(ow-iw)/2:(oh-ih)/2:color=black@0`,
-    "format=rgba",
-  ];
+  let framing: string[];
+  if (plan.placement) {
+    // a proskena-level shot: the lens says how much of the frame she fills
+    // and where her top sits. she is centred horizontally either way.
+    const targetH = Math.round(plan.placement.fitHeight * plan.height);
+    const top = Math.round(plan.placement.anchorY * plan.height);
+    framing = [
+      `scale=-1:${targetH}`,
+      `pad=${plan.width}:${plan.height}:(ow-iw)/2:${top}:color=black@0`,
+    ];
+  } else {
+    framing = [
+      `scale=${plan.width}:${plan.height}:force_original_aspect_ratio=decrease`,
+      `pad=${plan.width}:${plan.height}:(ow-iw)/2:(oh-ih)/2:color=black@0`,
+    ];
+  }
+  const filters: string[] = [...framing, "format=rgba"];
   if (plan.key) {
     // colorkey works in rgb, which is what a model's rendered backdrop is.
     filters.push(

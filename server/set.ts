@@ -28,6 +28,7 @@
 // parked in set.md as route b, with its caveats.
 
 import { addAvatarLook, type Avatar, type ConversationHandle, pinConversationImage } from "./masky.ts";
+import type { Grade } from "./composite.ts";
 
 // ---------------------------------------------------------------------------
 // the light rig, mirrored from proskena lighting/41-lighting.js
@@ -124,6 +125,46 @@ export function defaultSet(overrides: Partial<SetSpec> = {}): SetSpec {
     shot: DEFAULT_SHOT,
     ...overrides,
   };
+}
+
+// ---------------------------------------------------------------------------
+// camera angle, from the proskena level
+// ---------------------------------------------------------------------------
+
+// the camera and the avatar are both stationary, so a camera angle change is
+// a shot change, and a shot change is deterministic arithmetic, not a
+// generation. proskena re-renders the plate for the same pinned shot (its
+// camera modes carry the lens), and the composite places the person to match:
+// the lens decides how much of her fills the frame and where she sits in it.
+// one shot, two renderers, no model in between.
+export interface Placement {
+  fitHeight: number; // fraction of frame height the person fills
+  anchorY: number; // where her top sits, fraction of frame height
+}
+
+export function placementForShot(shot: PinnedShot): Placement {
+  const fl = shot.focallength;
+  if (fl <= 35) return { fitHeight: 0.6, anchorY: 0.18 }; // medium wide: waist-up, room around her
+  if (fl <= 60) return { fitHeight: 0.78, anchorY: 0.08 }; // medium portrait: chest-up
+  if (fl <= 90) return { fitHeight: 0.92, anchorY: 0.03 }; // portrait: head and shoulders
+  return { fitHeight: 1.0, anchorY: 0.0 }; // close portrait: she fills the frame
+}
+
+// lighting adjustment from the proskena level: the recipe proskena renders in
+// three.js also decides the person's grade in the composite. the clip comes
+// out under a neutral studio key; the recipe says where the key actually
+// sits (warm gold, dim room), and this pushes the person until she is lit by
+// the same recipe. the ambience moves brightness, the key's colour moves
+// temperature, the key's strength moves saturation. one recipe, rendered
+// three times now: three.js, prompt words, and the composite's grade.
+export function gradeFromLighting(recipe: LightRecipe): Grade {
+  const hex = recipe.key.color.replace("#", "");
+  const r = parseInt(hex.slice(0, 2), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const temperature = Math.max(-0.3, Math.min(0.3, ((r - b) / 255) * 0.3));
+  const brightness = recipe.ambience === "bright" ? 0.03 : recipe.ambience === "dim" ? -0.02 : -0.06;
+  const saturation = Math.max(0.9, Math.min(1.1, 1 + (recipe.key.intensity - 3) * 0.02));
+  return { temperature, brightness, saturation };
 }
 
 // ---------------------------------------------------------------------------

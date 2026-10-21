@@ -193,6 +193,10 @@ export class PersonaVoice {
     return new PersonaVoice(opts.personaRef, avatar, handle, profile, set);
   }
 
+  // on camera: masky owns the voice (speak turns render voice + face
+  // together). off camera: yap tts owns it, per the camera-off handoff.
+  onCamera = true;
+
   // say one utterance and get both tracks back. keep text to <= 3 sentences:
   // masky chunks longer text into extra turn docs and the id/clip pairing
   // stops being 1:1.
@@ -234,16 +238,84 @@ export class PersonaVoice {
 }
 
 // ---------------------------------------------------------------------------
+// camera off, voice on: the handoff that must not sound like one
+// ---------------------------------------------------------------------------
+
+// the rule: if the avatar turns off her camera mid-conversation, the voice
+// keeps going as if nothing happened. the masky turn owns the current
+// sentence, so it runs to the sentence's end: the audio clip is never cut.
+// only the visual goes dark, and it goes dark at the browser level (the obs
+// source hidden, the livekit camera track muted), never by cancelling the
+// render. once the clip has finished, yap owns the voice again, and the
+// conversation picks up with no odd-sounding seam and no lost context.
+export interface CameraOffPlan {
+  hideVisual: "now"; // the browser-level camera goes dark immediately
+  keepAudioUntilMs: number; // the masky clip plays out fully
+  voiceSwitch: { atMs: number; to: "yap" }; // after the sentence, yap owns the voice
+  cutMidSentence: false; // by construction, not by discipline
+}
+
+export function planCameraOff(clipMs: number): CameraOffPlan {
+  if (clipMs < 0) throw new Error("clipMs cannot be negative");
+  return {
+    hideVisual: "now",
+    keepAudioUntilMs: clipMs,
+    voiceSwitch: { atMs: clipMs, to: "yap" },
+    cutMidSentence: false,
+  };
+}
+
+export interface Timer {
+  sleep(ms: number): Promise<void>;
+}
+
+// the executor. hideCamera() is the browser-level switch (obs.setSourceVisible
+// false, or muting the livekit camera track). nothing in here can end the
+// audio early: the sleep before unpublishMaskyAudio() IS the protocol.
+export class CameraOffAdapter {
+  constructor(
+    private deps: {
+      hideCamera(): Promise<void>;
+      unpublishMaskyAudio(): Promise<void>;
+      onSwitched?(): Promise<void>;
+    },
+    private timer: Timer = { sleep: (ms) => new Promise((r) => setTimeout(r, ms)) },
+  ) {}
+
+  async cameraOff(render: Render, clipMs: number): Promise<CameraOffPlan> {
+    const plan = planCameraOff(clipMs);
+    // 1. the visual goes dark now. the clip keeps rendering where it can
+    //    still be heard; only the camera disappears.
+    await this.deps.hideCamera();
+    // 2. the masky turn finishes its sentence. the room hears the render
+    //    the voice was already speaking, to its last syllable.
+    await this.timer.sleep(plan.keepAudioUntilMs);
+    // 3. the sentence is over. masky audio unpublishes, yap takes the next
+    //    utterance, and face-off turns render as yap tts from here on.
+    await this.deps.unpublishMaskyAudio();
+    await this.deps.onSwitched?.();
+    return plan;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // the livekit side (yap) implements this; video never touches a track itself
 // ---------------------------------------------------------------------------
 
 export interface RoomPublisher {
   publish(published: { audioUrl: string; videoUrl: string }): Promise<void>;
   idle?(): Promise<void>; // no utterance: leave the idle clips playing
+  // a face-off turn: she is not on camera, so yap tts says it in her voice
+  // and no render is needed. voice matching lives on the yap side: the same
+  // retelldb voice profile that maps to masky's voiceStyle cues selects yap's
+  // voice, so the two voices are the same voice by construction.
+  publishFaceOff?(utterance: Utterance): Promise<void>;
 }
 
 // the call loop. one voice, two rooms: every utterance goes out as the render
 // the room hears and the render the room sees, from the same masky turn.
+// after a camera-off handoff she is off camera, so utterances route to yap
+// (publishFaceOff) until the camera comes back on.
 export async function runCall(
   voice: PersonaVoice,
   publisher: RoomPublisher,
@@ -255,7 +327,11 @@ export async function runCall(
       await publisher.idle?.();
       return;
     }
-    const render = await voice.say(utterance);
-    await publisher.publish({ audioUrl: render.audioUrl, videoUrl: render.videoUrl });
+    if (voice.onCamera) {
+      const render = await voice.say(utterance);
+      await publisher.publish({ audioUrl: render.audioUrl, videoUrl: render.videoUrl });
+    } else {
+      await publisher.publishFaceOff?.(utterance);
+    }
   }
 }

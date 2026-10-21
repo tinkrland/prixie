@@ -25,8 +25,10 @@ const {
   LIGHT_RECIPES,
   backdropPrompt,
   defaultSet,
+  gradeFromLighting,
   lightingPrompt,
   pinSet,
+  placementForShot,
   scenePrompt,
   shotPrompt,
 } = await import("../server/set.ts");
@@ -103,4 +105,29 @@ Deno.test("pinning the set adds the look then pins the conversation", async () =
     "the stored url is pinned, not the source url (speak only accepts stored looks)",
   );
   assert(look.url === "https://masky/avatars/av1/as9.png", "pinSet returns the stored look");
+});
+
+// ---------------------------------------------------------------------------
+// camera angle and lighting, from the proskena level
+// ---------------------------------------------------------------------------
+
+Deno.test("a camera angle change is arithmetic on the lens, not a generation", () => {
+  const wide = placementForShot({ fov: 40, focallength: 28, focaldistance: 400 });
+  const medium = placementForShot({ fov: 30, focallength: 50, focaldistance: 330 });
+  const portrait = placementForShot({ fov: 22, focallength: 85, focaldistance: 200 });
+  const close = placementForShot({ fov: 15, focallength: 105, focaldistance: 180 });
+  // longer lens = she fills more of the frame, tighter to the top.
+  assert(wide.fitHeight < medium.fitHeight && medium.fitHeight < portrait.fitHeight && portrait.fitHeight < close.fitHeight, "fit grows with focal length");
+  assert(wide.anchorY > medium.anchorY && medium.anchorY > portrait.anchorY, "anchor tightens with focal length");
+  assert(close.fitHeight === 1.0, "a close portrait fills the frame");
+});
+
+Deno.test("the light recipe decides the person's grade in the composite", () => {
+  const warm = gradeFromLighting(LIGHT_RECIPES.warm_gold);
+  const neutral = gradeFromLighting(LIGHT_RECIPES.bright_commercial);
+  const dark = gradeFromLighting(LIGHT_RECIPES.dramatic_rim);
+  assert((warm.temperature ?? 0) > 0.08, "warm gold key pushes the person warm");
+  assert(Math.abs(neutral.temperature ?? 1) < 0.01, "a neutral key is no push at all");
+  assert((dark.brightness ?? 0) < 0, "a dark room darkens the person");
+  assert((warm.saturation ?? 1) <= 1.1 && (warm.saturation ?? 1) >= 0.9, "saturation stays a nudge, not a filter");
 });
