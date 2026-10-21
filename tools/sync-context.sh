@@ -11,5 +11,5 @@
 set -e
 git fetch origin context
 git checkout FETCH_HEAD -- retelldb persona
-echo "context synced from the context branch: retelldb/ and persona/ are now byte-identical to main."
+echo "context synced: retelldb/ and persona/ are byte-identical to the context branch."
 echo "commit them on this branch so the surface branch tracks the sync."
