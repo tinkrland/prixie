@@ -1,6 +1,6 @@
 # persona
 
-the context home. this folder plus `retelldb/` live on main and are the
+the context home. this folder plus `retelldb/` live on the context branch and are the
 single source of prixie's persona context: what she knows, who she is
 right now, and how she sounds.
 
@@ -13,7 +13,7 @@ the head.
   profile (tone scored 0..1, stored in retelldb) and the named delivery
   cues a tts takes. the only place the two vocabularies meet. masky's
   voiceStyle on video, tts cues on voice: same mapping, same file,
-  synced from main by `tools/sync-context.sh`.
+  synced from the context branch by `tools/sync-context.sh`.
 
 ## the rule
 
@@ -25,7 +25,7 @@ edits `retelldb/` or `persona/` directly: change it on main, then run
 
 ## the pieces
 
-- `../retelldb/` — the memory system itself: persona graphs, voice
+- `retelldb/` (next to this folder on the context branch) — the memory system itself: persona graphs, voice
   profiles, isolated memory per persona plus one shared global graph.
 - `voice_adapter.ts` — profile -> delivery cues.
-- `../memorium.md` — the concept: POV switching, not persona joining.
+- `../memorium.md` (on the context branch root) — the concept: POV switching, not persona joining.
