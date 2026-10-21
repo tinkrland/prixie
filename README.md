@@ -1,184 +1,46 @@
-# prixie
+# recap
 
-prixie is an ai internet personality. she has a voice, a face, a room, a memory, and a feed: she joins meetings on your behalf, speaks with her own voice, appears on camera in her own space, and posts. the proxy was the first surface. the person is the whole.
+the after surface. you missed the session: you were asleep, or somewhere
+without service, or you just did not have three hours. but there is a
+recording, and someone sent you the link: an unlisted youtube url, a
+private vod, a drive file. prixie watches it for you and brings back what
+you actually needed, the same way she would have if she had been in the
+room: not a summary of a few hours, the answers to the capture requests
+you sent her with.
 
-she is not a tool you open. she is someone who exists online, and you delegate to her the way you would to a person: "go to this for me", "say this", "be there when i cant".
+the pipeline, end to end:
 
-## the surfaces, one per branch
+1. **intake.** `classifySource(url)` + `buildFetchPlan(url)` (server/recap.ts).
+   an unlisted youtube link is exactly the shape this branch exists for:
+   unlisted means the link itself is the access, no login, no api
+   privilege. yt-dlp handles youtube (listed or unlisted) and twitch vods;
+   direct media urls download plainly.
+2. **transcribe.** the same transcription the proxy already trusts:
+   assembly.ai, speaker labels, with timestamps. the recording becomes a
+   transcript document, not a video to rewatch.
+3. **ingest.** the transcript goes into retelldb as a document for the
+   persona (scripts/recap_ingest.py shells the retelldb cli: `ingest`,
+   then `query`), so what was said becomes memory she can relate, weighted
+   and timestamped, not a file in a drawer.
+4. **answer.** your capture requests run against the transcript first
+   (timestamps are the citations: "the access code, said at 1:12:45") and
+   retelldb second (what it means, who said it, what it relates to). you
+   wake up to answers, not recordings. again.
 
-| branch | surface | what |
-| --- | --- | --- |
-| `main` | the proxy | she joins meetings for you: hono + supabase backend, dashboard, browserbase join engine. meeting link sources: google calendar, microsoft calendar (graph), apple calendar (caldav), notion, cal.com (v2 bookings api), zcal (bookings arrive via the host calendar and confirmation mail; no public api to pull). this readme covers this branch |
-| `context` | her head | the persona context, and nothing else: `retelldb/` (the memory graphs), `persona/` (the voice adapter bridge, the one profile -> delivery cues mapping), `memorium.md` (the design). surface branches pull byte-identical copies with `sh tools/sync-context.sh` |
-| `voice` | her voice | livekit in the already joined call, no second participant: she speaks into the call she is already in. end-of-turn detection, interruption handling (assembly.ai), retelldb persona memory as the knowledge source, and the obs + twitch bridge (ours, not masky's) |
-| `video` | her face and room | masky renders voice + lip-sync as one turn, proskena authors the set (the proskena-derived pieces live in `studioify/`), rembg + ffmpeg composite her over the plate, `integrations/` holds the stream targets (twitch, kick) on our obs-websocket bridge. camera angle and light adjust from the proskena level; a camera-off handoff never cuts a sentence |
-| `socmed` | her feed | the same pipeline sized for instagram 4:5, reels and tiktok 9:16 with the 14 percent ui bands, pinterest 2:3, square 1:1. it renders, it does not publish |
-| `recap` | the after | you missed the session; there is a recording (an unlisted youtube link, a private stream vod). she watches it, finds what you asked for, and brings it back: fetch, transcribe, ingest, answer |
-| `website/` | her site | the prixy web app (on main) |
+what this branch deliberately is not: a summarizer. a recap is capture
+requests answered with citations, and the session ingested as memory. if
+you wanted a summary you would not have sent prixie.
 
-her memory is the same across every surface: retelldb personas (what she knows, how she says it) with memorium.md as the design for the weighted, hierarchical whole. the context branch owns the context and nothing else; the surface branches carry byte-identical synced copies (`sh tools/sync-context.sh` from the surface branch), so her voice and her memories can never drift between video and voice.
-
-## why the proxy is different
-
-most meeting tools (granola, otter, fireflies, tl;dv, fathom) sit next to you and take notes while you talk. they assume you are in the meeting. they are companions.
-
-prixie is a proxy. she goes instead of you.
-
-a note taker helps you remember what happened in a meeting you attended. prixie attends a meeting you did not go to and brings back the specific thing you needed from it. not a summary. the actual answers, codes, links, and decisions you sent her for: you asked about the API timeline, they said q1. you asked for the access code, it is PRIXIE BUILD 2026 X9. done.
-
-you sleep. prixie attends. you wake up to answers, not recordings.
-
-## platform support
-
-prixie runs on one join engine: a headless browser (browserbase). no recall.ai, no per-platform bot apis.
-
-| platform | transcript | chat send | chat receive | status |
-| --- | --- | --- | --- | --- |
-| zoom | yes | via browser | via browser | selectors built, needs live testing |
-| google meet | yes | via browser | via browser | selectors built, needs live testing |
-| microsoft teams | yes | via browser | via browser | selectors built, needs live testing |
-| discord | yes | via browser | via browser | built, needs testing |
-| bluejeans | yes | via browser | via browser | built, needs testing |
-| ringcentral | yes | via browser | via browser | built, needs testing |
-| slack huddles | via browser | via browser | via browser | planned |
-| cisco webex | via browser | via browser | via browser | planned |
-
-all platforms share the same flow: open the meeting url in the headless browser, automate the join (name entry, join button, audio dialogs), scan the chat dom every few seconds, capture the session recording, transcribe with assembly.ai with speaker labels.
-
-## capabilities
-
-| feature | status | notes |
-| --- | --- | --- |
-| autonomous meeting join | working | joins on schedule, no supervision needed |
-| google calendar sync | working | automatic meeting discovery |
-| real time keyword detection | working | monitors live transcript for your keywords |
-| real time chat monitoring | working | captures links, codes, form urls from chat |
-| post meeting transcript + diarization | working | speaker labels, hybrid per participant + machine |
-| delayed join | working | default 2 min after start, configurable |
-| camera off / mic off | working | both off by default, silent presence |
-| attendance marking | working | chat message, google form, or custom |
-| breakout room support | planned | browser automation of the zoom room invite popup (recall.ai used to handle this) |
-| capture requests | working | keywords, links, codes, questions, with context |
-| prepared questions | planned | ask your questions out loud during q&a (needs voice feature) |
-| profile / persona system | designed | sandboxed identities, per profile memory, shared global memory |
-| link sourcing (inbox, discord, slack, luma) | planned | multiple sources for finding meeting links |
-| hinglish transliteration | planned | latin script, italicized, phonetically written |
-| voice interaction | planned | TTS to speak questions, STT to hear answers |
-| browserbase fallback | planned | headless browser for unsupported platforms |
-
-## what is in this repo
+## what is in this branch
 
 | path | what |
 | --- | --- |
-| `backend/` | hono server (deno). api routes, browserbase join engine, webhooks, scheduler, supabase client |
-| `backend/src/routes/` | meetings, capture, transcripts, deploy, profiles, stats |
-| `backend/src/routes/webhooks/` | realtime capture events, google calendar |
-| `backend/src/scheduler/` | meeting manager cron (deploys bots, retrieves transcripts) |
-| `backend/src/services/` | bot_provider.ts, browserbase_provider.ts, browserbase.ts, supabase.ts, calendar.ts, calendar_sync.ts (one adapter per source: google, microsoft/outlook, apple/caldav, notion, cal.com, zcal) |
-| `backend/supabase_schema.sql` | run this in supabase to create all tables |
-| `frontend/` | react + tanstack router + tailwind v4 |
-| `frontend/src/routes/` | dashboard, deploy form, meetings list, meeting detail, captures, about |
-| `frontend/src/components/` | deploy form, meeting card, transcript view, captured item card, capture request form, status badge, site shell |
-| `frontend/src/lib/` | api.ts (fetch calls to backend), types.ts |
-| `yap/` | docs site content: about, features, behind the scenes, technobabble, problem (the folder name predates the voice branch rename) |
-| `website/` | the prixy web app |
-| the `context` branch | memorium.md (the memory design), retelldb/, persona/: the context lives on its own branch, not in this tree |
-| `roadmap.md` | the current state of every branch + the proxy-era phase history |
+| `server/recap.ts` | classifySource, buildFetchPlan, buildTranscribePlan, RecapSession (ingest + answer, the pure orchestration; the external calls throw at the transport, as everywhere in prixie) |
+| `scripts/recap_ingest.py` | the retelldb seam: ingest the transcript, query per capture request, answer with transcript citations |
+| `retelldb/`, `persona/` | byte-identical copies synced from the context branch (`sh tools/sync-context.sh`) |
 
-## dependencies and hosting
-
-### what needs to be running
-
-prixie has three layers that each need a home:
-
-1. **the backend** (hono server) - handles api calls, realtime webhooks, the scheduler that deploys bots and retrieves transcripts. this needs to be running 24/7 for prixie to operate autonomously.
-2. **the database** (supabase / postgres) - stores meetings, capture requests, transcripts, profiles, memory. hosted on supabase cloud (free tier works).
-3. **browserbase** - the meeting join engine. cloud hosted headless browsers. prixie automates the join like a human clicking through the web client.
-
-### your device does not need to be on
-
-this is the whole point. if the backend is hosted in the cloud, prixie joins meetings whether your laptop is open or closed. you set it up, prixie runs.
-
-if the backend is running on your local machine and your device is off, prixie will not join. the scheduler will not run, the webhooks will not be received, and the bot will not be deployed.
-
-### where to host the backend
-
-| option | cost | notes |
-| --- | --- | --- |
-| deno deploy | free tier | easiest, runs hono natively, serverless |
-| aws (lambda + api gateway) | pay per use | more setup, scales automatically |
-| xano | paid | backend as a service, could replace supabase + hono |
-| any vps (digitalocean, hetzner, fly.io) | $5/mo | run deno in a tmux/screen session |
-| local machine | free | only works while your device is on |
-
-### environment variables
-
-copy `.env.example` to `.env` and fill in:
+## tests
 
 ```
-SUPABASE_URL=your supabase project url
-SUPABASE_SERVICE_ROLE_KEY=your supabase service role key
-BROWSERBASE_API_KEY=your browserbase key (the join engine for every platform)
-ASSEMBLYAI_API_KEY=your assemblyai key
-GOOGLE_CALENDAR_ID=your email
-GOOGLE_CALENDAR_WEBHOOK_URL=your backend webhook url
-PORT=3000
+deno test --allow-env tests/
 ```
-
-## quick start
-
-```bash
-# 1. set up the database
-# create a supabase project, run backend/supabase_schema.sql in the sql editor
-
-# 2. set up environment variables
-cp .env.example .env
-# fill in your keys
-
-# 3. run the backend
-cd backend
-deno task dev    # runs on port 3000 (or set PORT)
-
-# 4. run the frontend
-cd frontend
-npm install
-npm run dev       # runs on port 3001, proxies /api to :3000
-
-# 5. open the dashboard
-# http://localhost:3001
-```
-
-## architecture
-
-```
-you -> dashboard (/deploy) -> create meeting + capture requests
-                                    |
-                              backend (hono)
-                                    |
-                         scheduler checks every 60s
-                                    |
-              meeting time arrives -> browserbase session joins via web client
-                                    |
-                         bot joins meeting (camera off, mic off)
-                                    |
-                    real time transcript + chat -> webhooks -> backend
-                                    |
-                         keyword match -> save captured item
-                                    |
-                         meeting ends -> session recording -> assembly.ai transcript
-                                    |
-                         deliver to you: what you asked for, with context
-```
-
-## what prixie does not do
-
-- she does not take generic notes or summaries (you asked for specific things, she brings those)
-- in meetings she attends as your proxy, her camera and mic are off by default (her face exists, on the video branch, where she is present as herself)
-- she does not raise her hand (no browser automation for it yet)
-- she does not use the zoom q&a tab (requires custom zoom sdk app)
-- she does not answer mandatory post join popup questions (requires zoom sdk)
-- she does not replace you in meetings where your presence matters (she is a proxy, not a clone)
-
-## license
-
-personal project. do what you want with it.
