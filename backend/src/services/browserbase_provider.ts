@@ -16,6 +16,7 @@ import {
   installChatMonitor,
   sendChatInSession,
   heartbeatSession,
+  unmuteAndSpeakInSession,
 } from "./browserbase.ts";
 import { transcribeBrowserbaseSession } from "./browserbase_transcript.ts";
 import { readPreJoinParticipantCount } from "./browserbase_extended.ts";
@@ -70,6 +71,10 @@ export class BrowserbaseProvider implements BotProvider {
 
   async sendChatMessage(botId: string, messageText: string): Promise<boolean> {
     return sendChatInSession(botId, messageText);
+  }
+
+  async unmuteAndSpeak(botId: string, question: string): Promise<boolean> {
+    return unmuteAndSpeakInSession(botId, question);
   }
 
   async getTranscript(botId: string): Promise<ProviderTranscript> {

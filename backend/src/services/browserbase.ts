@@ -122,6 +122,41 @@ export async function cdpExecute(sessionId: string, method: string, params: any)
   return res.json();
 }
 
+// the out-loud ask (the owner's q&a flow): unmute and speak, from inside
+// the hosted join page. the page seam is a window.prixieUnmute helper
+// when the page defines one, otherwise the zoom mic button. the voice
+// itself is the page's speech synthesis; the honest caveat: whether the
+// synthesized audio reaches the meeting depends on the page's mic
+// wiring (a custom audio track when the sdk allows it). if neither the
+// helper nor the mic button is there, this returns false and the
+// caller falls back to asking in the chat. the camera is never part
+// of this: there is no camera branch in the flow at all.
+export async function unmuteAndSpeakInSession(sessionId: string, question: string): Promise<boolean> {
+  // JSON.stringify is the only escaping that covers every case.
+  const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        let unmuted = false;
+        if (typeof window.prixieUnmute === "function") { window.prixieUnmute(); unmuted = true; }
+        else {
+          const btn = document.querySelector('button[aria-label*="mute" i], button[aria-label*="audio" i], button[aria-label*="join audio" i]');
+          if (btn) { btn.click(); unmuted = true; }
+        }
+        if (!unmuted) return "no_mic";
+        try {
+          const u = new SpeechSynthesisUtterance(${JSON.stringify(question)});
+          u.rate = 1.0;
+          window.speechSynthesis.speak(u);
+          return "speaking";
+        } catch (e) { return "speech_failed"; }
+      })()
+    `,
+    returnByValue: true,
+  });
+  const value = result?.result?.value;
+  return value === "speaking" || value === "speech_failed";
+}
+
 // --- element interaction (via CDP) ---
 
 export async function findAndClick(sessionId: string, selector: string, timeoutMs = 10000): Promise<boolean> {

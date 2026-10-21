@@ -42,6 +42,11 @@ export interface BotProvider {
   // send a chat message as prixie from inside the meeting
   sendChatMessage(botId: string, messageText: string): Promise<boolean>;
 
+  // optional: the q&a flow's prompted out-loud ask. unmute and speak a
+  // question, only ever after a human prompted her to. engines whose
+  // bots have no mic return false and the caller falls back to chat.
+  unmuteAndSpeak?(botId: string, question: string): Promise<boolean>;
+
   // full transcript for a finished meeting
   getTranscript(botId: string): Promise<ProviderTranscript>;
 

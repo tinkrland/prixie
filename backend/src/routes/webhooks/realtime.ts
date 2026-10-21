@@ -11,11 +11,117 @@ import { notifyCaptureMatch } from "../../services/notify.ts";
 import { detectScarcity } from "../../services/scarcity.ts";
 import { redeemAndNotify } from "../../services/form_entry.ts";
 import { extractPromoCode } from "../../services/promo.ts";
+import {
+  type QnaAskState,
+  nextQnaAction,
+  buildPermissionChatMessage,
+  PERMISSION_SILENCE_MS,
+} from "../../services/qna_flow.ts";
+import { botProvider } from "../../services/browserbase_provider.ts";
+import { createAttendanceMessage } from "../../services/supabase.ts";
 
 // scarcity she has heard per meeting (the announcement usually precedes
 // the link by minutes). in-memory by design: it is live-call urgency,
 // not durable truth. supabase keeps the capture.
 const scarcityHeard = new Map<string, string>();
+
+// the q&a ask flow state, per meeting (the owner, oct 21 2026). in-memory by
+// the same design: live-call urgency, not durable truth. the capture
+// request in supabase is the record. the camera is NEVER part of this
+// flow: no branch turns it on, ever.
+const qnaStates = new Map<string, QnaAskState>();
+
+// drive the q&a ask flow with one observed event. returns nothing; the
+// actions (chat sends, the out-loud ask) happen inside.
+async function advanceQna(
+  meeting: any,
+  botId: string,
+  kind: "transcript" | "chat",
+  text: string,
+  pendingCaptures: any[],
+): Promise<void> {
+  const state = qnaStates.get(meeting.id);
+  let outcome = nextQnaAction(state, { kind, text });
+
+  // silence deadline: she asked in chat, the q&a window is short, and
+  // two minutes of no objection means she posts the question in the
+  // chat, which is exactly what she asked permission for.
+  if (state?.phase === "asked_permission" && outcome.action === "none" &&
+      Date.now() - (state.permissionAskedAt || 0) > PERMISSION_SILENCE_MS) {
+    outcome = { action: "post_question_in_chat" };
+  }
+
+  if (outcome.action === "open_window") {
+    // only an ask-type request she has not yet had answered opens the
+    // flow; other raised hands go first, she is not one of them.
+    const ask = pendingCaptures.find((r) => r.type === "ask" && r.question);
+    if (ask?.question) {
+      qnaStates.set(meeting.id, {
+        phase: "hands_up",
+        pendingQuestionId: ask.id,
+        question: ask.question,
+      });
+      console.log(`prixie: qna window open in ${meeting.id}, waiting for raised hands first`);
+    }
+    return;
+  }
+
+  if (outcome.action === "hands_clear" && state) {
+    const sent = await botProvider.sendChatMessage(botId, buildPermissionChatMessage());
+    if (sent) {
+      state.phase = "asked_permission";
+      state.permissionAskedAt = Date.now();
+      await createAttendanceMessage({
+        meeting_id: meeting.id,
+        message_text: buildPermissionChatMessage(),
+        sent_status: "sent",
+        trigger: "qna",
+      }).catch(() => {});
+      console.log(`prixie: qna permission asked in chat in ${meeting.id}`);
+    } else {
+      // if she cannot even chat, she stands down; the request stays
+      // pending and post-meeting transcript search still applies.
+      state.phase = "done";
+    }
+    return;
+  }
+
+  if (outcome.action === "post_question_in_chat" && state) {
+    const sent = await botProvider.sendChatMessage(botId, state.question);
+    state.phase = sent ? "asked_in_chat" : "done";
+    if (sent) {
+      await createAttendanceMessage({
+        meeting_id: meeting.id,
+        message_text: state.question,
+        sent_status: "sent",
+        trigger: "qna",
+      }).catch(() => {});
+      console.log(`prixie: qna question posted in chat in ${meeting.id}`);
+    }
+    return;
+  }
+
+  if (outcome.action === "unmute_and_ask" && state) {
+    // a human prompted her to speak: unmute and ask out loud, only
+    // then. engines with no mic get the honest fallback: the question
+    // still goes out, through the chat.
+    const spoke = await (botProvider.unmuteAndSpeak?.(botId, state.question) ?? false);
+    if (spoke) {
+      state.phase = "asked_out_loud";
+      console.log(`prixie: prompted to speak, unmuted and asked out loud in ${meeting.id}`);
+    } else {
+      const sent = await botProvider.sendChatMessage(botId, state.question);
+      state.phase = sent ? "asked_in_chat" : "done";
+      if (sent) console.log(`prixie: engine has no mic, question sent via chat in ${meeting.id}`);
+    }
+    return;
+  }
+
+  if (outcome.action === "stand_down" && state) {
+    state.phase = "done";
+    console.log(`prixie: qna ask declined in ${meeting.id}, standing down`);
+  }
+}
 
 registerDefaultScreenshotEngines();
 
@@ -52,6 +158,11 @@ realtimeWebhook.post("/", async (c) => {
     if (kind === "transcript") {
       const speaker = payload.speaker || "speaker";
       const lowerText = text.toLowerCase();
+
+      // the q&a ask flow watches speech too: chat and meet go hand in
+      // hand, and a spoken "sure prixie, go ahead" counts as much as a
+      // chat reply.
+      await advanceQna(meeting, botId, "transcript", text, pendingCaptures);
 
       for (const req of pendingCaptures) {
         let matched = false;
@@ -106,6 +217,12 @@ realtimeWebhook.post("/", async (c) => {
             }
           }
 
+          // an answered ask retires the q&a flow for this meeting
+          if (req.type === "ask") {
+            const st = qnaStates.get(meeting.id);
+            if (st && st.pendingQuestionId === req.id) qnaStates.delete(meeting.id);
+          }
+
           await updateCaptureRequest(req.id, {
             status: req.type === "ask" ? "answered" : "captured",
             captured_content: req.captured_content
@@ -133,6 +250,10 @@ realtimeWebhook.post("/", async (c) => {
       const speaker = payload.speaker || "participant";
       const urlRegex = /(https?:\/\/[^\s"'<>]+)/gi;
       const links = text.match(urlRegex) || [];
+
+      // the q&a ask flow: a chat reply prompting her to speak up
+      // unmutes her, only then.
+      await advanceQna(meeting, botId, "chat", text, pendingCaptures);
 
       console.log(`prixie: chat message from ${speaker}: "${text}"`);
 
