@@ -1,16 +1,18 @@
-// the obs + twitch bridge: ours, not masky's.
+// the obs bridge: ours, not masky's.
 //
 // masky ships a native twitch/OBS integration, but "the platform owns the
 // bridge" is the same trap as "the model owns the room": a streamer's setup is
 // a set of scenes they control. so this branch bridges to obs studio itself,
-// over obs-websocket 5.x, and through obs to twitch. what that buys:
+// over obs-websocket 5.x. what that buys:
 //
 // - the composite mp4 is one obs source (a media source or vlc), proskena's
 //   canvas can be another, and scene switches are ours to trigger;
 // - the camera-off handoff (handoff.ts) hides the masky camera source at the
 //   browser level without touching the audio, exactly as specified;
-// - streaming to twitch is obs's stream key + our toggle, no masky account
-//   in the path.
+// - streaming anywhere is obs's stream key + our toggle, no masky account in
+//   the path. the bridge is platform-agnostic on purpose: a target (twitch,
+//   kick, anything rtmp) is a server url + a key, and the per-platform files
+//   live next to this one in integrations/.
 //
 // protocol: obs-websocket 5.x. hello -> identify (sha256 challenge/response)
 // -> identified, then request/response ops with json payloads. every request
@@ -226,18 +228,14 @@ export class ObsBridge {
     return resp.outputActive;
   }
 
-  // twitch's ingest, once the key exists. the key lives in obs's stream
-  // settings (or a bot's vault); the bridge only needs to point obs at it.
-  static twitchIngest(streamKey: string): string {
-    return `rtmp://live.twitch.tv/app/${streamKey}`;
-  }
-
-  // point obs's custom stream target at twitch. verify the params shape
-  // against a live instance when one is wired up.
-  async setTwitchTarget(streamKey: string, server = ObsBridge.twitchIngest(streamKey)): Promise<void> {
+  // point obs's custom stream target at any rtmp destination. this is the
+  // whole platform story: twitch, kick, or a private relay are all just
+  // server + key here; the per-platform constants live in twitch.ts/kick.ts.
+  // verify the params shape against a live instance when one is wired up.
+  async setStreamTarget(server: string, key: string): Promise<void> {
     await this.request("SetStreamSettings", {
       streamSettingsType: "custom",
-      settings: { server, key: streamKey },
+      settings: { server, key },
       save: true,
     });
   }

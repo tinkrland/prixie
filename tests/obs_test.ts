@@ -5,7 +5,7 @@
 //
 //   deno test --allow-env --allow-net tests/obs_test.ts
 
-import { ObsBridge, obsAuthHash } from "../server/obs.ts";
+import { ObsBridge, obsAuthHash } from "../integrations/obs.ts";
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
 
 const PASSWORD = "obs-pass";
@@ -18,7 +18,9 @@ interface ObsServer {
   finish: () => Promise<void>;
 }
 
-function mockObs(opts: { auth?: boolean } = {}): ObsServer {
+// exported for integrations_test.ts: the mock speaks the real protocol, so
+// the target tests ride the same bridge the bridge tests do.
+export function mockObs(opts: { auth?: boolean } = {}): ObsServer {
   const requests: ObsServer["requests"] = [];
   const sockets: WebSocket[] = [];
   const controller = new AbortController();
@@ -124,7 +126,7 @@ Deno.test("hiding the camera source resolves the item id first", async () => {
   await obs.finish();
 });
 
-Deno.test("stream control and twitch's ingest", async () => {
+Deno.test("stream control, platform-agnostic", async () => {
   const obs = mockObs();
   const bridge = new ObsBridge({ url: obs.url });
   await bridge.connect();
@@ -134,7 +136,6 @@ Deno.test("stream control and twitch's ingest", async () => {
     obs.requests.find((r) => r.requestType === "SetStreamActive")?.requestData,
     { streamActive: true },
   );
-  assertEquals(ObsBridge.twitchIngest("key_123"), "rtmp://live.twitch.tv/app/key_123");
   bridge.close();
   await obs.finish();
 });

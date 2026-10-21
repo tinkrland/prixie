@@ -36,14 +36,13 @@ seams:
 - server/masky.ts: ensurePersonaAvatar (one face per persona), startConversation,
   speak, waitForClip, enableIdleLoop, makePublic, bindAgentBrain
 - server/handoff.ts: PersonaVoice (face + voice + memory as one object), say(),
-  recall(), runCall(), voiceStyleFromProfile() (tone 0..1 -> named tts cues)
-- the persona context is synced from main (retelldb/ + persona/ via
-  `sh tools/sync-context.sh`): main owns the context, this branch carries the
-  byte-identical copy, and the voice adapter (persona/voice_adapter.ts, the
-  one profile -> delivery cues mapping) is the same file the voice branch
-  uses, so her voice and memories are the same everywhere. obs + twitch also
-  live on the voice branch now (ours, not masky's); the obs bridge this
-  branch used for composite scenes moved with it.
+  recall(), runCall(); the delivery mapping lives in persona/voice_adapter.ts
+- the persona context is synced from the context branch (retelldb/ +
+  persona/ via `sh tools/sync-context.sh`): the context branch owns the
+  context, this branch carries the byte-identical copy, and the voice
+  adapter (persona/voice_adapter.ts, the one profile -> delivery cues
+  mapping) is the same file the voice branch uses, so her voice and memories
+  are the same everywhere.
 
 ## tests
 
@@ -70,7 +69,15 @@ default on every turn here (a meeting face is presence, not a render). scripted
 speak turns are cached: the same line in the same voice renders once, replays
 are free.
 
-## twitch
+## twitch, kick, and the rest (integrations/)
+
+integrations/ holds the places her stream goes. obs.ts is the bridge
+(obs-websocket 5.x, ours, not masky's) and it is platform-agnostic on
+purpose: a platform is just an rtmp destination, one file each. twitch.ts
+is the stable public ingest; kick.ts takes kick's ingest url + key from its
+creator dashboard (kick has no mature public api for chat or channel info,
+and nothing pretends otherwise). adding a platform is adding a file: no
+bridge changes, no platform lock-in.
 
 masky already ships twitch and OBS integration natively (avatars can be
 twitch-owned, ids show up as twitch:123, and the live url drops straight into

@@ -2,7 +2,7 @@
 // handoff operating the real bridge. run: deno test tests/stream_test.ts
 
 import { StreamSession, type StreamObs } from "../server/stream.ts";
-import { ObsBridge } from "../server/obs.ts";
+import { ObsBridge } from "../integrations/obs.ts";
 
 function assert(cond: boolean, msg: string) {
   if (!cond) throw new Error(msg);
@@ -47,7 +47,7 @@ Deno.test("go live: scene first, then the stream", async () => {
   });
   await session.goLive();
   assert(log[0].op === "switchScene" && log[0].args[0] === "live", "the live scene is switched first");
-  assert(log[1].op === "startStream", "then obs starts streaming to twitch");
+  assert(log[1].op === "startStream", "then obs starts streaming (the target: whatever integrations/ pointed obs at)");
   await session.end();
   assert(log[log.length - 1].op === "stopStream", "end stops the stream");
 });

@@ -3,18 +3,20 @@
 // speaks the protocol, handoff.ts owns the protocol of never cutting a
 // sentence, and stream.ts is what a streamer actually operates.
 //
-//   goLive()      switch to the live scene, start obs's stream to twitch
+//   goLive()      switch to the live scene, start obs's stream (the target
+//                 is whatever integrations/ last pointed obs at: twitch, kick, ...)
 //   cameraOff()   the full handoff: visual dark now, voice to the sentence's
 //                 end, then yap owns the voice
 //   cameraOn()    the face comes back; masky owns the voice again
 //   end()         stop streaming
 //
-// nothing here posts, captions, or touches the twitch account beyond obs's
+// nothing here posts, captions, or touches the platform account beyond obs's
 // own stream key: the room and the voice are ours, the audience surface is
-// obs's.
+// obs's, and which platform that surface belongs to is one file away in
+// integrations/.
 
 import { CameraOffAdapter, type PersonaVoice, type Render } from "./handoff.ts";
-import type { ObsBridge } from "./obs.ts";
+import type { ObsBridge } from "../integrations/obs.ts";
 
 // the subset of the bridge the session needs, so tests can fake it without
 // speaking the obs protocol.
