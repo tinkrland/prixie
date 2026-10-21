@@ -18,7 +18,14 @@ import {
   PERMISSION_SILENCE_MS,
 } from "../../services/qna_flow.ts";
 import { botProvider } from "../../services/browserbase_provider.ts";
-import { createAttendanceMessage } from "../../services/supabase.ts";
+import { createAttendanceMessage, updateMeeting } from "../../services/supabase.ts";
+import { enterForm } from "../../services/form_entry.ts";
+import { chooseFormEmail } from "../../services/form_email.ts";
+import {
+  decideChatForm,
+  alreadyAttempted,
+  markAttempted,
+} from "../../services/chat_form_attendance.ts";
 
 // the door rule of this repo: unset secret = route closed, not open.
 // whoever posts transcript/chat events (the recall webhook, a relay)
@@ -136,6 +143,53 @@ async function advanceQna(
   if (outcome.action === "stand_down" && state) {
     state.phase = "done";
     console.log(`prixie: qna ask declined in ${meeting.id}, standing down`);
+  }
+}
+
+// the chat attendance form (the owner, oct 21 2026): the host posts a
+// google form in the chat, she fills it. same enterForm as the pre-set
+// attendance path: safety gate, her identity (never the owner's), no credit
+// card fields ever. one attempt per link per meeting.
+async function maybeFillChatAttendanceForm(meeting: any, chatText: string): Promise<void> {
+  const decision = decideChatForm(
+    meeting,
+    chatText,
+    !!Deno.env.get("PRIXIE_FORM_EMAIL"),
+  );
+  if (!decision.should_fill || !decision.url) return;
+  if (alreadyAttempted(meeting.id, decision.url)) return;
+  markAttempted(meeting.id, decision.url);
+
+  console.log(`prixie: attendance form in chat for ${meeting.id} (${decision.reason}): ${decision.url}`);
+
+  try {
+    const formEmail = await chooseFormEmail(null, decision.url);
+    if (!formEmail) {
+      console.warn("prixie: chat attendance form skipped, no PRIXIE_FORM_EMAIL");
+      return;
+    }
+
+    const receipt = await enterForm(decision.url, {
+      email: formEmail.address,
+      name: Deno.env.get("PRIXIE_FORM_NAME") || "prixie",
+    });
+    const detail = receipt.submitted
+      ? `attendance form submitted: ${receipt.detail}`
+      : `attendance form entry failed: ${receipt.detail}`;
+
+    await createAttendanceMessage({
+      meeting_id: meeting.id,
+      message_text: `attendance form from chat: ${decision.url}. ${detail}`,
+      trigger: "form",
+      sent_status: receipt.submitted ? "sent" : "failed",
+      sent_at: new Date().toISOString(),
+    });
+    if (receipt.submitted) {
+      await updateMeeting(meeting.id, { attendance_messages_sent: true });
+      console.log(`prixie: chat attendance form submitted for ${meeting.id}`);
+    }
+  } catch (err: any) {
+    console.error(`prixie: chat attendance form failed in ${meeting.id}`, err);
   }
 }
 
@@ -268,6 +322,10 @@ realtimeWebhook.post("/", async (c) => {
       // the q&a ask flow: a chat reply prompting her to speak up
       // unmutes her, only then.
       await advanceQna(meeting, botId, "chat", text, pendingCaptures);
+
+      // sometimes the attendance IS a form posted in the chat. she
+      // fills it with her form identity, once per link per meeting.
+      await maybeFillChatAttendanceForm(meeting, text);
 
       console.log(`prixie: chat message from ${speaker}: "${text}"`);
 
