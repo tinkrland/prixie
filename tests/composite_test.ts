@@ -107,3 +107,26 @@ Deno.test("a proskena-level shot places the person in the frame by arithmetic", 
   assertEquals(filters.includes("force_original_aspect_ratio=decrease"), false,
     "placement replaces the default fit-the-frame behaviour");
 });
+
+Deno.test("the matte rides the person's framing chain, never the raw frame", () => {
+  const plan = {
+    ...base,
+    matte: "matte.mp4",
+    placement: { fitHeight: 0.72, anchorY: 0.14 },
+    width: 1080,
+    height: 1920,
+  };
+  const args = buildCompositeArgs(plan);
+  const graph = args[args.indexOf("-filter_complex") + 1] as string;
+  const matteChain = graph.split(";").find((c) => c.startsWith("[2:v]")) ?? "";
+  assertEquals(matteChain.includes("scale=-1:1382"), true, "the matte scales to the placed height");
+  assertEquals(matteChain.includes("pad=1080:1920:(ow-iw)/2:269"), true,
+    "the matte is padded where the person is");
+  assertEquals(matteChain.includes("format=gray"), true, "the matte stays the alpha");
+  // no placement: the matte follows the same fit-and-centre chain as the person
+  const flat = buildCompositeArgs({ ...plan, placement: undefined });
+  const flatGraph = flat[flat.indexOf("-filter_complex") + 1] as string;
+  const flatMatte = flatGraph.split(";").find((c) => c.startsWith("[2:v]")) ?? "";
+  assertEquals(flatMatte.includes("force_original_aspect_ratio=decrease"), true,
+    "without placement both layers fit the frame the same way");
+});
