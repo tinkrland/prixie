@@ -53,6 +53,8 @@ AMBIENCE = {"bright": 0.95, "dim": 0.45, "dark": 0.16}
 
 def hex_rgb(h):
     h = h.lstrip("#")
+    if len(h) == 3:  # css shorthand: #abc = #aabbcc
+        h = "".join(c * 2 for c in h)
     return np.array([int(h[i:i + 2], 16) for i in (0, 2, 4)], dtype=float)
 
 
@@ -255,6 +257,60 @@ def load_room(path, vox_mm, origin=(0.0, 0.0, 0.0)):
     return (v, f, "lit", fc)
 
 
+# room-main's placement math (src/lib/room/models.ts, RoomObject.svelte),
+# ported: kit models load at their catalog scale, meshes are painted per
+# material slot by the object's colors array, falling back to room-main's
+# default palette. the plate rasterizer is the renderer; nothing else.
+KIT_SCALES = {
+    "kaykit-furniture-kit": 0.4,
+    "kenney-furniture-kit": 1.0,
+    "tiny-treats-bubbly-bathroom": 0.4,
+}
+DEFAULT_PROP_PALETTE = ["#ffffff", "#aaaaaa", "#555555", "#333333"]
+PROPS_DIR = "assets/props"
+
+
+def _euler_xyz(rx, ry, rz):
+    """three.js Euler order XYZ: R = Rx @ Ry @ Rz (z applied first)"""
+    cx, sx = math.cos(rx), math.sin(rx)
+    cy, sy = math.cos(ry), math.sin(ry)
+    cz, sz = math.cos(rz), math.sin(rz)
+    Rx = np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]])
+    Ry = np.array([[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]])
+    Rz = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]])
+    return Rx @ Ry @ Rz
+
+
+def load_kit_prop(path, colors=None):
+    """a kit model: meshes in scene-graph order, one material slot each.
+    colors[i] (hex string) paints slot i, falling back to room-main's
+    default palette. the model's own baseColorFactor is ignored, exactly
+    like the app's RoomObjectMaterial."""
+    import trimesh
+    scene = trimesh.load(path)
+    out = []
+    palette = list(DEFAULT_PROP_PALETTE)
+    if colors:
+        for i, c in enumerate(colors):
+            if c:
+                palette[i] = c
+    nodes = list(scene.graph.nodes_geometry)
+    # the kits were split out of one big scene, so every mesh of a model
+    # carries that scene's layout offset. parts keep their offsets
+    # RELATIVE to the model's first node: kaykit's shared offset cancels
+    # (their parts stay aligned), and a kenney desk's drawers keep the
+    # local offsets that actually place them.
+    base = scene.graph[nodes[0]][0][:3, 3] if nodes else np.zeros(3)
+    for i, node in enumerate(nodes):
+        T, geom_name = scene.graph[node]
+        m = scene.geometry[geom_name].copy()
+        v = np.asarray(m.vertices, dtype=float) + (T[:3, 3] - base)
+        f = np.asarray(m.faces, dtype=int)
+        col = hex_rgb(palette[i % len(palette)])
+        out.append((v, f, col))
+    return out
+
+
 def load_glb_prop(path, face_cap=24000, units="m"):
     """a scanned/modeled prop glb with vertex colors: proskena's parametric
     props are boxes with a base color; props like this carry their own
@@ -367,6 +423,55 @@ def render(spec):
     ground_l = srgb_to_linear(HEMI_GROUND)
 
     meshes = []  # (verts, faces, albedo_rgb, face_colors or None)
+
+    # the set-design format (room-main's math): a box room in meters plus
+    # placed objects. a room floats over the backdrop like the app's room
+    # floats over the page, so the backdrop renders behind and above it.
+    rs = spec.get("roomState")
+    if rs:
+        sx, sz = float(rs["size"]["x"]), float(rs["size"]["z"])
+        m_to_u = 1000.0 * scene_scale
+        wall_c = hex_rgb(rs.get("wallColor", "#f1f1f1"))
+        floor_c = hex_rgb(rs.get("floorColor", "#a1a1a1"))
+        half_x, half_z, h = sx / 2 * m_to_u, sz / 2 * m_to_u, 2.0 * m_to_u
+        # floor, back wall (z-, faces +z), left wall (x-, faces +x)
+        meshes.append((np.array([[-half_x, 0, -half_z], [half_x, 0, -half_z],
+                                  [half_x, 0, half_z], [-half_x, 0, half_z]]),
+                       np.array([[0, 2, 1], [0, 3, 2]]), "lit",
+                       np.tile(floor_c, (2, 1))))
+        meshes.append((np.array([[-half_x, 0, -half_z], [half_x, 0, -half_z],
+                                  [half_x, h, -half_z], [-half_x, h, -half_z]]),
+                       np.array([[0, 2, 1], [0, 3, 2]]), "lit",
+                       np.tile(wall_c, (2, 1))))
+        meshes.append((np.array([[-half_x, 0, -half_z], [-half_x, 0, half_z],
+                                  [-half_x, h, half_z], [-half_x, h, -half_z]]),
+                       np.array([[0, 2, 1], [0, 3, 2]]), "lit",
+                       np.tile(wall_c, (2, 1))))
+        for obj in rs.get("objects", []):
+            kind = obj["kind"]
+            placement = obj.get("placement", "floor")
+            rot = float(obj.get("rotation", 0))
+            pos = np.array(obj.get("position", [0, 0, 0]), dtype=float) * m_to_u
+            # RoomObject.svelte's rotation vector, ported verbatim
+            rx = rot if placement == "wallX" else 0.0
+            ry = (rot if placement == "floor" else 0.0) + \
+                (math.pi / 2 if placement == "wallX" else 0.0)
+            rz = rot if placement == "wallZ" else 0.0
+            R = _euler_xyz(rx, ry, rz)
+            if kind.startswith("scan/"):
+                parts = load_glb_prop(f"{PROPS_DIR}/{kind[5:]}.glb",
+                                      int(obj.get("face_cap", 24000)))
+                for v, f, _mode, fc in parts:  # already proskena mm, on floor
+                    meshes.append(((R @ v.T).T + pos, f, "lit", fc))
+            else:
+                kit, model = kind.split("/", 1)
+                parts = load_kit_prop(f"{PROPS_DIR}/kits/{kit}/{model}.glb",
+                                      obj.get("colors"))
+                ks = KIT_SCALES.get(kit, 1.0)
+                for v, f, col in parts:
+                    v = (R @ (v * ks).T).T * m_to_u + pos
+                    meshes.append((v, f, col, None))
+
     room = spec.get("room")
     if room:
         # the room shell (the editor's base floor/walls) is not model
@@ -377,6 +482,8 @@ def render(spec):
         fv, ff, fcols = floor_mesh(room.get("floor_color", "#c9b49a"), span)
         meshes.append((fv, ff, None, fcols))
     else:
+        # with no vox room the backdrop is the far background: behind and
+        # above a roomState box, exactly the page behind the app's room
         bv, bf, _, bcols = backdrop_mesh(spec["environment"], scene_scale)
         meshes.append((bv, bf, None, bcols))
 
