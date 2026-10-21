@@ -1,14 +1,28 @@
 # prixie
 
-prixie is a personal meeting proxy agent. she joins meetings on your behalf when you cant or dont want to be there, listens for the specific things you asked her to find, asks your pre approved questions if the floor opens, and comes back with exactly what you needed. not a summary. the actual answers, codes, links, and decisions you sent her for.
+prixie is an ai internet personality. she has a voice, a face, a room, a memory, and a feed: she joins meetings on your behalf, speaks with her own voice, appears on camera in her own space, and posts. the proxy was the first surface. the person is the whole.
 
-## why this is different
+she is not a tool you open. she is someone who exists online, and you delegate to her the way you would to a person: "go to this for me", "say this", "be there when i cant".
 
-most meeting tools (granola, otter, fireflies, tl;dv, fathom) sit next to you and take notes while you talk. they assume you are in the meeting. they transcribe what you already heard. they are companions.
+## the surfaces, one per branch
+
+| branch | surface | what |
+| --- | --- | --- |
+| `main` | the proxy | she joins meetings for you: hono + supabase backend, dashboard, browserbase join engine. this readme covers this branch. |
+| `yap` | her voice | livekit room, end-of-turn detection, interruption handling (assembly.ai), retelldb persona memory as the knowledge source |
+| `video` | her face and room | masky renders voice + lip-sync as one turn, proskena authors the set, rembg + ffmpeg composite her over the plate, our own obs-websocket bridge runs obs and streams to twitch. camera angle and light adjust from the proskena level; a camera-off handoff never cuts a sentence |
+| `socmed` | her feed | the same pipeline sized for instagram 4:5, reels and tiktok 9:16 with the 14 percent ui bands, pinterest 2:3, square 1:1. it renders, it does not publish |
+| `website/` | her site | the prixy web app (on main) |
+
+her memory is the same across every surface: retelldb personas (what she knows, how she says it) with memorium.md as the design for the weighted, hierarchical whole.
+
+## why the proxy is different
+
+most meeting tools (granola, otter, fireflies, tl;dv, fathom) sit next to you and take notes while you talk. they assume you are in the meeting. they are companions.
 
 prixie is a proxy. she goes instead of you.
 
-a note taker helps you remember what happened in a meeting you attended. prixie attends a meeting you did not go to and brings back the specific thing you needed from it. no generic summaries. no "here is what was discussed." just: you asked about the API timeline, they said q1. you asked for the access code, it is PRIXIE BUILD 2026 X9. done.
+a note taker helps you remember what happened in a meeting you attended. prixie attends a meeting you did not go to and brings back the specific thing you needed from it. not a summary. the actual answers, codes, links, and decisions you sent her for: you asked about the API timeline, they said q1. you asked for the access code, it is PRIXIE BUILD 2026 X9. done.
 
 you sleep. prixie attends. you wake up to answers, not recordings.
 
@@ -65,7 +79,9 @@ all platforms share the same flow: open the meeting url in the headless browser,
 | `frontend/src/components/` | deploy form, meeting card, transcript view, captured item card, capture request form, status badge, site shell |
 | `frontend/src/lib/` | api.ts (fetch calls to backend), types.ts |
 | `yap/` | docs site content: about, features, behind the scenes, technobabble, problem |
-| `roadmap.md` | full roadmap with phases and priorities |
+| `website/` | the prixy web app |
+| `memorium.md` | the memory design: weighted, hierarchical, per-persona |
+| `roadmap.md` | the current state of every branch + the proxy-era phase history |
 
 ## dependencies and hosting
 
@@ -155,7 +171,7 @@ you -> dashboard (/deploy) -> create meeting + capture requests
 ## what prixie does not do
 
 - she does not take generic notes or summaries (you asked for specific things, she brings those)
-- she does not record video
+- in meetings she attends as your proxy, her camera and mic are off by default (her face exists, on the video branch, where she is present as herself)
 - she does not raise her hand (no browser automation for it yet)
 - she does not use the zoom q&a tab (requires custom zoom sdk app)
 - she does not answer mandatory post join popup questions (requires zoom sdk)

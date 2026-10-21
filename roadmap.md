@@ -1,33 +1,53 @@
 # prixie roadmap
 
-## current state (sept 2026)
+## current state (oct 2026)
+
+prixie has grown past the proxy. she is an ai internet personality: a persona
+with a voice, a face, a room, a memory and a feed. the proxy is the first
+surface, not the whole person, and the repo is now organized as one person
+with several surfaces, one per branch:
+
+- `main` (this branch): the proxy surface. hono + supabase backend, the
+  dashboard frontend, browserbase as the one join engine (recall.ai removed:
+  no per-platform bot apis, every platform joins through the headless
+  browser).
+- `yap`: her voice. livekit room, end-of-turn detection, interruption
+  handling (barging delegated to assembly.ai), retelldb persona memory as the
+  knowledge source.
+- `video`: her face and room. masky.ai renders voice + lip-sync as one turn
+  (one voice, two rooms: masky owns the voice on camera, yap tts covers
+  face-off turns), proskena authors the set, rembg matte + ffmpeg composite
+  the person over the plate, and our own obs-websocket bridge runs obs studio
+  and streams to twitch. camera angle and lighting adjust from the proskena
+  level; a camera-off handoff never cuts a sentence.
+- `socmed`: her feed. the same pipeline sized for instagram 4:5, reels and
+  tiktok 9:16 (with the 14 percent ui safe bands), pinterest 2:3, square
+  1:1, sourced from proskena's socmed work. the pipeline renders; it does
+  not publish.
+- `website/` (on main): the prixy web app, copied verbatim from
+  the owner's prixy repo.
 
 ### working
-- zoom, google meet, teams meeting bots via recall.ai
-- google calendar sync (automatic meeting discovery)
-- real-time keyword detection in live transcript
-- real-time chat monitoring (links, google forms, codes)
-- post-meeting full transcript with hybrid diarization
-- zoom breakout room support (auto-accept invites)
-- delayed join (configurable, default 2 min after start)
-- profile/persona system (sandboxed identity per context)
-- camera off, mic off by default
-- standalone portable backend (hono + supabase)
-- frontend config dashboard (react + tanstack router + tailwind v4)
-- browserbase fallback for discord, bluejeans, ringcentral (built, needs testing)
-- github repo: github.com/pre-move prixie
-- inbox monitoring (gmail), live links (discord+slack), forum links (reddit, discourse, mlh)
-- voice agent: end of turn detection, interruption handling, mem0 context, clarification fork (custom logic built; voice barging to be delegated to Assembly.ai)
-- hinglish transliteration (devanagari to latin, schwa deletion, 24/26 test match)
-- luma event registration, calendly sync, multi calendar sync (google, outlook, notion, apple)
-- timezone awareness (colloquial parsing)
-- late join handling (waiting rooms, passwords, "join anyway")
+- autonomous meeting join via browserbase (zoom, google meet, teams, discord,
+  bluejeans, ringcentral; slack huddles and webex planned)
+- google calendar sync, inbox monitoring (gmail), live links (discord+slack),
+  forum links (reddit, discourse, mlh), luma + calendly + multi calendar sync
+- real-time keyword detection and chat monitoring (links, codes, form urls)
+- post-meeting transcript with hybrid diarization (assembly.ai)
+- delayed join, late join handling (waiting rooms, passwords), breakout rooms
+- attendance marking, capture requests with context
+- the voice (yap), the face (video), the feed sizes (socmed)
 
 ### not yet working
-- frontend not wired to real backend api (uses mock data in localStorage)
-- twitch stream joining (mlh hackathons)
-- voice interaction (prixie speaking questions out loud via TTS)
-- memorium: persona POV system (weighted/hierarchical memory, visual GUI, sharing)
+- frontend not wired to the real backend api (mock data in localStorage)
+- twitch stream joining as an attendee (mlh hackathons)
+- prixie speaking questions out loud inside meetings (voice exists on yap,
+  the in-meeting ask is not wired)
+- memorium GUI (weighted/hierarchical memory design lives in memorium.md,
+  retelldb is its working core)
+
+the phases below are the proxy-era history: still the reasoning for the proxy
+surface's shape, kept as written.
 
 
 ---
