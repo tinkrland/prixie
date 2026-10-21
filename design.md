@@ -5,9 +5,9 @@
 ```
 meeting floor opens (transcript keyword or scheduled moment)
         |
-retelldb: pull context (persona, topic, prepared questions)
+retelldb: pull context (persona profile, persona memory, prepared questions)
         |
-mem0: pull memory (what was already asked/answered)
+mem0: pull conversation memory (what was already asked/answered)
         |
 decide: is it worth speaking? (clarification fork)
         |
@@ -32,20 +32,43 @@ voice barging and interruption handling are assembly.ai's job, not custom logic.
 
 ### retelldb (context)
 
-before speaking, prixie needs:
-- persona she is running as (tone, formality, vocabulary sliders from the voice config on main)
-- the meeting topic and audience
-- prepared questions and what answers she already has
+vendored in this branch at `retelldb/`, reoriented from docs to persona memory. before speaking, prixie pulls:
 
-integration is stubbed until the source zip lands in this branch. the seam is server/context.ts.
+- **the persona's voice profile** via `GET /v1/profile/{persona_id}` (or `client.load_profile`): three layers, lingvist (languages, code-switching), lexica (slang, fillers, hedges), lingvica (register per medium, tone defaults, punctuation-as-tone). voice mode reads `register_for("voice")`.
+- **the persona's memory** via `POST /v1/query` with `persona_id`: facts, preferences, relationships, events, skills. tag-signal queries traverse the tag graph, vague ones fall back to vector similarity. her own graph plus the shared graph only: no cross-persona leakage, ever.
+- **prepared questions** stay in main's CaptureRequest table; yap queries them by meeting id and feeds them into the loop.
 
-### mem0 (memory)
+memory files land in the right head automatically: the file's frontmatter `persona:` field wins over any caller argument, so an ingest mistake cannot put a memory in the wrong graph.
 
-- in-call: rolling memory of questions asked and answers heard, so she never repeats or contradicts
-- cross-call: persona memory from memorium (on main) stays separate. yap only owns conversational recall
+run it: `retelldb serve` (fastapi on :8000), or embedded via `RetellDB(use_memory=True)`. falkordb + pgvector for production (compose file at the repo root), hermetic in-memory backend for dev, token-projection fallback when no embedding key is set.
+
+evals: `PYTHONPATH=. python3 evals/run_evals.py` covers tag traversal, vector fallback, persona routing, and isolation. current run: hit 100%, path accuracy 100%, persona routing 100%.
+
+### mem0 (conversation memory)
+
+the oss js sdk surface yap builds against:
+
+```js
+import { Memory } from "mem0ai/oss";
+
+const memory = new Memory();
+
+// after each exchange, additive (never overwrites)
+await memory.add(
+  [{ role: "user", content: "any questions about the pricing?" },
+   { role: "assistant", content: "asked, professor chen said the lab code comes friday" }],
+  { userId: `prixie-meeting-${meetingId}`, metadata: { persona_id } }
+);
+
+// before speaking: has this already been answered?
+const prior = await memory.search("pricing question", { userId: `prixie-meeting-${meetingId}` });
+```
+
+- `infer` stays on (default): mem0 extracts the facts itself, resolves pronouns against earlier turns automatically. only the new turn gets sent, never the whole history.
+- scope key is the meeting: `userId: prixie-meeting-{id}` for in-call recall. past-call persona memory belongs to memorium on main, not to yap. yap owns only conversational recall so the two never fight.
+- `expirationDate` on in-call memories means a stale meeting's memory ages out on its own.
 
 ## open questions
 
 - which livekit sdk surface for a headless deno bot (rtc-node vs agents framework, agents is python)
-- how retelldb's context model maps onto the persona/memory tables main already has
 - does TTS come from speechify (credits on hand) or assembly.ai's streaming voice

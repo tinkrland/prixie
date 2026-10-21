@@ -1,0 +1,130 @@
+# RetellDB Eval Golden Query Set
+# Each entry defines a query + what a correct retrieval result must contain.
+#
+# Fields:
+#   id               - unique query identifier
+#   query            - the natural-language query
+#   persona          - which persona's memory to search (hackathon | class | work | shared | null for shared default)
+#   expected_titles  - at least one of these must appear in the top-k nodes
+#   expected_retrieval_path - tag_traversal | vector_fallback | hybrid
+#   expected_persona_graph  - the persona whose graph must be targeted (hackathon | class | work | shared)
+
+queries:
+  # ---- hackathon persona graph: tag-signal queries (should fire tag_traversal) ----
+
+  - id: hackathon_pricing
+    query: "what pricing did we agree on for the hackathon demo?"
+    persona: hackathon
+    expected_titles:
+      - "pricing we agreed on"
+    expected_retrieval_path: tag_traversal
+    expected_persona_graph: hackathon
+
+  - id: hackathon_contact
+    query: "who owes us the lab access code?"
+    persona: hackathon
+    expected_titles:
+      - "who we met"
+    expected_retrieval_path: tag_traversal
+    expected_persona_graph: hackathon
+
+  - id: hackathon_demo_pref
+    query: "how does the owner want the demo run?"
+    persona: hackathon
+    expected_titles:
+      - "demo flow preferences"
+    expected_retrieval_path: tag_traversal
+    expected_persona_graph: hackathon
+
+  # ---- hackathon: vague / latent query (no tag signal, vector fallback) ----
+
+  - id: hackathon_vague_wrong_number
+    query: "the number that used to be right but now is wrong"
+    persona: hackathon
+    expected_titles:
+      - "pricing we agreed on"
+    expected_retrieval_path: vector_fallback
+    expected_persona_graph: hackathon
+
+  # ---- class persona graph ----
+
+  - id: class_midterm
+    query: "when is the midterm happening now?"
+    persona: class
+    expected_titles:
+      - "midterm moved"
+    expected_retrieval_path: tag_traversal
+    expected_persona_graph: class
+
+  - id: class_office_hours
+    query: "what happened to office hours?"
+    persona: class
+    expected_titles:
+      - "office hours"
+    expected_retrieval_path: tag_traversal
+    expected_persona_graph: class
+
+  # ---- persona isolation: a class query for hackathon facts must not leak them ----
+
+  - id: class_isolation_pricing
+    query: "what pricing did we agree on for the hackathon demo?"
+    persona: class
+    expect_miss: true            # the class graph must not contain hackathon facts
+    expected_titles:
+      - "pricing we agreed on"   # this title must NOT come back from the class graph
+    expected_retrieval_path: vector_fallback
+    expected_persona_graph: class
+
+  # ---- shared graph (global memory) ----
+
+  - id: shared_branding
+    query: "what are the branding rules?"
+    persona: shared
+    expected_titles:
+      - "lowercase branding"
+    expected_retrieval_path: tag_traversal
+    expected_persona_graph: shared
+
+  - id: shared_writing_style
+    query: "how should we punctuate our writing?"
+    persona: shared
+    expected_titles:
+      - "writing style"
+    expected_retrieval_path: tag_traversal
+    expected_persona_graph: shared
+
+  # ---- no persona hint: defaults to shared ----
+
+  - id: nopersona_defaults_shared
+    query: "what are the branding rules?"
+    persona: null
+    expected_titles:
+      - "lowercase branding"
+    expected_retrieval_path: tag_traversal
+    expected_persona_graph: shared
+
+  # ---- work persona graph ----
+
+  - id: work_standup
+    query: "what time is standup?"
+    persona: work
+    expected_titles:
+      - "standard meeting time"
+    expected_retrieval_path: tag_traversal
+    expected_persona_graph: work
+
+  - id: work_vendor
+    query: "which payment vendor does the team prefer?"
+    persona: work
+    expected_titles:
+      - "preferred vendor"
+    expected_retrieval_path: hybrid        # strong tag signal (payments, vendor) plus semantic match: the router fuses both
+    expected_persona_graph: work
+
+  - id: work_vague_paypal_mess
+    query: "why did finance kill one of the payment options in the spring?"
+    persona: work
+    expected_titles:
+      - "preferred vendor"
+    expected_retrieval_path: vector_fallback
+    expected_persona_graph: work
