@@ -10,9 +10,9 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
     switch (s) {
       case 'scheduled':
         return 'scheduled';
-      case 'joining':
+      case 'bot_joining':
         return 'joining...';
-      case 'in_meeting':
+      case 'bot_in_meeting':
         return 'in meeting';
       case 'completed':
         return 'completed';

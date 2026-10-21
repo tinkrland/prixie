@@ -1,3 +1,4 @@
+import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { listMeetings, getStats, checkBackendHealth } from '../lib/api';
 import type { Meeting, QuickStats } from '../lib/types';
@@ -129,3 +130,7 @@ export function DashboardPage() {
     </div>
   );
 }
+
+export const Route = createFileRoute('/')();
+
+export default DashboardPage;

@@ -4,9 +4,10 @@ import { StatusBadge } from './StatusBadge';
 
 interface MeetingCardProps {
   meeting: Meeting;
+  onClick?: () => void;
 }
 
-export function MeetingCard({ meeting }: MeetingCardProps) {
+export function MeetingCard({ meeting, onClick }: MeetingCardProps) {
   const formatTime = (isoString: string) => {
     try {
       const d = new Date(isoString);
@@ -38,7 +39,7 @@ export function MeetingCard({ meeting }: MeetingCardProps) {
   const requestsCount = meeting.capture_requests?.length || 0;
 
   return (
-    <div className="border border-primary bg-card p-4 transition-all hover:border-primary/80">
+    <div onClick={onClick} className={`border border-primary bg-card p-4 transition-all hover:border-primary/80 ${onClick ? 'cursor-pointer' : ''}`}>
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-primary/30 pb-3">
         <div className="flex items-center gap-2">
           <span className="bg-primary px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-primary-foreground">

@@ -1,3 +1,4 @@
+import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect, useCallback } from 'react';
 import {
   listPerspectives,
@@ -653,8 +654,8 @@ function SharingPanel({
               onChange={e => setDirection(e.target.value)}
               className="border border-primary/30 bg-background px-2 py-1 text-[10px]"
             >
-              <option value="one_way">one-way (source -> target)</option>
-              <option value="bidirectional">bidirectional (<->)</option>
+              <option value="one_way">one-way (source {'->'} target)</option>
+              <option value="bidirectional">bidirectional ({'<->'})</option>
             </select>
             <input
               type="text"
@@ -1063,3 +1064,5 @@ export default function MemoriumPage() {
     </div>
   );
 }
+
+export const Route = createFileRoute('/memorium')();

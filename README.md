@@ -49,6 +49,7 @@ all platforms share the same flow: open the meeting url in the headless browser,
 
 | feature | status | notes |
 | --- | --- | --- |
+| the docket | working | prixie has a docket, not a schedule: entries are watches with approximate details, never promises. the meeting list on the orphan `docket` branch previews everything she needs per watch (what to fetch, what to ask, what to mark attendance) and regenerates from the live list via backend/scripts/docket.ts. the people she watches for are haphazard, so she keeps a look out for the actual link arriving on slack, discord, or a huddle; when it never lands the entry waits, patient. sometimes life happens |
 | autonomous meeting join | working | joins on schedule, no supervision needed |
 | google calendar sync | working | automatic meeting discovery |
 | microsoft calendar sync (graph) | working | same flow as google, pulled each cycle from env credentials |
@@ -89,6 +90,7 @@ all platforms share the same flow: open the meeting url in the headless browser,
 | path | what |
 | --- | --- |
 | `backend/` | hono server (deno). api routes, browserbase join engine, webhooks, scheduler, supabase client |
+| `docket` branch (orphan) | her calendar as a watch list: the preview IS the docket. regenerated only by backend/scripts/docket.ts, never hand-edited |
 | `backend/src/routes/` | meetings, capture, transcripts, deploy, profiles, stats |
 | `backend/src/routes/webhooks/` | realtime capture events, google calendar, agentmail inbound |
 | `backend/src/scheduler/` | meeting manager cron (deploys bots, retrieves transcripts) |

@@ -48,7 +48,11 @@ export class BrowserbaseProvider implements BotProvider {
 
     // watch the chat so capture requests can fire in real time
     if (options?.realtimeWebhookUrl) {
-      const ok = await installChatMonitor(result.session_id, options.realtimeWebhookUrl).catch(() => false);
+      const ok = await installChatMonitor(
+        result.session_id,
+        options.realtimeWebhookUrl,
+        Deno.env.get("REALTIME_WEBHOOK_SECRET"),
+      ).catch(() => false);
       if (!ok) console.warn(`prixie: chat monitor not installed on session ${result.session_id}`);
     }
 

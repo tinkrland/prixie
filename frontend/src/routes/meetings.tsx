@@ -1,3 +1,4 @@
+import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { listMeetings } from '../lib/api';
 import { useNavigate } from '@tanstack/react-router';
@@ -61,3 +62,7 @@ export function MeetingsPage() {
     </div>
   );
 }
+
+export const Route = createFileRoute('/meetings')();
+
+export default MeetingsPage;

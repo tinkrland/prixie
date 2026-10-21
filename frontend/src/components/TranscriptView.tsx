@@ -2,14 +2,24 @@ import { useState } from 'react';
 import type { TranscriptEntry } from '../lib/types';
 
 interface TranscriptViewProps {
-  entries: TranscriptEntry[];
+  entries?: TranscriptEntry[];
+  transcript?: string;
 }
 
-export function TranscriptView({ entries }: TranscriptViewProps) {
+export function TranscriptView({ entries, transcript }: TranscriptViewProps) {
+  // raw full transcript (no parsed entries): render it as honest text
+  if (!entries?.length && transcript) {
+    return (
+      <div className="border border-primary/30 bg-card p-3 text-sm whitespace-pre-wrap max-h-96 overflow-y-auto">
+        {transcript}
+      </div>
+    );
+  }
+
   const [filter, setFilter] = useState('');
   const [highlightsOnly, setHighlightsOnly] = useState(false);
 
-  const filteredEntries = entries.filter((entry) => {
+  const filteredEntries = (entries || []).filter((entry) => {
     if (highlightsOnly && !entry.is_highlight) return false;
     if (!filter) return true;
     const search = filter.toLowerCase();
@@ -24,7 +34,7 @@ export function TranscriptView({ entries }: TranscriptViewProps) {
     <div className="border border-primary bg-card p-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-primary/30 pb-3">
         <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-foreground">
-          transcript ({entries.length} entries)
+          transcript ({(entries || []).length} entries)
         </h3>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -50,7 +60,7 @@ export function TranscriptView({ entries }: TranscriptViewProps) {
 
       {filteredEntries.length === 0 ? (
         <div className="py-8 text-center font-mono text-xs text-muted-foreground">
-          {entries.length === 0
+          {(entries || []).length === 0
             ? 'no transcript available yet. prixie records and diarizes speech during active meetings.'
             : 'no matching transcript lines found.'}
         </div>

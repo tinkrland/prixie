@@ -612,7 +612,24 @@ export async function getParticipantsInSession(sessionId: string): Promise<Parti
 // injects a script into the session that scans the chat DOM every few seconds and
 // POSTs new messages to our own /webhooks/realtime endpoint. replaces the chat
 // push events recall.ai used to send us.
-export async function installChatMonitor(sessionId: string, webhookUrl: string): Promise<boolean> {
+export async function installChatMonitor(
+  sessionId: string,
+  webhookUrl: string,
+  webhookSecret?: string | null,
+): Promise<boolean> {
+  // the realtime webhook is secret-gated (REALTIME_WEBHOOK_SECRET): the
+  // injected monitor MUST carry it or every chat event gets rejected.
+  // no secret configured = install anyway but warn loudly: the server
+  // side will refuse the events either way, and a silent rejection is
+  // worse than a visible one.
+  if (!webhookSecret) {
+    console.warn(
+      "prixie: chat monitor installed WITHOUT a webhook secret; the realtime webhook will reject its events unless REALTIME_WEBHOOK_SECRET is unset there",
+    );
+  }
+  const secretHeader = webhookSecret
+    ? `headers: { "Content-Type": "application/json", "x-realtime-secret": ${JSON.stringify(webhookSecret)} },`
+    : `headers: { "Content-Type": "application/json" },`;
   const result = await cdpExecute(sessionId, "Runtime.evaluate", {
     expression: `
       (() => {
@@ -635,7 +652,7 @@ export async function installChatMonitor(sessionId: string, webhookUrl: string):
             window.__prixieSeenChats.add(text);
             fetch("${webhookUrl}", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              ${secretHeader}
               body: JSON.stringify({ bot_id: "${sessionId}", kind: "chat", speaker: "participant", text }),
             }).catch(() => {});
           }

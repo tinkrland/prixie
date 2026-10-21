@@ -145,23 +145,106 @@ export function extractTimezone(text: string): string | null {
   return null;
 }
 
-// convert a time in a source timezone to UTC
+// convert a wall-clock time in a source timezone to UTC (the owner, oct 21
+// 2026: the old version IGNORED sourceTz and parsed in whatever zone
+// the server happened to run in, which silently scheduled meetings
+// hours off. a server in utc reading "3pm est" stored 3pm utc. this
+// one computes the offset for the actual date in the actual zone, so
+// DST is honored too: "2:30pm" on nov 1 2026 in America/New_York is a
+// different utc instant than the same clock time a week later.
 export function convertToUTC(timeStr: string, sourceTz: string): string {
   try {
-    // try parsing with the timezone
-    const date = new Date(timeStr);
-    if (!isNaN(date.getTime())) {
-      return date.toISOString();
+    // already an absolute time (ISO with offset or Z): nothing to convert
+    const direct = new Date(timeStr);
+    if (!isNaN(direct.getTime()) && /T\d{2}:\d{2}/.test(timeStr)) {
+      return direct.toISOString();
     }
 
-    // if its a time only (e.g. "3:00 PM"), assume today
-    const today = new Date().toISOString().split("T")[0];
-    const fullStr = `${today} ${timeStr}`;
-    const dateWithTz = new Date(fullStr);
-    return dateWithTz.toISOString();
+    // wall-clock time: pin a date (today in the source zone), then find
+    // the utc instant whose wall clock in sourceTz matches. the offset
+    // is read from Intl for that exact instant, so DST flips are right.
+    const zone = validZone(sourceTz);
+    const todayInZone = new Intl.DateTimeFormat("en-CA", {
+      timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date());
+
+    // parse "3:00 PM" / "15:00" against the pinned date
+    const m = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
+    let hour: number, minute: number;
+    if (m) {
+      hour = parseInt(m[1]);
+      minute = parseInt(m[2]);
+      const ampm = m[3]?.toLowerCase();
+      if (ampm === "pm" && hour < 12) hour += 12;
+      if (ampm === "am" && hour === 12) hour = 0;
+      if (hour > 23) throw new Error(`bad hour: ${timeStr}`);
+    } else {
+      // a date+time string ("2026-11-01 2:30 PM", "2026-11-01 14:30",
+      // "2026-11-01T14:30"): a wall clock in the source zone. no
+      // today-prefixing, the date is in the string. split date from
+      // clock, normalize the clock, rejoin.
+      const dm = timeStr.trim().match(/^(\d{4}-\d{2}-\d{2})[T\s]+(.+)$/);
+      if (!dm) throw new Error(`unparseable time: ${timeStr}`);
+      let clock = dm[2].trim().replace(/\s+/g, " ").replace(/(am|pm)/i, " $1").trim().toUpperCase();
+      const cm = clock.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/);
+      if (!cm) throw new Error(`unparseable time: ${timeStr}`);
+      let h = parseInt(cm[1]);
+      const min = cm[2];
+      if (cm[4] === "PM" && h < 12) h += 12;
+      if (cm[4] === "AM" && h === 12) h = 0;
+      return shiftWallClock(`${dm[1]}T${String(h).padStart(2, "0")}:${min}:${cm[3] || "00"}`, zone);
+    }
+
+    return shiftWallClock(`${todayInZone}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`, zone);
   } catch {
+    // honest: an unparseable time is NOT a guessed one. callers must
+    // treat a non-ISO return as a failure, never store it as a time.
     return timeStr;
   }
+}
+
+// is this an IANA zone (or UTC alias)? no key/unknown zone = throw, so
+// the caller fails honestly rather than scheduling in a guessed zone.
+function validZone(tz: string): string {
+  if (!tz || typeof tz !== "string") throw new Error("no timezone given");
+  const normalized = tz.trim();
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: normalized });
+    return normalized;
+  } catch {
+    throw new Error(`unknown timezone: ${tz}`);
+  }
+}
+
+// find the utc instant for a wall-clock datetime in zone: walk the
+// offset, using Intl to read the zone's offset at each candidate.
+function shiftWallClock(wallClock: string, zone: string): string {
+  const wall = new Date(wallClock + "Z"); // treat as utc first
+  if (isNaN(wall.getTime())) throw new Error(`unparseable: ${wallClock}`);
+  // offset of zone at the wall time (treated as utc) in minutes
+  const off = zoneOffsetMinutes(wall, zone);
+  const utcGuess = new Date(wall.getTime() - off * 60 * 1000);
+  // verify and correct once: dst edges can move the offset between the
+  // guess and the wall time
+  const off2 = zoneOffsetMinutes(utcGuess, zone);
+  const utc = new Date(wall.getTime() - off2 * 60 * 1000);
+  return utc.toISOString();
+}
+
+function zoneOffsetMinutes(instant: Date, zone: string): number {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: zone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(instant);
+  const get = (t: string) => parseInt(parts.find((p) => p.type === t)?.value || "0");
+  const asUTC = Date.UTC(
+    get("year"), get("month") - 1, get("day"),
+    get("hour") % 24, get("minute"), get("second"),
+  );
+  return (asUTC - instant.getTime()) / 60000;
 }
 
 // parse a colloquial time reference

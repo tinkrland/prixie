@@ -1,3 +1,4 @@
+import type { Profile } from './types';
 // memorium types
 
 export interface MemoryNode {

@@ -2,9 +2,19 @@ import type { Meeting, DeployConfig, CaptureRequest, Profile, QuickStats, Transc
 
 const API_BASE = '/api';
 
+// the /api door is token-gated (PRIXIE_API_TOKEN on the server). the
+// dashboard carries VITE_PRIXIE_API_TOKEN when baked in at build time;
+// in production a proxy can inject the x-api-token header instead.
+// no token here means unauthenticated requests, and the server refuses
+// them: closed is the honest state, never a silent open one.
+const API_TOKEN = import.meta.env.VITE_PRIXIE_API_TOKEN as string | undefined;
+function authHeaders(): Record<string, string> {
+  return API_TOKEN ? { "x-api-token": API_TOKEN } : {};
+}
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${url}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     ...options,
   });
   if (!res.ok) {

@@ -1,3 +1,4 @@
+import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { listMeetings } from '../lib/api';
 import type { Meeting } from '../lib/types';
@@ -40,3 +41,7 @@ export function CapturesPage() {
     </div>
   );
 }
+
+export const Route = createFileRoute('/captures')();
+
+export default CapturesPage;
