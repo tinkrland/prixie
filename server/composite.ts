@@ -207,6 +207,94 @@ export function buildAlphaExportArgs(plan: CompositePlan): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// the screen composite: long form, the streamer republish
+// ---------------------------------------------------------------------------
+//
+// twitch sessions get uploaded to youtube constantly, and when she is present
+// in one, the screen recording is the content and she appears in a cam box.
+// the box is not a floating matte over the screen and the wall behind her is
+// not blank: the box is a mini composite, proskena all the way down. the
+// plate is a proskena 3d room render (prepopulated: environment, props, the
+// light rig baked in) and the box is framed with the same placementForShot
+// lens and graded with the same gradeFromLighting recipe as the call frame,
+// just smaller. placement percentages are frame-relative, so the proskena
+// camera positioning carries to box scale unchanged.
+
+import type { BubbleRect } from "./overlay.ts";
+
+export interface ScreenPlan {
+  screen: string; // the screen recording: the base layer, the actual content
+  person: string; // the masky clip
+  matte?: string;
+  plate: string; // the proskena room render. never a blank wall.
+  out: string;
+  grade?: Grade;
+  placement?: Placement; // the proskena lens, applied at box scale
+  bubble: BubbleRect; // from camBubble(): where the box sits in the frame
+  width: number; // the frame (the long-form target)
+  height: number;
+  fps?: number;
+}
+
+export function buildScreenCompositeArgs(plan: ScreenPlan): string[] {
+  const fps = plan.fps ?? 30;
+  // the box is a composite plan whose frame is the bubble rect: every
+  // builder below then does exactly what it does for a call frame, at box
+  // size. this is the whole point: no special-cased positioning.
+  const box: CompositePlan = {
+    person: plan.person,
+    plate: plan.plate,
+    out: plan.out, // unused inside the box: the builders never write files
+    matte: plan.matte,
+    grade: plan.grade,
+    placement: plan.placement,
+    width: plan.bubble.width,
+    height: plan.bubble.height,
+    fps,
+  };
+  const args = ["-y", "-i", plan.screen, "-i", plan.person];
+  if (plan.matte) args.push("-i", plan.matte);
+  args.push(...plateInput(plan.plate));
+  const plateIdx = plan.matte ? 3 : 2;
+
+  // the person chain inside the box: same builders, same rules (the matte
+  // still rides the person's framing chain).
+  let personChain: string;
+  if (plan.matte) {
+    const matteChain = [...framingFilters(box), "format=gray"].join(",");
+    personChain =
+      `[1:v]${personLayerFilters(box)}[person];` +
+      `[2:v]${matteChain}[matte];` +
+      `[person][matte]alphamerge[fg]`;
+  } else {
+    personChain = `[1:v]${personLayerFilters(box)}[fg]`;
+  }
+
+  const graph =
+    // the base: the screen recording, cover-cropped to the target
+    `[0:v]scale=${plan.width}:${plan.height}:force_original_aspect_ratio=increase,` +
+    `crop=${plan.width}:${plan.height},fps=${fps}[base];` +
+    // the box: the room behind her, framed at box size
+    `${personChain};` +
+    `[${plateIdx}:v]${plateLayerFilters(box)},fps=${fps}[boxbg];` +
+    `[boxbg][fg]overlay=0:0:format=auto:shortest=1[box];` +
+    // the box onto the screen, in its corner
+    `[base][box]overlay=${plan.bubble.x}:${plan.bubble.y}:format=auto:shortest=1,` +
+    `format=yuv420p[v]`;
+
+  return [
+    ...args,
+    "-filter_complex", graph,
+    "-map", "[v]",
+    "-an",
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-crf", "18",
+    plan.out,
+  ];
+}
+
+// ---------------------------------------------------------------------------
 // the plate: what the person stands in front of
 // ---------------------------------------------------------------------------
 
@@ -216,9 +304,10 @@ export interface Plate {
   backdrop: { bg: string; center: string };
 }
 
-// a flat fallback plate from the set's two values, for tests and for the case
-// where proskena's export is not to hand. the authored plate (proskena's own
-// render, with props and its light rig baked in) is always the better one.
+// a flat test plate from the set's two values, TESTS ONLY. she is never
+// composited over a blank wall in anything a viewer sees: the production
+// plate is always proskena's own room render from the pinned camera, a
+// prepopulated 3d room (environment, props, light rig baked in).
 export function plateArgs(plate: Plate, out: string): string[] {
   const bg = `#${plate.backdrop.bg.replace("#", "")}`;
   const center = `#${plate.backdrop.center.replace("#", "")}`;

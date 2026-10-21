@@ -33,9 +33,9 @@ export interface SocialTarget {
   // 9:16 verticals, per platform-reference.md.
   safeTop: number;
   safeBottom: number;
-  // where posting actually happens, if anywhere: the pipeline renders, it
+  // where posting actually happens, if anything: the pipeline renders, it
   // does not publish. parked channels stay explicit.
-  surface: "call" | "feed" | "vertical" | "pin";
+  surface: "call" | "feed" | "vertical" | "pin" | "longform";
 }
 
 export const SOCIAL_TARGETS: Record<string, SocialTarget> = {
@@ -102,10 +102,86 @@ export const SOCIAL_TARGETS: Record<string, SocialTarget> = {
 };
 
 export function target(key: string): SocialTarget {
-  const t = SOCIAL_TARGETS[key];
+  const t = SOCIAL_TARGETS[key] ?? LONGFORM_TARGETS[key];
   if (!t) throw new Error(`unknown social target: ${key}`);
   return t;
 }
+
+// long form. proskena's socmed set stops at the feed: nothing in it covers
+// youtube uploads or the twitch recordings that streamers republish there,
+// and those are two different shapes of content, not two crops:
+//
+// - youtube long form is duration-driven, not crop-driven: 16:9 1080p
+//   (1920x1080) is the recommended upload, 4k (3840x2160) supported, and
+//   burned captions sit in the bottom band where a 9:16 UI would (checked
+//   2026-10-21 against youtube's encoder guidance and 2026 spec writeups:
+//   8 mbps for 1080p, shorts are 9:16 up to 3 minutes, custom thumbnail
+//   guidance now recommends 3840x2160).
+// - the twitch to youtube republish: a screen recording with the streamer
+//   as a corner cam box. the screen is the content, the person is an overlay,
+//   which is a different composite, not a different crop (server/overlay.ts).
+// - twitch vods inherit the broadcast: 1080p60 at ~6000 kbps is the
+//   recommendation, so the vod target is the same 1920x1080 frame.
+export const LONGFORM_TARGETS: Record<string, SocialTarget> = {
+  youtube_long: {
+    key: "youtube_long",
+    label: "16:9 · 1920x1080",
+    platform: "youtube long form",
+    width: 1920,
+    height: 1080,
+    // no platform ui bands on a landscape player, but burned captions live
+    // in the bottom tenth, and end screens cover the frame edges late in
+    // the video: critical content stays out of the bottom band either way.
+    safeTop: 0,
+    safeBottom: 0.1,
+    surface: "longform",
+  },
+  youtube_4k: {
+    key: "youtube_4k",
+    label: "16:9 · 3840x2160",
+    platform: "youtube long form, 4k upload",
+    width: 3840,
+    height: 2160,
+    safeTop: 0,
+    safeBottom: 0.1,
+    surface: "longform",
+  },
+  shorts: {
+    key: "shorts",
+    label: "9:16 · 1080x1920",
+    platform: "youtube shorts (up to 3 minutes)",
+    width: 1080,
+    height: 1920,
+    // the shorts ui bands are the same shape as reels and tiktok (title top,
+    // engagement rail right, comment band bottom), kept to the same ~14
+    // percent convention
+    safeTop: 0.14,
+    safeBottom: 0.14,
+    surface: "vertical",
+  },
+  twitch_vod: {
+    key: "twitch_vod",
+    label: "16:9 · 1920x1080",
+    platform: "twitch vod / streamer republish",
+    width: 1920,
+    height: 1080,
+    safeTop: 0,
+    safeBottom: 0.1,
+    surface: "longform",
+  },
+  thumbnail: {
+    key: "thumbnail",
+    label: "16:9 · 3840x2160",
+    platform: "youtube custom thumbnail (2026 guidance)",
+    width: 3840,
+    height: 2160,
+    // the duration badge sits over the bottom-right corner: nothing critical
+    // in the last ~12 percent of width, ~5 percent up from the bottom
+    safeTop: 0,
+    safeBottom: 0.05,
+    surface: "longform",
+  },
+};
 
 // the safe zone is the one place sizing changes the framing rather than the
 // pixels: on a 9:16 vertical the top and bottom 14 percent get covered by
@@ -122,7 +198,9 @@ export function placementInSafeZone(placement: Placement, target: SocialTarget):
 
 // one authored set, every channel: the capture plan for a target is the
 // composite plan's framing values, nothing re-composed. `key` names the
-// surface; the caller renders one plate and composites per target.
+// surface; the caller renders one plate and composites per target. long form
+// and vertical targets share the same clamping: a caption band moves her up
+// exactly the way a ui band does.
 export interface CaptureTargets {
   rendered: SocialTarget;
   safe: boolean; // whether the safe zone moved the framing
