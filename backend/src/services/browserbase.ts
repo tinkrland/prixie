@@ -127,12 +127,17 @@ export async function cdpExecute(sessionId: string, method: string, params: any)
 export async function findAndClick(sessionId: string, selector: string, timeoutMs = 10000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
+    // the selector is JSON.stringify'd into the expression: a selector is
+    // untrusted string data, and a stray quote in one (input[value*="it's"])
+    // must never become live javascript. the "clicked" sentinel also fixes
+    // the old shape, where el?.click() returns undefined and the
+    // `|| 'not found'` reported a successful click as a miss.
     const result = await cdpExecute(sessionId, "Runtime.evaluate", {
-      expression: `document.querySelector('${selector}')?.click() || 'not found'`,
+      expression: `const el = document.querySelector(${JSON.stringify(selector)}); if (el) { el.click(); 'clicked'; } else { 'not found'; }`,
       returnByValue: true,
     });
 
-    if (result?.result?.value !== "not found") {
+    if (result?.result?.value === "clicked") {
       return true;
     }
 
@@ -145,11 +150,13 @@ export async function findAndClick(sessionId: string, selector: string, timeoutM
 export async function findAndType(sessionId: string, selector: string, text: string, timeoutMs = 10000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
+    // JSON.stringify is the only escaping that covers every case: quotes,
+    // backslashes, newlines, unicode. hand-rolled replace chains leak.
     const result = await cdpExecute(sessionId, "Runtime.evaluate", {
       expression: `
-        const el = document.querySelector('${selector}');
+        const el = document.querySelector(${JSON.stringify(selector)});
         if (el) {
-          el.value = '${text.replace(/'/g, "\\'")}';
+          el.value = ${JSON.stringify(text)};
           el.dispatchEvent(new Event('input', { bubbles: true }));
           'typed';
         } else {
@@ -356,7 +363,7 @@ export async function findAndClickByText(sessionId: string, texts: string[], sel
     const result = await cdpExecute(sessionId, "Runtime.evaluate", {
       expression: `
         (() => {
-          const candidates = Array.from(document.querySelectorAll("${selectorScope}"));
+          const candidates = Array.from(document.querySelectorAll(${JSON.stringify(selectorScope)}));
           const wanted = ${JSON.stringify(texts.map(t => t.toLowerCase()))};
           for (const el of candidates) {
             const label = (el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
@@ -446,7 +453,8 @@ export async function sendChatInSession(sessionId: string, messageText: string):
   // open the chat panel if it is closed
   await findAndClickByText(sessionId, ["chat", "show conversation", "conversation"], "button, div[role='button']", 6000);
 
-  const escaped = messageText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
+  // JSON.stringify produces a valid JS string literal for any payload
+  const escaped = JSON.stringify(messageText);
   const result = await cdpExecute(sessionId, "Runtime.evaluate", {
     expression: `
       (() => {
@@ -461,7 +469,7 @@ export async function sendChatInSession(sessionId: string, messageText: string):
           const el = document.querySelector(sel);
           if (el && el.offsetParent !== null) {
             el.focus();
-            el.value = '${escaped}';
+            el.value = ${escaped};
             el.dispatchEvent(new Event('input', { bubbles: true }));
             // send: enter keydown for most web clients
             el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
