@@ -10,7 +10,7 @@ const supabase = createClient(
 
 const app = new Hono();
 
-// platforms that need browserbase instead of recall.ai
+// platform aliases for the browserbase route (all platforms run on browserbase now)
 const BROWSERBASE_PLATFORMS = ["discord", "bluejeans", "ringcentral", "custom"];
 
 function needsBrowserbase(platform: string): boolean {
@@ -33,7 +33,7 @@ app.post("/deploy/:meetingId", async (c) => {
   }
 
   if (!needsBrowserbase(meeting.platform)) {
-    return c.json({ error: `platform ${meeting.platform} does not need browserbase. use recall.ai instead.` }, 400);
+    return c.json({ error: `platform ${meeting.platform} does not need browserbase. the scheduler handles deploys for all platforms.` }, 400);
   }
 
   // get profile display name

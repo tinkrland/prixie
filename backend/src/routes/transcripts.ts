@@ -1,12 +1,13 @@
 import { Hono } from "hono";
 import { getTranscriptByMeetingId, getMeetingById } from "../services/supabase.ts";
-import { recallService } from "../services/recall.ts";
 
 const transcriptsRouter = new Hono();
 
 /**
  * GET /api/transcripts/:meetingId
- * Get transcript, summary, and action items for a given meeting
+ * Get transcript, summary, and action items for a given meeting.
+ * transcripts are produced by the scheduler once the meeting completes
+ * (browserbase recording -> assembly.ai), so no live fetch path here.
  */
 transcriptsRouter.get("/:meetingId", async (c) => {
   try {
@@ -17,30 +18,7 @@ transcriptsRouter.get("/:meetingId", async (c) => {
       return c.json({ error: "meeting not found" }, 404);
     }
 
-    let transcript = await getTranscriptByMeetingId(meetingId);
-
-    // If not in database yet but bot_id exists, attempt direct fetch from Recall
-    if (!transcript && meeting.bot_id) {
-      try {
-        const rawText = await recallService.getBotTranscript(meeting.bot_id);
-        if (rawText && rawText !== "no transcript recorded") {
-          return c.json({
-            message: "transcript fetched directly from recall.ai",
-            meeting_id: meetingId,
-            bot_id: meeting.bot_id,
-            transcript: {
-              meeting_id: meetingId,
-              full_transcript: rawText,
-              summary: "processing summary...",
-              action_items: [],
-              captured_items: {},
-            },
-          });
-        }
-      } catch (err: any) {
-        console.warn(`prixie: live recall transcript fetch failed for bot ${meeting.bot_id}`, err);
-      }
-    }
+    const transcript = await getTranscriptByMeetingId(meetingId);
 
     if (!transcript) {
       return c.json(

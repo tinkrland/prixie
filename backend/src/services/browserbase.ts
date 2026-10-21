@@ -1,5 +1,5 @@
-// browserbase service - handles meeting platforms not supported by recall.ai
-// opens meeting URL in a headless browser, automates the join flow, captures audio
+// browserbase service - the universal join engine. opens the meeting URL in a
+// headless browser, automates the join flow, captures audio, watches the chat
 
 const BROWSERBASE_API_KEY = Deno.env.get("BROWSERBASE_API_KEY")!;
 const BROWSERBASE_BASE = "https://api.browserbase.com/v1";
@@ -265,6 +265,18 @@ export async function joinMeeting(
       case "ringcentral":
         result = await joinRingCentral(session.id, meetingUrl, profileName);
         break;
+      case "zoom":
+        result = await joinZoom(session.id, meetingUrl, profileName);
+        break;
+      case "google_meet":
+      case "meet":
+        result = await joinGoogleMeet(session.id, meetingUrl, profileName);
+        break;
+      case "teams":
+      case "msteams":
+      case "microsoft_teams":
+        result = await joinTeams(session.id, meetingUrl, profileName);
+        break;
       default:
         result = await joinGeneric(session.id, meetingUrl, profileName);
     }
@@ -323,4 +335,185 @@ export async function getRecordingUrl(sessionId: string): Promise<string | null>
 
   const recording = recordings[0];
   return recording.url || recording.downloadUrl || null;
+}
+
+// --- text-based element finder (more resilient than css selectors for join buttons) ---
+
+async function findAndClickByText(sessionId: string, texts: string[], selectorScope = "button, a, div[role='button']", timeoutMs = 15000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+      expression: `
+        (() => {
+          const candidates = Array.from(document.querySelectorAll("${selectorScope}"));
+          const wanted = ${JSON.stringify(texts.map(t => t.toLowerCase()))};
+          for (const el of candidates) {
+            const label = (el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
+            if (!label || label.length > 60) continue;
+            if (wanted.some(w => label === w || label.includes(w))) {
+              el.click();
+              return "clicked";
+            }
+          }
+          return "not found";
+        })()
+      `,
+      returnByValue: true,
+    });
+
+    if (result?.result?.value === "clicked") return true;
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  return false;
+}
+
+// --- mainline platforms (zoom, meet, teams) ---
+
+export async function joinZoom(sessionId: string, meetingUrl: string, profileName: string): Promise<JoinResult> {
+  await navigateTo(sessionId, meetingUrl);
+  await new Promise(r => setTimeout(r, 6000));
+
+  // passcode usually rides in the url (?pwd=). if zoom shows a passcode field, we cannot recover it here
+  // enter display name
+  await findAndType(sessionId, 'input[aria-label*="name" i], input#js-join-username, input[name="username"], input[placeholder*="name" i]', profileName, 10000);
+
+  // zoom may push the app download. insist on the web client
+  await findAndClickByText(sessionId, ["join from your browser", "join from browser", "launch meeting"], "a, button", 8000);
+
+  const joined = await findAndClickByText(sessionId, ["join", "enter"], "button", 12000);
+  if (!joined) {
+    return { session_id: sessionId, status: "failed", error: "could not find join button on zoom web client" };
+  }
+
+  // post-join audio dialog
+  await findAndClickByText(sessionId, ["join with computer audio", "join audio", "join with audio"], "button", 10000);
+
+  return { session_id: sessionId, status: "joined" };
+}
+
+export async function joinGoogleMeet(sessionId: string, meetingUrl: string, profileName: string): Promise<JoinResult> {
+  await navigateTo(sessionId, meetingUrl);
+  await new Promise(r => setTimeout(r, 6000));
+
+  // guest name entry in the green room
+  await findAndType(sessionId, 'input[aria-label*="name" i], input[placeholder*="name" i]', profileName, 10000);
+
+  // "ask to join" for locked meetings, "join now" for open ones
+  const joined = await findAndClickByText(sessionId, ["join now", "ask to join"], "button, div[role='button']", 20000);
+  if (!joined) {
+    return { session_id: sessionId, status: "failed", error: "could not find join button on google meet green room" };
+  }
+
+  // dismiss mic/camera prompts if they appear
+  await findAndClickByText(sessionId, ["join now"], "button, div[role='button']", 5000);
+
+  return { session_id: sessionId, status: "joined" };
+}
+
+export async function joinTeams(sessionId: string, meetingUrl: string, profileName: string): Promise<JoinResult> {
+  await navigateTo(sessionId, meetingUrl);
+  await new Promise(r => setTimeout(r, 6000));
+
+  // teams pushes "download teams". prefer the web join
+  await findAndClickByText(sessionId, ["join on the web instead", "continue on this browser", "join on web"], "a, button, div[role='button']", 10000);
+
+  // guest name
+  await findAndType(sessionId, 'input[aria-label*="name" i], input[placeholder*="name" i], input[type="text"]', profileName, 8000);
+
+  // possible "sign in" wall: choose to join as guest if offered
+  await findAndClickByText(sessionId, ["join now", "join as a guest", "join"], "button, div[role='button']", 15000);
+
+  // post-join device settings dialog
+  await findAndClickByText(sessionId, ["join now", "join"], "button, div[role='button']", 8000);
+
+  return { session_id: sessionId, status: "joined" };
+}
+
+// --- chat send (prixie speaking into the meeting chat) ---
+
+export async function sendChatInSession(sessionId: string, messageText: string): Promise<boolean> {
+  // open the chat panel if it is closed
+  await findAndClickByText(sessionId, ["chat", "show conversation", "conversation"], "button, div[role='button']", 6000);
+
+  const escaped = messageText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
+  const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        const selectors = [
+          'textarea[placeholder*="chat" i]',
+          'textarea[aria-label*="chat" i]',
+          'textarea[aria-label*="message" i]',
+          'div[contenteditable="true"][role="textbox"]',
+          'textarea',
+        ];
+        for (const sel of selectors) {
+          const el = document.querySelector(sel);
+          if (el && el.offsetParent !== null) {
+            el.focus();
+            el.value = '${escaped}';
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            // send: enter keydown for most web clients
+            el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+            return "sent";
+          }
+        }
+        return "no chat input found";
+      })()
+    `,
+    returnByValue: true,
+  });
+
+  return result?.result?.value === "sent";
+}
+
+// --- in-page chat monitor ---
+
+// injects a script into the session that scans the chat DOM every few seconds and
+// POSTs new messages to our own /webhooks/realtime endpoint. replaces the chat
+// push events recall.ai used to send us.
+export async function installChatMonitor(sessionId: string, webhookUrl: string): Promise<boolean> {
+  const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        if (window.__prixieChatMonitor) return "already";
+        window.__prixieSeenChats = new Set();
+        window.__prixieChatMonitor = setInterval(() => {
+          // chat bubbles live in different containers per platform. cast a wide net:
+          // visible list items / short text nodes in chat-ish regions
+          const candidates = document.querySelectorAll(
+            '[aria-label*="chat" i] [data-message-id], ' +
+            '[aria-label*="chat" i] li, ' +
+            '[data-testid="chat-message"], ' +
+            '[class*="chat" i] [class*="message" i], ' +
+            '[class*="message" i][class*="list" i] div'
+          );
+          for (const el of candidates) {
+            const text = (el.textContent || "").trim();
+            if (!text || text.length > 2000) continue;
+            if (window.__prixieSeenChats.has(text)) continue;
+            window.__prixieSeenChats.add(text);
+            fetch("${webhookUrl}", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ bot_id: "${sessionId}", kind: "chat", speaker: "participant", text }),
+            }).catch(() => {});
+          }
+        }, 3000);
+        return "installed";
+      })()
+    `,
+    returnByValue: true,
+  });
+
+  return result?.result?.value === "installed" || result?.result?.value === "already";
+}
+
+// --- session heartbeat ---
+
+// a no-op eval per scheduler cycle. keeps long meetings from looking idle.
+export async function heartbeatSession(sessionId: string): Promise<void> {
+  await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `document.title || ""`,
+    returnByValue: true,
+  });
 }

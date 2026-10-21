@@ -4,19 +4,19 @@ import {
   getCompletedMeetingsWithoutTranscript,
   updateMeeting,
   createTranscript,
+  createAttendanceMessage,
   getPendingCaptureRequestsByMeeting,
   updateCaptureRequest,
 } from "../services/supabase.ts";
-import { recallService } from "../services/recall.ts";
-import { joinMeeting, getSessionStatus, stopSession } from "../services/browserbase.ts";
-import { transcribeBrowserbaseSession, searchForKeywords } from "../services/browserbase_transcript.ts";
+import { botProvider } from "../services/browserbase_provider.ts";
+import { searchForKeywords } from "../services/browserbase_transcript.ts";
 import { processTranscript, containsDevanagari, hinglishStats } from "../services/hinglish.ts";
 
-const BROWSERBASE_PLATFORMS = ["discord", "bluejeans", "ringcentral", "custom"];
+// every platform goes through the same provider. no per-platform forks anymore.
+const provider = botProvider;
 
-function needsBrowserbase(platform: string): boolean {
-  return BROWSERBASE_PLATFORMS.includes(platform);
-}
+// grace period after meeting end before we treat a still-running session as over
+const END_GRACE_MINUTES = 10;
 
 export class MeetingManager {
   private isRunning = false;
@@ -44,6 +44,11 @@ export class MeetingManager {
     }
   }
 
+  private realtimeWebhookUrl(): string {
+    const baseUrl = Deno.env.get("BASE_URL") || Deno.env.get("WEBHOOK_URL") || "https://prixie.yourdomain.com";
+    return `${baseUrl}/webhooks/realtime`;
+  }
+
   private async deployUpcomingBots() {
     const upcoming = await getScheduledUpcomingMeetings(5);
     if (upcoming.length === 0) return;
@@ -56,50 +61,22 @@ export class MeetingManager {
           continue;
         }
 
-        if (needsBrowserbase(meeting.platform)) {
-          console.log(`prixie scheduler: deploying browserbase for "${meeting.title}" (${meeting.platform})`);
+        console.log(`prixie scheduler: deploying ${provider.name} bot for "${meeting.title}" (${meeting.platform})`);
 
-          let profileName = "prixie";
-          if (meeting.profile_id) {
-            const { createClient } = await import("npm:@supabase/supabase-js@2");
-            const supabase = createClient(
-              Deno.env.get("SUPABASE_URL")!,
-              Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-            );
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("display_name")
-              .eq("id", meeting.profile_id)
-              .single();
-            if (profile?.display_name) profileName = profile.display_name;
-          }
+        const bot = await provider.createBot(meeting, {
+          realtimeWebhookUrl: this.realtimeWebhookUrl(),
+        });
 
-          const result = await joinMeeting(meeting.platform, meeting.join_url, profileName);
+        await updateMeeting(meeting.id, {
+          bot_id: bot.id,
+          status: "bot_in_meeting",
+          prixie_attended: true,
+        });
 
-          if (result.status === "joined") {
-            await updateMeeting(meeting.id, {
-              bot_id: result.session_id,
-              status: "bot_in_meeting",
-              prixie_attended: true,
-            });
-            console.log(`prixie scheduler: browserbase session ${result.session_id} joined meeting ${meeting.id}`);
-          } else {
-            await updateMeeting(meeting.id, { status: "failed" });
-            console.error(`prixie scheduler: browserbase join failed for meeting ${meeting.id}: ${result.error}`);
-          }
-        } else {
-          console.log(`prixie scheduler: deploying recall.ai bot for "${meeting.title}" (${meeting.platform})`);
-          const botData = await recallService.createBot(meeting);
-
-          await updateMeeting(meeting.id, {
-            bot_id: botData.id,
-            status: "bot_joining",
-          });
-
-          console.log(`prixie scheduler: bot ${botData.id} deployed for meeting ${meeting.id}`);
-        }
+        console.log(`prixie scheduler: bot ${bot.id} joined meeting ${meeting.id}`);
       } catch (err: any) {
         console.error(`prixie scheduler: failed to deploy for meeting ${meeting.id}:`, err);
+        await updateMeeting(meeting.id, { status: "failed" }).catch(() => {});
       }
     }
   }
@@ -112,39 +89,61 @@ export class MeetingManager {
       if (!meeting.bot_id) continue;
 
       try {
-        if (needsBrowserbase(meeting.platform)) {
-          const sessionStatus = await getSessionStatus(meeting.bot_id);
-          const status = sessionStatus?.status || sessionStatus?.state || "unknown";
+        const { status } = await provider.getStatus(meeting.bot_id);
 
-          if (status === "completed" || status === "terminated" || status === "closed") {
-            console.log(`prixie scheduler: browserbase meeting ${meeting.id} completed`);
-            await updateMeeting(meeting.id, { status: "completed" });
-          } else if (status === "error" || status === "failed") {
-            console.log(`prixie scheduler: browserbase meeting ${meeting.id} failed`);
-            await updateMeeting(meeting.id, { status: "failed" });
-          }
-        } else {
-          const bot = await recallService.getBot(meeting.bot_id);
-          const statusChanges = bot.status_changes || [];
-          const latestStatus = statusChanges[statusChanges.length - 1]?.code || bot.status;
+        if (status === "error") {
+          console.log(`prixie scheduler: meeting ${meeting.id} failed`);
+          await updateMeeting(meeting.id, { status: "failed" });
+          continue;
+        }
 
-          if (latestStatus === "in_call" && meeting.status !== "bot_in_meeting") {
-            console.log(`prixie scheduler: meeting ${meeting.id} active in call`);
+        if (status === "in_meeting") {
+          // keep the session from looking idle + send attendance once
+          await provider.heartbeat(meeting.bot_id);
+
+          if (meeting.status !== "bot_in_meeting") {
             await updateMeeting(meeting.id, { status: "bot_in_meeting", prixie_attended: true });
-          } else if (
-            (latestStatus === "call_ended" || latestStatus === "recording_done" || latestStatus === "done") &&
-            meeting.status !== "completed"
-          ) {
-            console.log(`prixie scheduler: meeting ${meeting.id} completed`);
-            await updateMeeting(meeting.id, { status: "completed" });
-          } else if (latestStatus === "fatal") {
-            console.log(`prixie scheduler: meeting ${meeting.id} failed`);
-            await updateMeeting(meeting.id, { status: "failed" });
           }
+
+          await this.maybeSendAttendanceMessage(meeting);
+        }
+
+        // session over, or meeting end time passed by a healthy margin
+        const endedByTime =
+          meeting.end_time &&
+          new Date().getTime() > new Date(meeting.end_time).getTime() + END_GRACE_MINUTES * 60 * 1000;
+
+        if (status === "ended" || endedByTime) {
+          console.log(`prixie scheduler: meeting ${meeting.id} completed`);
+          await updateMeeting(meeting.id, { status: "completed" });
         }
       } catch (err: any) {
         console.warn(`prixie scheduler: error checking status for ${meeting.bot_id}:`, err);
       }
+    }
+  }
+
+  private async maybeSendAttendanceMessage(meeting: any) {
+    if (meeting.attendance_method !== "chat_message" || meeting.attendance_messages_sent) return;
+
+    try {
+      const messageText = meeting.attendance_form_url
+        ? `hi! i am prixie, attending on behalf of my user. please sign attendance here: ${meeting.attendance_form_url}`
+        : `hi! i am prixie, attending this meeting as a proxy agent for my user.`;
+
+      const sent = await provider.sendChatMessage(meeting.bot_id, messageText);
+      if (!sent) return;
+
+      await createAttendanceMessage({
+        meeting_id: meeting.id,
+        message_text: messageText,
+        trigger: "on_join",
+        sent_status: "sent",
+        sent_at: new Date().toISOString(),
+      });
+      await updateMeeting(meeting.id, { attendance_messages_sent: true });
+    } catch (err: any) {
+      console.error(`prixie: failed to send attendance chat message in meeting ${meeting.id}`, err);
     }
   }
 
@@ -156,23 +155,17 @@ export class MeetingManager {
       if (!meeting.bot_id) continue;
 
       try {
-        let rawTranscript: string;
-        let summary: string | undefined;
-        let transcriptionService: string;
+        console.log(`prixie scheduler: fetching ${provider.name} transcript for meeting ${meeting.id}`);
 
-        if (needsBrowserbase(meeting.platform)) {
-          console.log(`prixie scheduler: fetching browserbase transcript for meeting ${meeting.id}`);
-          const transcript = await transcribeBrowserbaseSession(meeting.bot_id);
-          rawTranscript = transcript.text;
-          summary = transcript.summary;
-          transcriptionService = "assembly_ai";
+        const transcript = await provider.getTranscript(meeting.bot_id);
 
-          // keyword search for browserbase transcripts
+        if (transcript.utterances) {
+          // keyword search against pending capture requests
           const pendingCaptures = await getPendingCaptureRequestsByMeeting(meeting.id);
           for (const req of pendingCaptures) {
             const keywords = (req as any).keywords || [];
             if (keywords.length === 0) continue;
-            const matches = searchForKeywords(transcript, keywords);
+            const matches = searchForKeywords(transcript as any, keywords);
             if (matches.length > 0) {
               await updateCaptureRequest(req.id, {
                 status: "captured",
@@ -182,22 +175,15 @@ export class MeetingManager {
               await updateCaptureRequest(req.id, { status: "not_found" });
             }
           }
-
-          await stopSession(meeting.bot_id);
         } else {
-          console.log(`prixie scheduler: fetching recall.ai transcript for meeting ${meeting.id}`);
-          rawTranscript = await recallService.getBotTranscript(meeting.bot_id);
-          summary = `meeting summary for ${meeting.title}. recorded ${rawTranscript.split("\n").length} transcript lines.`;
-          transcriptionService = "recall_ai";
-
-          // keyword search for recall.ai transcripts
           const pendingCaptures = await getPendingCaptureRequestsByMeeting(meeting.id);
           for (const req of pendingCaptures) {
             await updateCaptureRequest(req.id, { status: "not_found" });
           }
         }
 
-        if (!rawTranscript || rawTranscript.trim().length === 0 || rawTranscript === "no transcript recorded") {
+        const rawTranscript = transcript.text;
+        if (!rawTranscript || rawTranscript.trim().length === 0) {
           continue;
         }
 
@@ -225,9 +211,11 @@ export class MeetingManager {
         await createTranscript({
           meeting_id: meeting.id,
           full_transcript: processedTranscript,
-          summary,
-          action_items: action_items,
+          summary: transcript.summary || `meeting summary for ${meeting.title}. recorded ${rawTranscript.split("\n").length} transcript lines.`,
+          action_items: actionItems,
         });
+
+        await provider.destroy(meeting.bot_id).catch(() => {});
 
         console.log(`prixie scheduler: transcript completed for meeting ${meeting.id} (hinglish: ${hinglishPercentage}%)`);
       } catch (err: any) {

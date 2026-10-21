@@ -1,0 +1,48 @@
+// bot provider seam - the one interface everything talks to.
+// any meeting bot engine (browserbase today, anything else later) implements this.
+
+import { Meeting } from "../types.ts";
+
+export type ProviderBotStatus =
+  | "joining"      // bot is starting up / navigating to the meeting
+  | "in_meeting"   // bot is inside the call
+  | "ended"        // call over, media ready for processing
+  | "error";       // something went wrong
+
+export interface ProviderTranscript {
+  text: string;
+  summary?: string;
+  utterances?: Array<{
+    speaker: string;
+    text: string;
+    start: number;
+    end: number;
+  }>;
+}
+
+export interface CreateBotOptions {
+  // absolute url the engine should push realtime events to (transcript + chat)
+  realtimeWebhookUrl?: string;
+}
+
+export interface BotProvider {
+  readonly name: string;
+
+  // deploy prixie to a meeting. returns the engine's bot/session id
+  createBot(meeting: Meeting, options?: CreateBotOptions): Promise<{ id: string; status: ProviderBotStatus }>;
+
+  // current lifecycle state of the bot
+  getStatus(botId: string): Promise<{ status: ProviderBotStatus; detail?: string }>;
+
+  // send a chat message as prixie from inside the meeting
+  sendChatMessage(botId: string, messageText: string): Promise<boolean>;
+
+  // full transcript for a finished meeting
+  getTranscript(botId: string): Promise<ProviderTranscript>;
+
+  // optional: keep a long-running session from looking idle (no-op if not needed)
+  heartbeat?(botId: string): Promise<void>;
+
+  // tear the bot down
+  destroy(botId: string): Promise<void>;
+}

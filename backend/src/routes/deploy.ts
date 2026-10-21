@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 import { getMeetingById, updateMeeting } from "../services/supabase.ts";
-import { recallService } from "../services/recall.ts";
+import { botProvider } from "../services/browserbase_provider.ts";
 
 const deployRouter = new Hono();
 
 /**
  * POST /api/deploy/:meetingId
- * Manually deploy prixie (Recall.ai bot) to a specific meeting
+ * Manually deploy prixie to a specific meeting (browserbase join)
  */
 deployRouter.post("/:meetingId", async (c) => {
   try {
@@ -28,24 +28,23 @@ deployRouter.post("/:meetingId", async (c) => {
       );
     }
 
-    const baseUrl = Deno.env.get("BASE_URL") || "https://prixie.yourdomain.com";
-    const realtimeWebhook = `${baseUrl}/webhooks/recall/realtime`;
-    const statusWebhook = `${baseUrl}/webhooks/recall/status`;
+    const baseUrl = Deno.env.get("BASE_URL") || Deno.env.get("WEBHOOK_URL") || "https://prixie.yourdomain.com";
+    const realtimeWebhook = `${baseUrl}/webhooks/realtime`;
 
-    // Deploy bot via Recall.ai
-    const botData = await recallService.createBot(meeting, realtimeWebhook, statusWebhook);
+    // Deploy bot via the active provider (browserbase)
+    const bot = await botProvider.createBot(meeting, { realtimeWebhookUrl: realtimeWebhook });
 
-    // Update meeting status in Supabase
     const updatedMeeting = await updateMeeting(meetingId, {
-      bot_id: botData.id,
-      status: "bot_joining",
+      bot_id: bot.id,
+      status: "bot_in_meeting",
+      prixie_attended: true,
     });
 
     return c.json({
       message: "prixie deployed to meeting successfully",
-      bot_id: botData.id,
+      bot_id: bot.id,
       meeting: updatedMeeting,
-      recall_bot_details: botData,
+      provider: botProvider.name,
     });
   } catch (err: any) {
     console.error(`prixie: deployment error for meeting ${c.req.param("meetingId")}`, err);

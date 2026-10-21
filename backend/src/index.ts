@@ -19,8 +19,7 @@ import memoriumRouter from "./routes/memorium.ts";
 import memoriumTagsRouter from "./routes/memorium_tags.ts";
 import voicePresetsRouter from "./routes/voice_presets.ts";
 
-import recallRealtimeWebhook from "./routes/webhooks/recall_realtime.ts";
-import recallStatusWebhook from "./routes/webhooks/recall_status.ts";
+import realtimeWebhook from "./routes/webhooks/realtime.ts";
 import googleCalendarWebhook from "./routes/webhooks/google_calendar.ts";
 
 import { meetingManager } from "./scheduler/meeting_manager.ts";
@@ -68,8 +67,7 @@ app.route("/api/memorium", memoriumTagsRouter);
 app.route("/api/voice-presets", voicePresetsRouter);
 
 // webhooks
-app.route("/webhooks/recall/realtime", recallRealtimeWebhook);
-app.route("/webhooks/recall/status", recallStatusWebhook);
+app.route("/webhooks/realtime", realtimeWebhook);
 app.route("/webhooks/google-calendar", googleCalendarWebhook);
 
 // scheduler
