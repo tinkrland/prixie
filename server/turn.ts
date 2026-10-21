@@ -9,9 +9,9 @@
 
 import { buildCompositeArgs, type CompositePlan } from "./composite.ts";
 import { buildMatteCmd } from "./matte.ts";
-import { buildPlateSpec, renderPlateCmd, type PlateSpec } from "./plate.ts";
-import { projectPlacement, type PersonAnchor, type RoomCamera } from "./scene.ts";
-import type { SetSpec } from "./set.ts";
+import { buildPlateSpec, renderPlateCmd, type PlateSpec } from "../studioify/plate.ts";
+import { projectPlacement, type PersonAnchor, type RoomCamera } from "../studioify/scene.ts";
+import type { SetSpec } from "../studioify/set.ts";
 
 export interface Frame {
   width: number;

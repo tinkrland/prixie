@@ -21,7 +21,7 @@
 // module only decides where the person goes in that render, which is exactly
 // the question a camera answers.
 
-import type { Placement } from "./composite.ts";
+import type { Placement } from "../server/composite.ts";
 
 export interface Vec3 {
   x: number;

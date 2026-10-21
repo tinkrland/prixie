@@ -3,8 +3,8 @@
 
 import { assertEquals } from "jsr:@std/assert@1";
 import { planSpeakTurn } from "../server/turn.ts";
-import { defaultSet, whiteStudioSet } from "../server/set.ts";
-import { streamerRoom } from "../server/scene.ts";
+import { defaultSet, whiteStudioSet } from "../studioify/set.ts";
+import { streamerRoom } from "../studioify/scene.ts";
 import { buildMatteCmd } from "../server/matte.ts";
 
 const room = streamerRoom();
@@ -38,7 +38,7 @@ Deno.test("a supplied matte skips the stage for that turn only", () => {
 Deno.test("the white background turn renders proskena's paper scene", () => {
   const plan = planSpeakTurn({ ...base, set: whiteStudioSet() });
   assertEquals(plan.plateSpec.environment.bg, "#b8b5ad");
-  assertEquals(plan.plateCmd, ["python3", "scripts/render_plate.py", "/tmp/turn_plate.json"]);
+  assertEquals(plan.plateCmd, ["python3", "studioify/render_plate.py", "/tmp/turn_plate.json"]);
 });
 
 Deno.test("the composite places her from the room geometry, not the screen", () => {

@@ -27,8 +27,8 @@
 // background control, so "focused person over a live 3d set" needs a matte.
 // parked in set.md as route b, with its caveats.
 
-import { addAvatarLook, type Avatar, type ConversationHandle, pinConversationImage } from "./masky.ts";
-import type { Grade } from "./composite.ts";
+import { addAvatarLook, type Avatar, type ConversationHandle, pinConversationImage } from "../server/masky.ts";
+import type { Grade } from "../server/composite.ts";
 
 // ---------------------------------------------------------------------------
 // the light rig, mirrored from proskena lighting/41-lighting.js

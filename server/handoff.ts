@@ -17,8 +17,10 @@
 //
 // retelldb decides what the voice is: what she knows (memory query) and how
 // she says it (the persona's voice profile: lingvist/lexica/lingvica). the
-// profile's tone defaults and register map onto masky's voiceStyle cues, so
-// the delivery cues travel with the persona instead of being hardcoded here.
+// profile -> voiceStyle mapping is not here anymore: it lives once, in
+// persona/voice_adapter.ts (synced from main), the same file the voice
+// branch uses, so her delivery is the same on and off camera by
+// construction, not by hand-synced duplication.
 
 import {
   type Avatar,
@@ -30,105 +32,8 @@ import {
   speak,
   waitForClip,
 } from "./masky.ts";
-import { defaultSet, pinSet, type SetSpec, scenePrompt } from "./set.ts";
-
-const RETLLDB_URL = Deno.env.get("RETELLDB_URL") || "http://localhost:8000";
-const RETLLDB_API_KEY = Deno.env.get("RETELLDB_API_KEY") || "";
-
-// ---------------------------------------------------------------------------
-// retelldb: the persona's voice profile
-// ---------------------------------------------------------------------------
-
-export interface ToneDefaults {
-  warmth: number; // 0..1
-  sarcasm_level: number;
-  playfulness: number;
-  confidence: number;
-}
-
-export interface PersonaVoiceProfile {
-  persona_id: string;
-  display_name?: string;
-  lingvist?: {
-    primary_languages?: string[];
-    code_switch_triggers?: string[];
-    loanword_defaults?: string[];
-  };
-  lexica?: {
-    fillers?: string[];
-    hedges?: string[];
-    idiom_preferences?: string[];
-  };
-  lingvica?: {
-    register_by_medium?: Record<string, string>;
-    tone_defaults?: ToneDefaults;
-  };
-}
-
-async function retelldb<T>(path: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(`${RETLLDB_URL}${path}`, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...(RETLLDB_API_KEY ? { "x-api-key": RETLLDB_API_KEY } : {}),
-      ...(init?.headers ?? {}),
-    },
-  });
-  if (!resp.ok) {
-    throw new Error(`retelldb ${path} failed: ${resp.status}`);
-  }
-  return await resp.json() as T;
-}
-
-export async function loadVoiceProfile(personaId: string): Promise<PersonaVoiceProfile> {
-  return await retelldb<PersonaVoiceProfile>(`/v1/profile/${personaId}`);
-}
-
-// what she knows, scoped to the persona. the same graph the voice profile
-// lives in, so knowledge and delivery never point at different personas.
-export async function recall<T = unknown>(
-  personaId: string,
-  query: string,
-  limit = 5,
-): Promise<T> {
-  return await retelldb<T>("/v1/query", {
-    method: "POST",
-    body: JSON.stringify({ persona_id: personaId, query, limit }),
-  });
-}
-
-// ---------------------------------------------------------------------------
-// profile -> delivery cues
-// ---------------------------------------------------------------------------
-
-// the profile is fuzzy on purpose (tone is scored 0..1); masky's tts takes
-// named cues. this is the only place the two vocabularies meet.
-export function voiceStyleFromProfile(
-  profile: PersonaVoiceProfile | null,
-  medium = "call",
-): VoiceStyle {
-  const tone = profile?.lingvica?.tone_defaults;
-  const style: VoiceStyle = {};
-  if (!tone) return style;
-
-  if (tone.sarcasm_level >= 0.6) style.emotion = "amusement";
-  else if (tone.playfulness >= 0.65) style.emotion = "enthusiasm";
-  else if (tone.warmth >= 0.7) style.emotion = "affection";
-  else if (tone.confidence >= 0.7) style.emotion = "determination";
-
-  const prosody: string[] = [];
-  // measured personas speak slower and flatter; lively ones get expressiveness.
-  if (tone.confidence < 0.35) prosody.push("speed_slow", "expressive_low");
-  if (tone.playfulness >= 0.7) prosody.push("expressive_high");
-  if (prosody.length) style.prosody = prosody;
-
-  // a register of "whispered" or "hushed" (a late lecture, a quiet room) is
-  // the one register that has a real masky equivalent.
-  const register = profile?.lingvica?.register_by_medium?.[medium] ?? "";
-  if (/whisper|hushed|quiet/i.test(register)) style.style = "whispering";
-
-  return style;
-}
+import { defaultSet, pinSet, type SetSpec, scenePrompt } from "../studioify/set.ts";
+import { loadVoiceProfile, recall, voiceStyleFromProfile, type PersonaVoiceProfile } from "../persona/voice_adapter.ts";
 
 // ---------------------------------------------------------------------------
 // the call-side persona: face + voice + memory as one object
@@ -201,8 +106,11 @@ export class PersonaVoice {
   // masky chunks longer text into extra turn docs and the id/clip pairing
   // stops being 1:1.
   async say(utterance: Utterance): Promise<Render> {
-    const style = utterance.voiceStyle ??
-      voiceStyleFromProfile(this.profile, utterance.medium ?? "call");
+    // the adapter is surface-agnostic on purpose (voice branch reads the
+    // same cues), so its style field is a plain string; masky's is a
+    // literal union and the values the adapter emits are exactly that set.
+    const style = (utterance.voiceStyle ??
+      voiceStyleFromProfile(this.profile, utterance.medium ?? "call")) as VoiceStyle;
 
     const turn = await speak(this.handle, utterance.text, {
       voiceStyle: style,

@@ -2,9 +2,9 @@
 // deno test tests/plate_test.ts
 
 import { assertEquals } from "jsr:@std/assert@1";
-import { buildPlateSpec, renderPlateCmd } from "../server/plate.ts";
-import { defaultSet, whiteStudioSet, LIGHT_RECIPES, PROSKENA_BACKDROPS, PERSON_STAGE_SCALE } from "../server/set.ts";
-import { streamerRoom } from "../server/scene.ts";
+import { buildPlateSpec, renderPlateCmd } from "../studioify/plate.ts";
+import { defaultSet, whiteStudioSet, LIGHT_RECIPES, PROSKENA_BACKDROPS, PERSON_STAGE_SCALE } from "../studioify/set.ts";
+import { streamerRoom } from "../studioify/scene.ts";
 
 const frame = { width: 1280, height: 720 };
 
@@ -30,5 +30,5 @@ Deno.test("the white background is proskena's paper preset", () => {
   assertEquals(spec.environment.bg, PROSKENA_BACKDROPS.paper.bg);
   assertEquals(spec.environment.center, PROSKENA_BACKDROPS.paper.center);
   assertEquals(spec.props, [], "the white studio is the paper backdrop alone");
-  assertEquals(renderPlateCmd("/tmp/spec.json"), ["python3", "scripts/render_plate.py", "/tmp/spec.json"]);
+  assertEquals(renderPlateCmd("/tmp/spec.json"), ["python3", "studioify/render_plate.py", "/tmp/spec.json"]);
 });

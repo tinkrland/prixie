@@ -4,7 +4,7 @@
 // geometry placed as scene objects), its light rig (key/fill/rim at azimuth/
 // elevation plus hemispheric ambience), its camera (live position + target +
 // fov). this module speaks that schema so prixie's plate IS the scene
-// proskena describes, rendered headlessly by scripts/render_plate.py with the
+// proskena describes, rendered headlessly by studioify/render_plate.py with the
 // same math. proskena's studio renderer stays the authored path.
 //
 // the subject (the bust, the hand) is not on prixie's stage: the masky person
@@ -108,5 +108,5 @@ export function buildPlateSpec(
 }
 
 export function renderPlateCmd(specPath: string): string[] {
-  return ["python3", "scripts/render_plate.py", specPath];
+  return ["python3", "studioify/render_plate.py", specPath];
 }

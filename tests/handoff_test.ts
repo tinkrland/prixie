@@ -84,9 +84,10 @@ globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
   );
 }) as typeof fetch;
 
-const { PersonaVoice, voiceStyleFromProfile, runCall, planCameraOff, CameraOffAdapter } = await import(
-  "../server/handoff.ts"
+const { PersonaVoice, runCall, planCameraOff, CameraOffAdapter } = await import(
+  "../server/handoff.ts",
 );
+const { voiceStyleFromProfile } = await import("../persona/voice_adapter.ts");
 const { speak } = await import("../server/masky.ts");
 
 // local shapes for the camera-off tests (dynamic imports cannot destructure types)

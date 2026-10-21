@@ -2,7 +2,7 @@
 // environment all background. run: deno test tests/scene_test.ts
 
 import { assertEquals } from "jsr:@std/assert@1";
-import { projectPlacement, projectPoint, streamerRoom } from "../server/scene.ts";
+import { projectPlacement, projectPoint, streamerRoom } from "../studioify/scene.ts";
 
 const frame = { width: 1280, height: 720 };
 

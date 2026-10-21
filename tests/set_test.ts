@@ -31,7 +31,7 @@ const {
   placementForShot,
   scenePrompt,
   shotPrompt,
-} = await import("../server/set.ts");
+} = await import("../studioify/set.ts");
 
 function assert(cond: boolean, msg: string) {
   if (!cond) throw new Error(msg);

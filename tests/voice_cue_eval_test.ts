@@ -12,7 +12,7 @@ import { assertEquals } from "jsr:@std/assert@1";
 Deno.env.set("MASKY_API_KEY", "mky_test");
 Deno.env.set("RETELLDB_URL", "http://retelldb.test");
 
-const { voiceStyleFromProfile } = await import("../server/handoff.ts");
+const { voiceStyleFromProfile } = await import("../persona/voice_adapter.ts");
 
 interface Case {
   name: string;
