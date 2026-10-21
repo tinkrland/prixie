@@ -7,6 +7,7 @@ import {
 import { captureScreenshot } from "../../services/screenshots.ts";
 import { registerDefaultScreenshotEngines } from "../../services/screenshot_engines.ts";
 import { detectTerms } from "../../services/term_detector.ts";
+import { notifyCaptureMatch } from "../../services/notify.ts";
 
 registerDefaultScreenshotEngines();
 
@@ -93,6 +94,17 @@ realtimeWebhook.post("/", async (c) => {
             captured_screenshot_url: screenshotUrl || req.captured_screenshot_url || undefined,
             answer: req.type === "ask" ? text : req.answer,
           });
+
+          // redemption-window case: a code that only works during the
+          // meeting is useless in a post-meeting recap, so the owner
+          // hears about it the moment she does.
+          await notifyCaptureMatch({
+            meetingTitle: meeting.title,
+            captureTitle: req.title,
+            snippet: captureSnippet,
+            link: screenshotUrl,
+            capturedAt: new Date(),
+          }).catch(() => false);
         }
       }
     }
@@ -126,6 +138,16 @@ realtimeWebhook.post("/", async (c) => {
               ? `${req.captured_content}\n${chatSnippet}`
               : chatSnippet,
           });
+
+          // same instant push for chat: forms and links dropped mid-call
+          // often close when the call does
+          await notifyCaptureMatch({
+            meetingTitle: meeting.title,
+            captureTitle: req.title,
+            snippet: chatSnippet,
+            link: links[0],
+            capturedAt: new Date(),
+          }).catch(() => false);
         }
       }
     }

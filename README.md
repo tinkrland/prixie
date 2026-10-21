@@ -63,6 +63,7 @@ all platforms share the same flow: open the meeting url in the headless browser,
 | attendance marking | working | chat message, google form, or custom |
 | breakout room support | planned | browser automation of the zoom room invite popup (recall.ai used to handle this) |
 | capture requests | working | keywords, links, codes, questions, with context |
+| owner notify | working | a capture matched mid-meeting pushes to the owner instantly (agentmail email), because a code whose redemption window is the meeting itself is useless in a post-meeting recap. more channels plug into the same notifyOwner call |
 | term detector | working | a keyword-less capture request fires when an utterance carries code shape or a figure (tech words, proper nouns, math, codes). shape, not meaning, ranked candidates, never conclusions |
 | prepared questions | planned | ask your questions out loud during q&a (needs voice feature) |
 | profile / persona system | designed | sandboxed identities, per profile memory, shared global memory |
