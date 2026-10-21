@@ -20,6 +20,22 @@ import {
 import { botProvider } from "../../services/browserbase_provider.ts";
 import { createAttendanceMessage } from "../../services/supabase.ts";
 
+// the door rule of this repo: unset secret = route closed, not open.
+// whoever posts transcript/chat events (the recall webhook, a relay)
+// carries the same secret in x-realtime-secret.
+const realtimeWebhook = new Hono();
+
+realtimeWebhook.use("*", async (c, next) => {
+  const secret = Deno.env.get("REALTIME_WEBHOOK_SECRET");
+  const provided = c.req.header("x-realtime-secret");
+  if (!secret) {
+    console.warn("prixie: REALTIME_WEBHOOK_SECRET is not set, the realtime door is CLOSED");
+    return c.json({ error: "server not configured: set REALTIME_WEBHOOK_SECRET" }, 503);
+  }
+  if (provided !== secret) return c.json({ error: "unauthorized" }, 401);
+  await next();
+});
+
 // scarcity she has heard per meeting (the announcement usually precedes
 // the link by minutes). in-memory by design: it is live-call urgency,
 // not durable truth. supabase keeps the capture.
@@ -128,8 +144,6 @@ registerDefaultScreenshotEngines();
 // generic realtime webhook. whatever engine prixie runs on (browserbase in-page
 // chat monitor today, anything else later) pushes events here in a neutral shape:
 //   { bot_id, kind: "chat" | "transcript", speaker?, text }
-
-const realtimeWebhook = new Hono();
 
 realtimeWebhook.post("/", async (c) => {
   try {

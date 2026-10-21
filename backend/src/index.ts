@@ -28,11 +28,23 @@ import { meetingManager } from "./scheduler/meeting_manager.ts";
 
 const app = new Hono();
 
-app.use("*", cors({
-  origin: "*",
-  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
-}));
+// cors: origins come from PRIXIE_ALLOWED_ORIGINS (comma separated).
+// unset = no cors (same-origin only); "*" was a hole, not a feature.
+const allowedOrigins = (Deno.env.get("PRIXIE_ALLOWED_ORIGINS") || "")
+  .split(",").map((o) => o.trim()).filter(Boolean);
+if (allowedOrigins.length > 0) {
+  app.use("*", cors({
+    origin: allowedOrigins,
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization", "x-api-token"],
+    credentials: false,
+  }));
+}
+
+// the /api door: bearer token required, closed when unconfigured.
+// webhooks and the health route sit outside this middleware on purpose.
+import { requireApiToken } from "./services/api_auth.ts";
+app.use("/api/*", requireApiToken);
 
 app.get("/", (c) => {
   return c.json({

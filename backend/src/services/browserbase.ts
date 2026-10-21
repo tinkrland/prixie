@@ -132,6 +132,26 @@ export async function cdpExecute(sessionId: string, method: string, params: any)
 // caller falls back to asking in the chat. the camera is never part
 // of this: there is no camera branch in the flow at all.
 export async function unmuteAndSpeakInSession(sessionId: string, question: string): Promise<boolean> {
+  // obs mode (the owner, oct 21 2026): the mic track IS the obs virtual mic.
+  // masky's livekit publish -> obs -> virtual mic carries her audio, so
+  // the page only unmutes; making sound here would double-speak.
+  if (resolveAudioMode() === "obs") {
+    const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+      expression: `
+        (() => {
+          if (typeof window.prixieUnmute === "function") { window.prixieUnmute(); return "unmuted"; }
+          const btn = document.querySelector('button[aria-label*="mute" i], button[aria-label*="audio" i], button[aria-label*="join audio" i]');
+          if (btn) { btn.click(); return "unmuted"; }
+          return "no_mic";
+        })()
+      `,
+      returnByValue: true,
+    });
+    const ok = result?.result?.value === "unmuted";
+    if (ok) console.log("prixie: obs audio mode, mic unmuted; audio arrives via the obs virtual mic");
+    return ok;
+  }
+
   // JSON.stringify is the only escaping that covers every case.
   const result = await cdpExecute(sessionId, "Runtime.evaluate", {
     expression: `
@@ -589,3 +609,4 @@ export async function heartbeatSession(sessionId: string): Promise<void> {
     returnByValue: true,
   });
 }
+import { resolveAudioMode } from "./assemblyai.ts";
