@@ -24,6 +24,7 @@ import { notifyOwner } from "./notify.ts";
 import { captureScreenshot } from "./screenshots.ts";
 import { registerDefaultScreenshotEngines } from "./screenshot_engines.ts";
 import { CODE_SELECTORS, REDEEM_TEXTS } from "./promo.ts";
+import { assertLinkSafe } from "./link_safety.ts";
 
 // engines are idempotent to register; this keeps form_entry honest even
 // if it runs before the realtime webhook module ever loads
@@ -81,6 +82,9 @@ export function buildRedeemEmail(
     lines.push("check that inbox if the form sends a confirmation or code.");
     lines.push("before: " + (receipt.before_screenshot || "(no screenshot)"));
     lines.push("after: " + (receipt.after_screenshot || "(no screenshot)"));
+  } else if (receipt.detail.startsWith("link blocked")) {
+    lines.push("she did NOT visit this link: " + receipt.detail);
+    lines.push("review it yourself before touching it: " + receipt.url);
   } else {
     lines.push("she could NOT complete the form: " + receipt.detail);
     lines.push("if it is first come first serve, do it now: " + receipt.url);
@@ -153,7 +157,6 @@ export async function enterForm(
   identity: FormIdentity,
   opts?: { promo_code?: string | null },
 ): Promise<FormEntryReceipt> {
-  const session = await createSession();
   const receipt: FormEntryReceipt = {
     url,
     submitted: false,
@@ -164,6 +167,16 @@ export async function enterForm(
     cc_detected: false,
     detail: "",
   };
+
+  // the gate comes before the session exists: an unsafe link is never
+  // even loaded in a throwaway browser
+  const verdict = await assertLinkSafe(url);
+  if (!verdict.safe) {
+    receipt.detail = `link blocked by safety gate: ${verdict.reason}`;
+    return receipt;
+  }
+
+  const session = await createSession();
 
   try {
     await navigateTo(session.id, url);

@@ -15,6 +15,7 @@ import { calendarService } from "../services/calendar.ts";
 import { shouldJoinNow } from "./join_trigger.ts";
 import { enterForm } from "../services/form_entry.ts";
 import { chooseFormEmail } from "../services/form_email.ts";
+import { assertLinkSafe } from "../services/link_safety.ts";
 
 // every platform goes through the same provider. no per-platform forks anymore.
 const provider = botProvider;
@@ -158,6 +159,12 @@ export class MeetingManager {
     }
 
     try {
+      const verdict = await assertLinkSafe(meeting.attendance_form_url);
+      if (!verdict.safe) {
+        console.warn(`prixie: attendance form url blocked: ${verdict.reason}`);
+        return;
+      }
+
       const formEmail = await chooseFormEmail(null, meeting.attendance_form_url);
       if (!formEmail) {
         console.warn("prixie: form attendance skipped, no PRIXIE_FORM_EMAIL");

@@ -18,6 +18,8 @@ import { createMeeting } from "./supabase.ts";
 import { detectPlatform, extractMeetingUrl } from "./calendar_sync.ts";
 import { parseColloquialTime } from "./colloquial_time.ts";
 
+import { assertLinkSafe } from "./link_safety.ts";
+
 export interface AgentMailMessage {
   message_id: string;
   from: string;
@@ -73,6 +75,15 @@ export async function agentMailInbound(msg: AgentMailMessage): Promise<AgentMail
   const joinUrl = findMeetingLink(msg);
   if (!joinUrl) {
     return { created: false, reason: "no meeting link found in the forwarded email" };
+  }
+
+  // the safety gate: even a whitelisted sender's mail can carry a
+  // poisoned link (compromised account, tracking redirect). she does
+  // not join through a link the gate rejects.
+  const verdict = await assertLinkSafe(joinUrl);
+  if (!verdict.safe) {
+    console.warn(`prixie: inbound join link blocked: ${verdict.reason} (${joinUrl})`);
+    return { created: false, reason: `join link blocked by safety gate: ${verdict.reason}` };
   }
 
   const platform = detectPlatform(joinUrl) || "custom";
