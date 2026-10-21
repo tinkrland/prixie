@@ -104,25 +104,48 @@ it owns no protocol of its own: obs.ts speaks obs-websocket, handoff.ts owns
 never cutting a sentence, and the session just operates them in the order the
 stream needs.
 
-## the sets are 3d files (oct 2026)
+## the sets are proskena scenes (oct 2026)
 
-the background and the props are all 3d, that is the point: not painted
-plates, not flat backdrops, 3d files a camera renders.
+the plate is not an invention of this repo: the 3d system that exists is
+proskena's, and prixie renders IT. the plate spec IS a proskena scene state
+(proskena-scene-state):
 
-- `assets/sets/*.glb` are the sets, authored by `scripts/build_sets.py`:
-  `white_studio.glb` (a white cyclorama, the white background render) and
-  `room.glb` (floor, walls, a window, a shelf with books, a plant, a rug:
-  every one a 3d component).
-- `scripts/render_plate.py` renders a set through the pinned camera: pure
-  cpu rasterization, the same pinhole as scene.ts, lit by the set's light
-  recipe (key/fill/rim at azimuth/elevation, inverse-square falloff from a
-  rig at the subject, soft shoulder). proskena's studio renderer stays the
-  authored path; this is the same math headless, and because the camera is
-  shared, the plate and her projection agree by construction.
-- `server/plate.ts` builds the render spec (set + camera + recipe) and is
-  the pipeline's handle on the renderer.
-- the composite then does the one thing it always does: the person video
-  is the foreground, the render of the 3d files is all background.
+- `environment`: proskena's two-value backdrop (edge bg + center lift). the
+  white background is its paper preset (#b8b5ad / #f4f1ea), the default room
+  is warm_gray with props.
+- `props`: proskena's prop library (ottoman, mug, books, vase: authored
+  placeholder geometry, setdesign/93-props.js), placed as scene objects at
+  x/z/rotY/scale, background only.
+- `lighting`: proskena's rig verbatim: key/fill/rim at azimuth/elevation,
+  hemispheric ambience at its own intensities (bright 0.95, dim 0.45,
+  dark 0.16). DirectionalLight means no distance falloff.
+- `live`: its camera (position + target + fov). a proskena scene unit is a
+  millimetre at subject scale; the person stage is 7.5x its authored
+  constants (backdrop size, prop band, rig distance), which were authored
+  around a 225-unit subject. the camera is already at person scale.
+
+`scripts/render_plate.py` renders that state headlessly: cpu rasterization
+of the same math three.js does (linear workflow, BRDF_Lambert /pi, srgb out,
+NoToneMapping), gradient backdrop plane at (0, 260, -620) ported from
+42-backdrops.js. proskena's studio renderer stays the authored path. its
+own subject models (assets/bust.glb) load through it too, which is how the
+renderer is tested against the model that already exists in that repo.
+
+`server/plate.ts` builds the spec; `server/set.ts` carries proskena's
+backdrop presets and prop placements; `PERSON_STAGE_SCALE` is the one
+constant that is prixie's.
+
+## background removal is stage one (oct 2026)
+
+the masky clip arrives with its own rendered background; the turn removes
+it, it is not an external input. `server/turn.ts` (planSpeakTurn) composes
+the stages: matte -> plate -> composite. `scripts/matte.py` runs rembg
+(u2net_human_seg, post-processed masks) over the person clip, frame for
+frame over its full length (a trimmed matte misaligns with the person and
+her backdrop peeks out: caught on a real render), and the composite
+consumes the matte riding the person's framing chain. verified on a real
+composite: outside the matte, the frame equals the plate within the edge
+feather (0.7%, the hairline).
 
 ## the camera render (oct 2026)
 
