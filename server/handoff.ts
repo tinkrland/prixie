@@ -30,6 +30,7 @@ import {
   speak,
   waitForClip,
 } from "./masky.ts";
+import { defaultSet, pinSet, type SetSpec, scenePrompt } from "./set.ts";
 
 const RETLLDB_URL = Deno.env.get("RETELLDB_URL") || "http://localhost:8000";
 const RETLLDB_API_KEY = Deno.env.get("RETELLDB_API_KEY") || "";
@@ -154,6 +155,7 @@ export class PersonaVoice {
     readonly avatar: Avatar,
     readonly handle: ConversationHandle,
     readonly profile: PersonaVoiceProfile | null,
+    readonly set: SetSpec,
   ) {}
 
   static async init(opts: {
@@ -162,13 +164,24 @@ export class PersonaVoice {
     voiceId: string;
     personalityPrompt?: string;
     avatarImageUrl?: string;
+    // the room. give it a set and the conversation is pinned to the set's
+    // authored still, so the background is the same in every clip instead of
+    // model-invented per render.
+    set?: SetSpec;
   }): Promise<PersonaVoice> {
     const avatar = await ensurePersonaAvatar(opts);
+    const set = opts.set ?? defaultSet();
     const handle = await startConversation(avatar, {
       avatarImageUrl: opts.avatarImageUrl,
     });
     // the face should breathe between turns, not hold a still.
     await enableIdleLoop(handle);
+
+    // pin the room before the first turn: every clip then opens on the same
+    // authored frame (masky's /conversations/{id}/avatar-image).
+    if (set.stillUrl) {
+      await pinSet(avatar, handle, set.stillUrl);
+    }
 
     let profile: PersonaVoiceProfile | null = null;
     try {
@@ -177,7 +190,7 @@ export class PersonaVoice {
       // no profile yet is fine: cues fall back to masky's saved defaults.
       profile = null;
     }
-    return new PersonaVoice(opts.personaRef, avatar, handle, profile);
+    return new PersonaVoice(opts.personaRef, avatar, handle, profile, set);
   }
 
   // say one utterance and get both tracks back. keep text to <= 3 sentences:
@@ -210,6 +223,13 @@ export class PersonaVoice {
   // the reason the mouth and the memory agree on who is speaking.
   recall<T = unknown>(query: string, limit = 5): Promise<T> {
     return recall<T>(this.personaRef, query, limit);
+  }
+
+  // a scene clip in her room, not a speak turn: pass the result to
+  // /videos/generate with promptUpsampling false so the model does not add
+  // its own detail to a set we authored.
+  scene(action: string): string {
+    return scenePrompt(this.set, action);
   }
 }
 

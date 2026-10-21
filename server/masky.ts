@@ -182,6 +182,35 @@ export async function ensurePersonaAvatar(opts: {
 // conversations: the camera surface
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// avatar looks: scene-specific opening frames
+// ---------------------------------------------------------------------------
+
+// masky has no background parameter and no alpha output, but it pins a
+// conversation's opening frame: any image can be added as an avatar "look"
+// and a conversation renders its turns from that still. for the set design
+// this is also how a flat (green screen) frame gets adopted: pin a look that
+// is the person on a plain backdrop and the turns continue that scene.
+export async function addAvatarLook(
+  avatarId: string,
+  imageUrl: string,
+): Promise<{ assetId: string; url: string }> {
+  return await call<{ assetId: string; url: string }>(
+    "POST",
+    `/avatars/${avatarId}/images`,
+    { imageUrl },
+  );
+}
+
+export async function pinConversationImage(
+  handle: ConversationHandle,
+  avatarImageUrl: string,
+): Promise<void> {
+  await call("POST", `/conversations/${handle.conversationId}/avatar-image`, {
+    avatarImageUrl,
+  });
+}
+
 export async function startConversation(
   avatar: Avatar,
   opts: { avatarImageUrl?: string } = {},

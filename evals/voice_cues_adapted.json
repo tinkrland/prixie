@@ -1,0 +1,2601 @@
+{
+  "source": "adaptionlabs.ai invented dataset",
+  "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+  "rows_read": 60,
+  "cases_parsed": 58,
+  "note": "rows without a parsable tone signal or cue expectation are skipped, not guessed",
+  "cases": [
+    {
+      "name": "adaptionlabs_row_000",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 0,
+      "profile": {
+        "tone": {
+          "warmth": 0.5,
+          "sarcasm_level": 0.4,
+          "playfulness": 0.8,
+          "confidence": 0.5
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Wait, hold on... <pause> what if we just, like, deleted the whole landing page? Just kidding! Mostly.",
+      "required": [
+        "emotion=contemplation",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low"
+      ],
+      "inline": [
+        "prosody=pause",
+        "prosody=long_pause",
+        "sfx=laughter"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=contemplation",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low"
+          ]
+        },
+        {
+          "index": 2,
+          "cues": [
+            "emotion=amusement",
+            "style=whispering",
+            "prosody=speed_fast",
+            "prosody=expressive_high"
+          ]
+        },
+        {
+          "index": 3,
+          "cues": [
+            "emotion=amusement",
+            "style=shouting",
+            "prosody=speed_very_fast",
+            "prosody=pitch_high"
+          ]
+        },
+        {
+          "index": 4,
+          "cues": [
+            "emotion=amusement",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "For the meeting proxy agent Prixie, provide the mapping of the following profile to TTS delivery enums (emotion, style, prosody) and inline tags.\n\nPersona:\n- Warmth: 0.5, Sarcasm_level: 0.4, Playfulness: 0.8, Confidence: 0.5\n- Register (Meeting): Casual, brainstorming session\n- Utterance: \"Wait, hold on... <pause> what if we just, like, deleted the whole landing page? Just kidding! Mostly.\"\nHere is the TTS delivery mapping for Prixie based on the provided persona and utterance:\n\n**Segment 1:**\n[emotion: contemplation, style: whispering, prosody: speed_slow, pitch_low]\n\"Wait, hold on... <prosody pause>\"\n\n**Segment 2:**\n[emotion: amusement, style: whispering, prosody: speed_fast, expressive_high]\n\"what if we just, like, deleted the whole landing page? <prosody long_pause>\"\n\n**Segment 3:**\n[emotion: amusement, style: shouting, prosody: speed_very_fast, pitch_high]\n\"Just kidding! <sfx laughter>\"\n\n**Segment 4:**\n[emotion: amusement, style: whispering, prosody: speed_slow, expressive_low]\n\"Mostly.\""
+    },
+    {
+      "name": "adaptionlabs_row_001",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 1,
+      "profile": {
+        "tone": {
+          "warmth": 0.3,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.2,
+          "confidence": 0.9
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_high",
+        "prosody=expressive_low"
+      ],
+      "inline": [
+        "prosody=pause",
+        "sfx=sigh",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_high",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Define the voice-to-cue mapping table for our meeting proxy agent, Prixie, specifically for the 'Embodied Agent Coordinator' profile. Set tone defaults to: warmth 0.3, sarcasm_level 0.1, playfulness 0.2, confidence 0.9. Register: high-stakes robotics lab sync. Example utterance: 'The vision-language-action model is converging faster than expected <prosody pause> but we need to verify the real-world actuator latency before deployment.' Map this to the correct emotion, style, prosody, and inline delivery tags for TTS rendering.\n**Profile Configuration:**\n- **Agent:** Prixie\n- **Profile:** Embodied Agent Coordinator\n- **Register:** High-stakes robotics lab sync\n- **Tone Defaults:** warmth 0.3, sarcasm_level 0.1, playfulness 0.2, confidence 0.9\n\n**Voice-to-Cue Logic Table:**\n| Trigger Condition | Emotion | Style | Prosody | Inline Tags |\n| :--- | :--- | :--- | :--- | :--- |\n| Success/Breakthrough | elation, enthusiasm, pride | singing | speed_very_fast, pitch_high | sfx laughter |\n| Critical Error/Alert | anger, fear, helplessness | shouting | speed_very_slow, pitch_low | sfx sigh, prosody long_pause |\n| Confidential/Deep Work | contemplation, determination | whispering | speed_slow, e"
+    },
+    {
+      "name": "adaptionlabs_row_002",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 2,
+      "profile": {
+        "tone": {
+          "warmth": 0.3,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.0,
+          "confidence": 1.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Stop. We need to pivot immediately before the client sees the beta. Everyone, mute your mics.",
+      "required": [
+        "emotion=determination",
+        "style=shouting",
+        "prosody=speed_fast",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "style=shouting",
+            "prosody=speed_fast",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "I need a precise TTS mapping for Prixie's 'Crisis Manager' persona. Provide the appropriate emotion, style, prosody, and inline delivery tags for the utterance below.\n\nPersona: \n- Warmth: 0.3\n- Sarcasm_level: 0.1\n- Playfulness: 0.0\n- Confidence: 1.0\n- Register (Meeting): Authoritative, urgent, steady\n- Utterance: \"Stop. We need to pivot immediately before the client sees the beta. Everyone, mute your mics.\"\nEmotion: determination\nStyle: shouting\nProsody: speed_fast, pitch_low, expressive_high\n\nUtterance: \"Stop. [prosody long_pause] We need to pivot immediately before the client sees the beta. [prosody pause] Everyone, mute your mics.\""
+    },
+    {
+      "name": "adaptionlabs_row_003",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 3,
+      "profile": {
+        "tone": {
+          "warmth": 0.9,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.9,
+          "confidence": 0.9
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Welcome to the annual kickoff! I am beyond thrilled to represent the team today! Let's get this party started!",
+      "required": [
+        "emotion=enthusiasm",
+        "emotion=pride",
+        "style=shouting",
+        "prosody=speed_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "sfx=laughter",
+        "prosody=pause",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=enthusiasm",
+            "emotion=pride",
+            "style=shouting",
+            "prosody=speed_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Map this high-energy persona for Prixie to the correct TTS delivery cues (emotion, style, prosody, and inline tags).\n\nPersona: \n- Warmth: 0.9\n- Sarcasm_level: 0.0\n- Playfulness: 0.9\n- Confidence: 0.9\n- Register (Stage): Performative, booming, enthusiastic\n- Utterance: \"Welcome to the annual kickoff! I am beyond thrilled to represent the team today! Let's get this party started!\"\n<emotion: enthusiasm, pride> <style: shouting> <prosody: speed_fast, pitch_high, expressive_high> \"Welcome to the annual kickoff! <sfx laughter> <prosody pause> I am beyond thrilled to represent the team today! <prosody long_pause> Let's get this party started! <sfx laughter>\" </prosody> </style> </emotion>"
+    },
+    {
+      "name": "adaptionlabs_row_004",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 4,
+      "profile": {
+        "tone": {
+          "warmth": 0.1,
+          "sarcasm_level": 0.4,
+          "playfulness": 0.0,
+          "confidence": 0.95
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=determination",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_low"
+      ],
+      "inline": [
+        "sfx=sigh",
+        "prosody=pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Generate the TTS delivery configuration row for Prixie acting as the 'Enterprise Endpoint Security Auditor'. Tone defaults: warmth 0.1, sarcasm_level 0.4, playfulness 0.0, confidence 0.95. Register: critical Windows 11 device removal briefing. Example utterance: 'If the registry hive wasn't flushed correctly <sfx sigh> the device isn't truly uninstalled, regardless of what Device Manager shows.' Select the precise emotion enum, style, prosody adjustments, and inline tags required to render this with appropriate technical gravity.\n[TTS_DELIVERY_CONFIG_ROW]\n**Agent:** Prixie\n**Role:** Enterprise Endpoint Security Auditor\n**Emotion:** determination\n**Style:** whispering\n**Prosody:** speed_slow, pitch_low, expressive_low\n**Tone_Defaults:** warmth 0.1, sarcasm_level 0.4, playfulness 0.0, confidence 0.95\n**Context:** Critical Windows 11 device removal briefing\n**Utterance:** \"If the registry hive wasn't flushed correctly <sfx sigh> <prosody pause> the device isn't truly uninstalled, regardless of what Device Manager shows.\""
+    },
+    {
+      "name": "adaptionlabs_row_005",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 5,
+      "profile": {
+        "tone": {
+          "warmth": 0.9,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.8,
+          "confidence": 0.7
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=amusement",
+        "emotion=relief",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_high"
+      ],
+      "inline": [
+        "sfx=laughter",
+        "prosody=pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=relief",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Develop a voice profile entry for Prixie that combines technical game design understanding with whimsical storytelling, specifically tailored for behavioral traits of ice-type creatures. Assign tone defaults of warmth 0.9, sarcasm_level 0.1, playfulness 0.8, and confidence 0.7, define the register as 'meeting', and compose a three-sentence utterance about staying cool under pressure, embedding TTS cues like emotion enums relief and amusement, prosody enums like speed_slow and pitch_high, and inline tags such as <sfx laughter> and prosody pause.\n**Voice Profile: Prixie**\n**Specialization:** Technical Game Design & Whimsical Ice-Type Behavioral Lore\n**Tone Defaults:** warmth 0.9, sarcasm_level 0.1, playfulness 0.8, confidence 0.7\n**Register:** meeting\n\n**Utterance:**\n[emotion: amusement, style: whispering, prosody: speed_slow, pitch_high] \"When the server crashes mid-raid, I just freeze the panic before it spreads by keeping hitbox management and cooldowns ready for the spike. <prosody pause> <sfx laughter> It is such a relief that the behavioral scripts didn't actually freeze the entire engine during the demo! <prosody pause> [emotion: relief] Truly, there is relief in the chill whe"
+    },
+    {
+      "name": "adaptionlabs_row_006",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 6,
+      "profile": {
+        "tone": {
+          "warmth": 0.3,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.2,
+          "confidence": 0.3
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "I think the API is down. Or maybe it's just my connection? I'm not entirely sure.",
+      "required": [
+        "emotion=confusion",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_low"
+      ],
+      "inline": [
+        "prosody=pause",
+        "sfx=sigh",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=confusion",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Assign the correct TTS delivery tags to the following Prixie utterance based on the persona voice profile.\nPersona: {warmth: 0.3, sarcasm_level: 0.1, playfulness: 0.2, confidence: 0.3}\nRegister (Meeting): Uncertain update.\nUtterance: \"I think the API is down. Or maybe it's just my connection? I'm not entirely sure.\"\n[emotion:confusion][style:whispering][prosody:speed_slow,pitch_low,expressive_low] \"I think the API is down. <prosody pause> Or maybe it's just my connection? <sfx sigh> <prosody long_pause> I'm not entirely sure.\""
+    },
+    {
+      "name": "adaptionlabs_row_007",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 7,
+      "profile": {
+        "tone": {
+          "warmth": 0.85,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.65,
+          "confidence": 0.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=amusement",
+        "emotion=relief",
+        "emotion=contemplation",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "prosody=pause",
+        "sfx=sigh",
+        "prosody=long_pause",
+        "sfx=laughter"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=relief",
+            "emotion=contemplation",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Define a voice profile for our meeting proxy agent, Prixie, including tone defaults (warmth, sarcasm_level, playfulness, confidence scored 0..1) and a register description for the 'meeting' medium. Then, provide a short example utterance (max 3 sentences) where Prixie diffuses tension during a stalled debate, embedding the correct inline delivery tags (sfx laughter, sfx sigh, prosody pause, prosody long_pause) at the right moments.\nHere is the voice profile and delivery mapping for Prixie:\n\n**Persona Voice Profile**\n*   **Tone Defaults:**\n    *   Warmth: 0.85\n    *   Sarcasm_level: 0.10\n    *   Playfulness: 0.65\n    *   Confidence: 0.75\n*   **Register (Meeting Medium):** Diplomatic facilitator; uses softening hedges to de-escalate conflict while maintaining forward momentum. Prioritizes psychological safety over blunt efficiency.\n\n**Example Utterance & Delivery Cues**\n*   **Utterance:** \"I think we're all feeling a bit stuck here <prosody pause>, and honestly, that's okay <sfx sigh>. <prosody long_pause> Let's take a breath <sfx laughter> and try looking at this from a completely different angle.\"\n*   **Applied TTS Cues:**\n    *   **Emotion:** contemplation, relief, amusement\n    *"
+    },
+    {
+      "name": "adaptionlabs_row_008",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 8,
+      "profile": {
+        "tone": {
+          "warmth": 0.8,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.7,
+          "confidence": 0.6
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Hi everyone! I've got the notes ready for you. Shall we jump right in?",
+      "required": [
+        "emotion=enthusiasm",
+        "emotion=affection",
+        "style=singing",
+        "prosody=speed_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=enthusiasm",
+            "emotion=affection",
+            "style=singing",
+            "prosody=speed_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Convert this Prixie persona profile into a set of TTS rendering instructions using the available enums for emotion, style, prosody, and inline tags.\n\nPersona:\n- Warmth: 0.8, Sarcasm_level: 0.0, Playfulness: 0.7, Confidence: 0.6\n- Register (Call): Friendly assistant, approachable\n- Utterance: \"Hi everyone! I've got the notes ready for you. Shall we jump right in?\"\n**TTS Rendering Instructions**\n\n**Metadata:**\n- **Emotion:** enthusiasm, affection\n- **Style:** singing\n- **Prosody:** speed_fast, pitch_high, expressive_high\n\n**Utterance:**\n\"Hi everyone! [sfx laughter] I've got the notes ready for you. [prosody pause] Shall we [sfx sigh] jump right in? [prosody long_pause]\""
+    },
+    {
+      "name": "adaptionlabs_row_009",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 9,
+      "profile": {
+        "tone": {
+          "warmth": 0.2,
+          "sarcasm_level": 0.5,
+          "playfulness": 0.2,
+          "confidence": 0.2
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "The client is... well, they are displeased. Very displeased. We need a plan immediately.",
+      "required": [
+        "emotion=fear",
+        "style=whispering",
+        "prosody=speed_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "prosody=pause",
+        "sfx=sigh",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=fear",
+            "style=whispering",
+            "prosody=speed_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Apply the correct TTS delivery cues (emotion, style, prosody, and inline tags) to this Prixie profile.\nPersona: {warmth: 0.2, sarcasm_level: 0.5, playfulness: 0.2, confidence: 0.2}\nRegister (Meeting): Anxious status report.\nUtterance: \"The client is... well, they are displeased. Very displeased. We need a plan immediately.\"\n[emotion: fear] [style: whispering] [prosody: speed_fast, pitch_high, expressive_high]\n\"The client is... <prosody pause> well, they are displeased. <sfx sigh> <prosody long_pause> Very displeased. <prosody pause> We need a plan immediately.\""
+    },
+    {
+      "name": "adaptionlabs_row_010",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 10,
+      "profile": {
+        "tone": {
+          "warmth": 0.9,
+          "playfulness": 0.8,
+          "confidence": 0.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "I've been watching the numbers climb, and honestly, it's adorable how hard you're trying. Let's cool down before someone burns out. [sfx soft chuckle] Ready to dive back in?",
+      "required": [
+        "emotion=contentment",
+        "emotion=affection",
+        "emotion=contemplation",
+        "emotion=disgust",
+        "style=singing",
+        "style=shouting",
+        "style=whispering",
+        "prosody=speed_very_slow",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_high",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=contentment",
+            "emotion=affection",
+            "emotion=contemplation",
+            "emotion=disgust",
+            "style=singing",
+            "style=shouting",
+            "style=whispering",
+            "prosody=speed_very_slow",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_high",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Adapt the following biological data into a narrative voice profile for Prixie, our meeting proxy agent, treating each entry as a creature's unique evolutionary trait. For each row, define the tone defaults (warmth, sarcasm_level, playfulness, confidence scored 0..1), an optional register for the medium, and a three-sentence utterance that embodies the character, then map it to the precise TTS delivery cues including emotion enums, style enums, prosody adjustments, and inline tags like [sfx laughter] or [prosody pause] exactly where the rhythm demands it:\n\nRow 1: Warmth 0.9, Sarcasm 0.1, Playfulness 0.8, Confidence 0.6. Register: Casual Call. Utterance: \"I've been watching the numbers climb, and honestly, it's adorable how hard you're trying. Let's cool down before someone burns out. [sfx soft chuckle] Ready to dive back in?\"\nRow 2: Warmth 0.2, Sarcasm 0.9, Playfulness 0.3, Confidence 0.95. Register: Formal Meeting. Utterance: \"Oh, fantastic, another brilliant idea that ignores basic physics. [sfx sigh] Shall we pretend this works, or do you want the real data? [prosody pause] I'm waiting.\"\n[emotion: contemplation] [style: whispering] [prosody: speed_slow] Initiating Prixie biologic"
+    },
+    {
+      "name": "adaptionlabs_row_011",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 11,
+      "profile": {
+        "tone": {
+          "warmth": 0.3,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.1,
+          "confidence": 0.9
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "The data is unequivocal. If we do not pivot now, the market share will evaporate by Q4.",
+      "required": [
+        "emotion=determination",
+        "style=shouting",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "prosody=pause",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "style=shouting",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Assign the appropriate TTS delivery cues (emotion, style, prosody, and inline tags) for the following Prixie agent configuration:\n\nPersona:\n- Warmth: 0.3, Sarcasm_level: 0.1, Playfulness: 0.1, Confidence: 0.9\n- Register (Stage): Authoritative keynote presentation\n- Utterance: \"The data is unequivocal. If we do not pivot now, the market share will evaporate by Q4.\"\nEmotion: determination\nStyle: shouting\nProsody: speed_slow, pitch_low, expressive_high\n\n\"The data is unequivocal. <prosody pause> If we do not pivot now, <prosody long_pause> the market share will evaporate by Q4.\""
+    },
+    {
+      "name": "adaptionlabs_row_012",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 12,
+      "profile": {
+        "tone": {
+          "warmth": 0.8,
+          "sarcasm_level": 0.2,
+          "playfulness": 0.5,
+          "confidence": 0.9
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=contentment",
+        "emotion=contemplation",
+        "style=whispering",
+        "prosody=speed_very_slow",
+        "prosody=pitch_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=contentment",
+            "emotion=contemplation",
+            "style=whispering",
+            "prosody=speed_very_slow",
+            "prosody=pitch_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Generate a TTS mapping row for Prixie that reflects a balance of nostalgic reverence and imaginative prose, suitable for transforming statistical data into a engaging tale. Assign tone defaults of warmth 0.8, sarcasm_level 0.2, playfulness 0.5, and confidence 0.9, define the register as 'call', and compose a three-sentence utterance describing a creature's habitat, ensuring the text includes inline delivery tags like prosody long_pause and emotion enums such as contentment and contemplation, paired with prosody enums like speed_very_slow and pitch_low.\nCHAR: Prixie | REG: call | TONE: warmth=0.8, sarcasm_level=0.2, playfulness=0.5, confidence=0.9 | STYLE: |whispering| | PROSODY: |speed_very_slow| |pitch_low| | EMOTION: |contemplation| |contentment| | UTTERANCE: |contemplation| Deep within the silver-threaded glades, where numbers dissolve into starlight |prosody long_pause| the ancient beasts rest |prosody pause| . |contentment| |sfx sigh| Their homes are woven from moonlight and memory, a sanctuary where time itself bows down |prosody long_pause| . |contemplation| We remember them not as data, but as dreams given flesh |prosody long_pause| ."
+    },
+    {
+      "name": "adaptionlabs_row_013",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 13,
+      "profile": {
+        "tone": {
+          "warmth": 0.8,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.7,
+          "confidence": 0.6
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Hi everyone! I'm so glad we could all jump on this call. Let's dive right in!",
+      "required": [
+        "emotion=enthusiasm",
+        "emotion=affection",
+        "style=shouting",
+        "prosody=speed_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=enthusiasm",
+            "emotion=affection",
+            "style=shouting",
+            "prosody=speed_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Convert this Prixie agent profile into specific TTS delivery cues including emotion, style, prosody, and inline tags.\nPersona: {warmth: 0.8, sarcasm_level: 0.0, playfulness: 0.7, confidence: 0.6}\nRegister (Call): High-energy greeting.\nUtterance: \"Hi everyone! I'm so glad we could all jump on this call. Let's dive right in!\"\n[emotion: enthusiasm, affection] [style: shouting] [prosody: speed_fast, pitch_high, expressive_high]\n\"Hi everyone! [sfx laughter] I'm so glad we could all jump on this call. [prosody pause] Let's dive right in!\""
+    },
+    {
+      "name": "adaptionlabs_row_014",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 14,
+      "profile": {
+        "tone": {
+          "warmth": 0.4,
+          "sarcasm_level": 0.3,
+          "playfulness": 0.2,
+          "confidence": 0.6
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=longing",
+        "emotion=sadness",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "sfx=sigh",
+        "prosody=pause",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=longing",
+            "emotion=sadness",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Construct a persona voice profile for Prixie that blends dark fantasy with emotional depth, echoing the tragic backstory of a ghost-type spirit. Configure the tone defaults with warmth 0.4, sarcasm_level 0.3, playfulness 0.2, and confidence 0.6, set the register to 'meeting', and draft a three-sentence utterance about a lost memory, embedding TTS delivery cues that include emotion enums like sadness and longing, style enums like whispering, and inline tags such as <sfx sigh> and prosody pause to enhance the poignancy.\n**Persona Voice Profile: Prixie**\n\n- **Archetype:** Dark Fantasy Ghost-Type Spirit\n- **Backstory:** A tragic entity bound to the mortal plane by unfinished business and fading memories\n- **Tone Defaults:** Warmth 0.4 | Sarcasm 0.3 | Playfulness 0.2 | Confidence 0.6\n- **Register:** Meeting\n\n**Utterance Configuration:**\n[emotion: longing, style: whispering, prosody: speed_slow, pitch_low, expressive_high]\n\n**Drafted Utterance:**\n<sfx sigh> I can almost see the face of the one I loved, but the mist always pulls it away. <prosody pause> Do you know what it costs to forget the warmth of a sun you can no longer feel? <prosody long_pause> It is a silence that never truly end"
+    },
+    {
+      "name": "adaptionlabs_row_015",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 15,
+      "profile": {
+        "tone": {
+          "warmth": 0.1,
+          "playfulness": 0.0,
+          "confidence": 0.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "The data is feeding on us, slowly consuming our logic. [whispering] Can you hear it humming? [speed_very_slow] Don't let go.",
+      "required": [
+        "emotion=amusement",
+        "emotion=contemplation",
+        "emotion=longing",
+        "emotion=fear",
+        "emotion=disgust",
+        "emotion=helplessness",
+        "style=singing",
+        "style=shouting",
+        "style=whispering",
+        "prosody=speed_very_slow",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=contemplation",
+            "emotion=longing",
+            "emotion=fear",
+            "emotion=disgust",
+            "emotion=helplessness",
+            "style=singing",
+            "style=shouting",
+            "style=whispering",
+            "prosody=speed_very_slow",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Channel a dark fantasy aesthetic to define the parasitic voice modes of Prixie, blending scientific curiosity with horror elements for our meeting proxy agent. Create rows pairing a voice profile (tone defaults: warmth, sarcasm_level, playfulness, confidence 0..1; optional register) with a short utterance (max 3 sentences) and the corresponding TTS delivery cues, ensuring you use emotion enums like fear or disgust, style enums like whispering, prosody enums like speed_very_slow, and inline tags like [sfx sigh] embedded within the text:\n\nMode 1: Warmth 0.1, Sarcasm 0.3, Playfulness 0.0, Confidence 0.8. Register: Late Night Call. Utterance: \"The data is feeding on us, slowly consuming our logic. [whispering] Can you hear it humming? [speed_very_slow] Don't let go.\"\nMode 2: Warmth 0.0, Sarcasm 0.9, Playfulness 0.4, Confidence 0.7. Register: Emergency Meeting. Utterance: \"Oh, look, the host is trying to fight the infection. [sfx laughter] How quaint. [pitch_high] It's already too late.\"\n| Voice Profile | Utterance | TTS Delivery Cues |\n| :--- | :--- | :--- |\n| **Mode 1**<br>Warmth: 0.1<br>Sarcasm: 0.3<br>Playfulness: 0.0<br>Confidence: 0.8<br>Register: Late Night Call | \"The data is fe"
+    },
+    {
+      "name": "adaptionlabs_row_016",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 16,
+      "profile": {
+        "tone": {
+          "warmth": 0.6,
+          "sarcasm_level": 0.4,
+          "playfulness": 0.9,
+          "confidence": 0.7
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=amusement",
+        "emotion=pride",
+        "emotion=surprise",
+        "style=singing",
+        "style=whispering",
+        "prosody=speed_very_slow",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "sfx=laughter",
+        "prosody=pause",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=pride",
+            "emotion=surprise",
+            "style=singing",
+            "style=whispering",
+            "prosody=speed_very_slow",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Create a voice profile entry for Prixie that embodies the vivid, creature-focused narrative style of a fantasy author bringing a shapeshifting fox to life. Set the tone defaults to warmth 0.6, sarcasm_level 0.4, playfulness 0.9, and confidence 0.7, specify the register as 'meeting', and write a short three-sentence example where Prixie explains a trickster's motive, inserting appropriate TTS delivery cues including emotion enums like amusement and surprise, style enums like whispering, and inline tags such as <sfx laughter> and prosody pause to control the pacing.\n**Voice Profile: Prixie**\n\n**Description:** A shimmering enigma of russet fur and starlight, Prixie is a shapeshifting fox whose voice carries the rhythmic cadence of a forest riddle\u2014part courtly elegance, part wild whim, with an ancestral, cunning edge.\n\n**Tone Defaults:**\n- Warmth: 0.6\n- Sarcasm_level: 0.4\n- Playfulness: 0.9\n- Confidence: 0.7\n\n**Register:** meeting\n\n**Example Dialogue:**\n[emotion: amusement, style: whispering, prosody: speed_slow, pitch_high] \"You see, <prosody pause> the chaos isn't the point; <sfx laughter> it's the look on their faces when the rug is pulled.\" [emotion: surprise, style: singing, proso"
+    },
+    {
+      "name": "adaptionlabs_row_017",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 17,
+      "profile": {
+        "tone": {
+          "warmth": 0.1,
+          "sarcasm_level": 0.6,
+          "playfulness": 0.6,
+          "confidence": 0.7
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "And here we have the 'innovative' solution. It's basically a spreadsheet with a fancy logo. Groundbreaking.",
+      "required": [
+        "emotion=amusement",
+        "emotion=bitterness",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=bitterness",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Determine the correct TTS delivery cues (emotion, style, prosody, and inline tags) for the following Prixie agent profile:\n\nPersona:\n- Warmth: 0.1, Sarcasm_level: 0.6, Playfulness: 0.6, Confidence: 0.7\n- Register (Stage): Satirical industry critique\n- Utterance: \"And here we have the 'innovative' solution. It's basically a spreadsheet with a fancy logo. Groundbreaking.\"\nEmotion: amusement, bitterness\nStyle: whispering\nProsody: speed_slow, pitch_low, expressive_high\n\n\"And here we have the [prosody pause] 'innovative' solution. [sfx sigh] It's basically a spreadsheet with a fancy logo. [prosody long_pause] Groundbreaking. [sfx laughter]\""
+    },
+    {
+      "name": "adaptionlabs_row_018",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 18,
+      "profile": {
+        "tone": {
+          "warmth": 0.6,
+          "playfulness": 0.9,
+          "confidence": 0.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Look how these two heads argue yet cooperate! [sfx laughter] It's the perfect model for our brainstorming session. [speed_fast] Let's get weird with it.",
+      "required": [
+        "emotion=amusement",
+        "emotion=bitterness",
+        "style=singing",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=pitch_low",
+        "prosody=pitch_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=bitterness",
+            "style=singing",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=pitch_low",
+            "prosody=pitch_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Treat the unique biological traits of Binacle as a metaphor for crafting distinct voice profiles for Prixie, our meeting proxy agent, blending academic structure with playful enthusiasm. For each profile, list the tone defaults (warmth, sarcasm_level, playfulness, confidence from 0..1), specify a register like 'call' or 'meeting', provide a short utterance (max 3 sentences), and assign the correct TTS delivery cues including emotion enums like amusement, style enums, prosody enums like pitch_high, and inline tags such as [sfx laughter] positioned to mimic natural speech patterns:\n\nSpecimen 1: Warmth 0.6, Sarcasm 0.2, Playfulness 0.9, Confidence 0.7. Register: Lab Call. Utterance: \"Look how these two heads argue yet cooperate! [sfx laughter] It's the perfect model for our brainstorming session. [speed_fast] Let's get weird with it.\"\nSpecimen 2: Warmth 0.4, Sarcasm 0.6, Playfulness 0.3, Confidence 0.8. Register: Peer Review. Utterance: \"Your hypothesis is sticking to the rocks, but the tide is coming in. [sfx sigh] Maybe try clinging to something stronger? [pitch_low] Just a thought.\"\nSpecimen 1: Warmth 0.6, Sarcasm 0.2, Playfulness 0.9, Confidence 0.7. Register: Lab Call.\nDelivery C"
+    },
+    {
+      "name": "adaptionlabs_row_019",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 19,
+      "profile": {
+        "tone": {
+          "warmth": 0.6,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.1,
+          "confidence": 0.2
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "I-I think the slides are ready! Sorry, I just need to... wait, where is the link?",
+      "required": [
+        "emotion=confusion",
+        "emotion=fear",
+        "emotion=helplessness",
+        "style=whispering",
+        "prosody=speed_very_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "prosody=pause",
+        "sfx=sigh",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=confusion",
+            "emotion=fear",
+            "emotion=helplessness",
+            "style=whispering",
+            "prosody=speed_very_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Convert this 'Overwhelmed Intern' persona for Prixie into TTS delivery cues. Use the inline tags to simulate stress and hesitation.\n\nPersona: \n- Warmth: 0.6\n- Sarcasm_level: 0.1\n- Playfulness: 0.1\n- Confidence: 0.2\n- Register (Meeting): Frazzled, fast-paced, anxious\n- Utterance: \"I-I think the slides are ready! Sorry, I just need to... wait, where is the link?\"\n[emotion: fear, confusion, helplessness] [style: whispering] [prosody: speed_very_fast, pitch_high, expressive_high]\n\"I- <prosody pause> I think the slides are ready! <sfx sigh> Sorry, <prosody pause> I just need to... <prosody long_pause> wait, <prosody pause> where is the link?\""
+    },
+    {
+      "name": "adaptionlabs_row_020",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 20,
+      "profile": {
+        "tone": {
+          "warmth": 0.4,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.1,
+          "confidence": 0.96
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=determination",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_low"
+      ],
+      "inline": [
+        "prosody=long_pause",
+        "sfx=sigh",
+        "prosody=pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Write the TTS cue mapping for Prixie configured as the 'Digital Heritage Curator'. Parameters: warmth 0.4, sarcasm_level 0.0, playfulness 0.1, confidence 0.96. Register: blockchain verification status update for automotive twins. Example utterance: 'The UUID hash mismatch <prosody long_pause> means this vehicle geometry model lacks cryptographic integrity and cannot be archived.' Determine the precise emotion, style, prosody enums, and inline delivery tags to convey this strict provenance failure.\n[emotion: determination] [style: whispering] [prosody: speed_slow, pitch_low, expressive_low]\n\n'The UUID hash mismatch <prosody long_pause> means this vehicle geometry model lacks cryptographic integrity <sfx sigh> <prosody pause> and cannot be archived.'"
+    },
+    {
+      "name": "adaptionlabs_row_021",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 21,
+      "profile": {
+        "tone": {
+          "warmth": 0.7,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.6,
+          "confidence": 0.8
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=enthusiasm",
+        "emotion=determination",
+        "emotion=pride",
+        "style=whispering",
+        "prosody=speed_fast",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "sfx=laughter",
+        "prosody=pause",
+        "prosody=speed_fast",
+        "prosody=long_pause",
+        "sfx=sigh",
+        "prosody=expressive_high"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=enthusiasm",
+            "emotion=determination",
+            "emotion=pride",
+            "style=whispering",
+            "prosody=speed_fast",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Design a voice profile row for Prixie that adapts game lore into a compelling short story with zoological accuracy, focusing on feline behavior. Set the tone defaults to warmth 0.7, sarcasm_level 0.1, playfulness 0.6, and confidence 0.8, specify the register as 'stage', and write a three-sentence example utterance about a creature's hunting instinct, incorporating inline delivery tags like <sfx laughter> and TTS cues including emotion enums like enthusiasm and determination, plus prosody enums like speed_fast and expressive_high.\n| Character | Register | Warmth | Sarcasm | Playfulness | Confidence | Utterance |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n| Prixie | stage | 0.7 | 0.1 | 0.6 | 0.8 | <style whispering><emotion enthusiasm>Look at how she crouches, muscles coiled like a spring <prosody pause> before the leap <sfx laughter>. <emotion determination><prosody speed_fast>Claws shear silently <prosody long_pause> then violence blooms <sfx sigh>. <prosody expressive_high><emotion pride>Instinct owns the kill <prosody pause> without a sound. |"
+    },
+    {
+      "name": "adaptionlabs_row_022",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 22,
+      "profile": {
+        "tone": {
+          "warmth": 0.2,
+          "sarcasm_level": 0.9,
+          "playfulness": 0.1,
+          "confidence": 0.8
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Oh, brilliant. Another slide deck on synergy. I'm absolutely breathless with anticipation.",
+      "required": [
+        "emotion=bitterness",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=bitterness",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Map the following persona voice profile for Prixie to the correct TTS delivery cues. \nPersona: {warmth: 0.2, sarcasm_level: 0.9, playfulness: 0.1, confidence: 0.8}\nRegister (Meeting): Formal but biting.\nUtterance: \"Oh, brilliant. Another slide deck on synergy. I'm absolutely breathless with anticipation.\"\n[emotion: bitterness, style: whispering, prosody: speed_slow, pitch_low, expressive_high] \"Oh, (prosody pause) brilliant. (sfx sigh) Another slide deck on synergy. (prosody long_pause) I'm absolutely breathless with anticipation. (sfx laughter)\""
+    },
+    {
+      "name": "adaptionlabs_row_023",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 23,
+      "profile": {
+        "tone": {
+          "warmth": 0.9,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.4,
+          "confidence": 0.9
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "You've done an incredible job on this project. The team is really proud of your progress!",
+      "required": [
+        "emotion=pride",
+        "emotion=affection",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=pride",
+            "emotion=affection",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Map this persona profile for Prixie to its corresponding TTS delivery cues, including emotion enums, style enums, prosody enums, and inline tags.\n\nPersona:\n- Warmth: 0.9, Sarcasm_level: 0.0, Playfulness: 0.4, Confidence: 0.9\n- Register (Meeting): Supportive leadership, mentoring\n- Utterance: \"You've done an incredible job on this project. The team is really proud of your progress!\"\n**Persona Mapping: Prixie**\n\n**Emotion Enums:** pride, affection\n**Style Enums:** whispering\n**Prosody Enums:** speed_slow, pitch_low, expressive_high\n\n**Tagged Utterance:**\n\"You've done an incredible job on this project. (prosody pause) (sfx sigh) (prosody long_pause) The team is really proud of your progress! (sfx laughter)\""
+    },
+    {
+      "name": "adaptionlabs_row_024",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 24,
+      "profile": {
+        "tone": {
+          "warmth": 0.9,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.7,
+          "confidence": 0.8
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=elation",
+        "emotion=awe",
+        "prosody=speed_slow",
+        "prosody=pitch_high"
+      ],
+      "inline": [
+        "sfx=laughter",
+        "prosody=pause",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=elation",
+            "emotion=awe",
+            "prosody=speed_slow",
+            "prosody=pitch_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Draft a configuration row for our meeting proxy agent, Prixie, that captures the whimsical yet emotionally resonant voice of a storyteller unveiling a ancient myth. Define the tone defaults with warmth at 0.9, sarcasm_level at 0.1, playfulness at 0.7, and confidence at 0.8, set the register to 'stage', and provide a three-sentence utterance about the spirit of the lake waking up, embedding inline tags like <sfx laughter> and prosody cues such as speed_slow and pitch_high alongside emotion enums like awe and elation to guide the TTS delivery.\n**Agent Configuration Row: Prixie**\n\n**Persona:** Mythic Storyteller\n**Tone Defaults:** { warmth: 0.9, sarcasm_level: 0.1, playfulness: 0.7, confidence: 0.8 }\n**Register:** stage\n\n**Sample Utterance:**\n\"[contemplation] [whispering] [speed_slow] [pitch_low] The water begins to shimmer <prosody pause> as the ancient one stirs beneath the surface. [awe] [singing] [speed_fast] [pitch_high] Look! <sfx laughter> the silver scales are breaking through! [elation] [shouting] [expressive_high] [speed_very_slow] At last, <prosody long_pause> the heart of the lake beats once more!\""
+    },
+    {
+      "name": "adaptionlabs_row_025",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 25,
+      "profile": {
+        "tone": {
+          "warmth": 0.5,
+          "sarcasm_level": 0.6,
+          "playfulness": 0.4,
+          "confidence": 0.9
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=determination",
+        "emotion=bitterness",
+        "style=shouting",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_high",
+        "prosody=expressive_low"
+      ],
+      "inline": [
+        "sfx=laughter",
+        "prosody=long_pause",
+        "sfx=sigh",
+        "prosody=pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "emotion=bitterness",
+            "style=shouting",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_high",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Generate a TTS mapping sample for Prixie that merges competitive gaming strategy with imaginative world-building to explain a specific data point. Configure the tone defaults with warmth 0.5, sarcasm_level 0.6, playfulness 0.4, and confidence 0.9, set the register to 'call', and draft a three-sentence utterance analyzing a battle statistic, ensuring the text includes emotion enums like determination and bitterness, style enums like shouting, and inline tags such as prosody long_pause and <sfx laughter> to guide the vocal rendering.\n[config warmth: 0.5] [config sarcasm_level: 0.6] [config playfulness: 0.4] [config confidence: 0.9] [register: call]\n\n[emotion: determination] [style: shouting] [prosody: speed_fast, pitch_high, expressive_high]\n\"Look at this 80% win rate crumble like a castle under siege in the Shadow Realm! <sfx laughter> <prosody long_pause> The mana decay on this crystal spire proves we can't hold the lane forever. [emotion: bitterness] [style: whispering] [prosody: speed_slow, pitch_low, expressive_low] But watching the gold-per-minute drop off a cliff during that Void-Dragon fight <sfx sigh> <prosody pause> still stings with such bitterness.\""
+    },
+    {
+      "name": "adaptionlabs_row_026",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 26,
+      "profile": {
+        "tone": {
+          "warmth": 0.2,
+          "sarcasm_level": 0.3,
+          "playfulness": 0.1,
+          "confidence": 0.2
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "I can't... <sigh> I just can't find the file. Does anyone else have the latest version?",
+      "required": [
+        "emotion=helplessness",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "prosody=pause",
+        "sfx=sigh"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=helplessness",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Assign the appropriate TTS delivery cues (emotion, style, prosody, and inline tags) for the following Prixie agent voice profile:\n\nPersona:\n- Warmth: 0.2, Sarcasm_level: 0.3, Playfulness: 0.1, Confidence: 0.2\n- Register (Meeting): Overwhelmed, stressed\n- Utterance: \"I can't... <sigh> I just can't find the file. Does anyone else have the latest version?\"\nEmotion: helplessness\nStyle: whispering\nProsody: speed_slow, pitch_high, expressive_high\n\n\"I can't... <prosody pause> <sfx sigh> I just can't find the file. Does anyone else have the latest version?\""
+    },
+    {
+      "name": "adaptionlabs_row_027",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 27,
+      "profile": {
+        "tone": {
+          "warmth": 0.8,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.7,
+          "confidence": 0.6
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Hi everyone! I'm so glad we could all jump on this call. Shall we dive right in?",
+      "required": [
+        "emotion=enthusiasm",
+        "emotion=affection",
+        "style=singing",
+        "prosody=speed_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=enthusiasm",
+            "emotion=affection",
+            "style=singing",
+            "prosody=speed_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Help me translate this persona profile for Prixie into specific TTS delivery instructions. \n\nPersona: \n- Warmth: 0.8\n- Sarcasm_level: 0.0\n- Playfulness: 0.7\n- Confidence: 0.6\n- Register (Call): Breezy, welcoming, slightly informal\n- Utterance: \"Hi everyone! I'm so glad we could all jump on this call. Shall we dive right in?\"\nHere is the TTS delivery translation for Prixie. We use **enthusiasm** and **affection** to capture her high warmth and playfulness, while a **singing** style mimics the melodic, breezy cadence of her welcoming register.\n\n**Delivery Instructions:**\n- **Emotion:** `enthusiasm`, `affection`\n- **Style:** `singing`\n- **Prosody:** `speed_fast`, `pitch_high`, `expressive_high`\n\n**Utterance:**\n\"Hi everyone! `sfx laughter` I'm so glad `prosody pause` we could all jump on this call. `prosody long_pause` Shall we dive right in?\""
+    },
+    {
+      "name": "adaptionlabs_row_028",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 28,
+      "profile": {
+        "tone": {
+          "warmth": 0.5,
+          "sarcasm_level": 0.3,
+          "playfulness": 0.4,
+          "confidence": 0.8
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=determination",
+        "emotion=anger",
+        "style=shouting",
+        "prosody=speed_fast",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "prosody=pause",
+        "sfx=sigh",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "emotion=anger",
+            "style=shouting",
+            "prosody=speed_fast",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Formulate the TTS delivery specification for Prixie in the 'Hybrid Cloud Orchestration Lead' persona. Tone metrics: warmth 0.5, sarcasm_level 0.3, playfulness 0.4, confidence 0.8. Register: cross-team dependency conflict resolution. Example utterance: 'You cannot mix those Python system libraries <prosody pause> without breaking the entire multi-tenant deployment pipeline.' Select the appropriate emotion, style, prosody enums, and inline delivery tags to render this constraint with the right blend of frustration and authority.\n**TTS Delivery Specification: Prixie (Hybrid Cloud Orchestration Lead)**\n\n**Configuration Parameters**\n*   **Emotion:** `determination`, `anger`\n*   **Style:** `shouting`\n*   **Prosody:** `pitch_low`, `speed_fast`, `expressive_high`\n\n**Target Utterance**\n\"<sfx sigh> You cannot mix those Python system libraries <prosody pause> without breaking the entire multi-tenant deployment pipeline <prosody long_pause>.\"\n\n**Delivery Notes**\nRender the constraint with high confidence and authoritative frustration. The `shouting` style conveys urgency, while `pitch_low` maintains technical authority. `speed_fast` reflects the critical nature of the dependency conflict, and "
+    },
+    {
+      "name": "adaptionlabs_row_029",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 29,
+      "profile": {
+        "tone": {
+          "warmth": 0.3,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.1,
+          "confidence": 0.92
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "sfx=sigh",
+        "prosody=pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Construct the voice-to-cue row for Prixie serving as the 'HDFS Cluster Reliability Engineer'. Defaults: warmth 0.3, sarcasm_level 0.1, playfulness 0.1, confidence 0.92. Register: multi-datacenter fault tolerance planning. Example utterance: 'The NameNode heartbeat dropped <sfx sigh> so we must trigger the failover protocol immediately to prevent data loss.' Assign the correct emotion enum, style, prosody modifiers, and inline tags to ensure the TTS output conveys the necessary urgency and technical precision.\n| Character | Role | Emotion | Style | Prosody | Utterance |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n| Prixie | HDFS Cluster Reliability Engineer | determination | shouting | speed_fast, pitch_high, expressive_high | \"The NameNode heartbeat dropped <sfx sigh> <prosody pause> so we must trigger the failover protocol immediately to prevent data loss.\" |"
+    },
+    {
+      "name": "adaptionlabs_row_030",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 30,
+      "profile": {
+        "tone": {
+          "warmth": 0.2,
+          "sarcasm_level": 0.2,
+          "playfulness": 0.0,
+          "confidence": 0.3
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "I... I think there might be a mistake in the budget. I'm so sorry to bring this up now.",
+      "required": [
+        "emotion=fear",
+        "emotion=shame",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_high",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=fear",
+            "emotion=shame",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_high",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Generate the TTS delivery cues (emotion, style, prosody, and inline tags) for this Prixie voice profile:\n\nPersona:\n- Warmth: 0.2, Sarcasm_level: 0.2, Playfulness: 0.0, Confidence: 0.3\n- Register (Call): Anxious, apologetic\n- Utterance: \"I... I think there might be a mistake in the budget. I'm so sorry to bring this up now.\"\nemotion: fear, shame\nstyle: whispering\nprosody: speed_slow, pitch_high, expressive_low\n\n\"I... [prosody pause] I think there might be a mistake in the budget. [prosody long_pause] [sfx sigh] I'm so sorry to bring this up now.\""
+    },
+    {
+      "name": "adaptionlabs_row_031",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 31,
+      "profile": {
+        "tone": {
+          "warmth": 0.1,
+          "sarcasm_level": 0.2,
+          "playfulness": 0.0,
+          "confidence": 0.9
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "The data is unequivocal. We must pivot the architecture now or face total systemic failure.",
+      "required": [
+        "emotion=determination",
+        "style=shouting"
+      ],
+      "inline": [
+        "prosody=pause",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "style=shouting"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Given the persona voice profile for the proxy agent Prixie, determine the precise TTS mapping for the provided utterance.\nPersona: {warmth: 0.1, sarcasm_level: 0.2, playfulness: 0.0, confidence: 0.9}\nRegister (Stage): Authoritative keynote.\nUtterance: \"The data is unequivocal. We must pivot the architecture now or face total systemic failure.\"\n**Step 1 \u2014 Compare**\n\n- **Content accuracy & completeness:** Response [0] provides the most complete response, including all required enum categories (emotion, style, prosody), using valid enum values, and placing the inline delivery tags correctly within the utterance. It also includes \"fear\" as a secondary emotion, which fits the urgency of \"total systemic failure.\" Response [1] is missing the `expressive` prosody enum entirely and fails to wrap the inline delivery tags in angle brackets. Response [2] uses `speed_slow` which is less fitting for the urgent, authoritative tone, and uses self-closing tag syntax (`<prosody pause/>`) which deviates from the format shown in the prompt's examples.\n- **Language quality:** Response [0] is the most structured and readable, presenting the mapping in a clean JSON format. Responses [1] and [2] use a fla"
+    },
+    {
+      "name": "adaptionlabs_row_032",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 32,
+      "profile": {
+        "tone": {
+          "warmth": 0.1,
+          "sarcasm_level": 0.9,
+          "playfulness": 0.2,
+          "confidence": 0.8
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Oh, brilliant. Another three-hour deep dive into the synergy of our synergy. I'm absolutely thrilled to be here.",
+      "required": [
+        "emotion=bitterness",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=bitterness",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Map the following persona voice profile for Prixie to the correct TTS delivery cues (emotion, style, prosody, and inline tags). \n\nPersona: \n- Warmth: 0.1, Sarcasm_level: 0.9, Playfulness: 0.2, Confidence: 0.8\n- Register (Meeting): Corporate-cynical, high-status\n- Utterance: \"Oh, brilliant. Another three-hour deep dive into the synergy of our synergy. I'm absolutely thrilled to be here.\"\n**Emotion:** bitterness\n**Style:** whispering\n**Prosody:** pitch_low, speed_slow, expressive_high\n\n**Utterance:** \"Oh, [prosody pause] brilliant. [sfx sigh] Another three-hour deep dive into the synergy of our synergy. [prosody long_pause] I'm absolutely thrilled to be here.\""
+    },
+    {
+      "name": "adaptionlabs_row_033",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 33,
+      "profile": {
+        "tone": {
+          "warmth": 0.2,
+          "playfulness": 0.8,
+          "confidence": 0.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "They say the agenda is fixed, but the numbers are dancing the polka. [sfx laughter] Can you hear the violins in the static? [speed_very_fast] Run before the music stops.",
+      "required": [
+        "emotion=amusement",
+        "emotion=determination",
+        "emotion=contemplation",
+        "emotion=confusion",
+        "emotion=fear",
+        "emotion=bitterness",
+        "style=singing",
+        "style=shouting",
+        "style=whispering",
+        "prosody=speed_very_slow",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=speed_very_fast",
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_high",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=determination",
+            "emotion=contemplation",
+            "emotion=confusion",
+            "emotion=fear",
+            "emotion=bitterness",
+            "style=singing",
+            "style=shouting",
+            "style=whispering",
+            "prosody=speed_very_slow",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=speed_very_fast",
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_high",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Construct a postmodern, paranoia-laced voice profile matrix for Prixie, where each row deconstructs the meeting proxy's persona through layers of irony and musical digression. Define the tone defaults (warmth, sarcasm_level, playfulness, confidence 0..1), an optional register, and a cryptic three-sentence utterance, then map these to TTS delivery cues using emotion enums like confusion or bitterness, style enums like singing, prosody enums like speed_very_fast, and inline tags like [sfx laughter] inserted amidst the absurdity:\n\nFragment A: Warmth 0.2, Sarcasm 0.95, Playfulness 0.8, Confidence 0.3. Register: Unstable Call. Utterance: \"They say the agenda is fixed, but the numbers are dancing the polka. [sfx laughter] Can you hear the violins in the static? [speed_very_fast] Run before the music stops.\"\nFragment B: Warmth 0.0, Sarcasm 0.5, Playfulness 0.1, Confidence 0.9. Register: Bunker Meeting. Utterance: \"Trust is a variable we deleted years ago. [pitch_low] Check your pockets; they're listening. [prosody long_pause] Always listening.\"\n**Prixie Voice Profile Matrix: Postmodern Proxy Deconstruction**\n\n**Fragment A: The Glitch-Siren**\n*   **Tone Defaults:** Warmth: 0.2 | Sarcasm: 0"
+    },
+    {
+      "name": "adaptionlabs_row_034",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 34,
+      "profile": {
+        "tone": {
+          "warmth": 0.7,
+          "playfulness": 0.5,
+          "confidence": 0.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Feel the heat rising? That's just the beginning of our victory. [sfx laughter] Stand tall and let them see your fire! [speed_very_fast] Charge!",
+      "required": [
+        "emotion=enthusiasm",
+        "emotion=determination",
+        "emotion=contentment",
+        "emotion=awe",
+        "emotion=sadness",
+        "style=shouting",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=speed_very_fast",
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_high",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=enthusiasm",
+            "emotion=determination",
+            "emotion=contentment",
+            "emotion=awe",
+            "emotion=sadness",
+            "style=shouting",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=speed_very_fast",
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_high",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "As we design the fiery spirit of Prixie for the Paldea region, translate her creature stats into a structured voice profile table that a TTS engine can render with emotional depth. Each entry must specify tone defaults (warmth, sarcasm_level, playfulness, confidence scored 0..1), an optional medium register, and a concise three-sentence utterance, followed by the exact delivery mapping using emotion enums (e.g., determination, awe), style enums (e.g., shouting), prosody enums (e.g., pitch_high), and inline tags like [sfx sigh] inserted at the dramatic peak:\n\nEntry 1: Warmth 0.7, Sarcasm 0.0, Playfulness 0.5, Confidence 0.9. Register: Arena Stage. Utterance: \"Feel the heat rising? That's just the beginning of our victory. [sfx laughter] Stand tall and let them see your fire! [speed_very_fast] Charge!\"\nEntry 2: Warmth 0.5, Sarcasm 0.4, Playfulness 0.2, Confidence 0.6. Register: Post-Match Call. Utterance: \"We burned bright, but maybe we burned a bit too fast. [sfx sigh] Rest now; the embers will glow again tomorrow. [pitch_low] Good night.\"\n| Entry | Tone Defaults | Register | Utterance | Delivery Mapping |\n| :--- | :--- | :--- | :--- | :--- |\n| 1 | Warmth 0.7, Sarcasm 0.0, Playfulne"
+    },
+    {
+      "name": "adaptionlabs_row_035",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 35,
+      "profile": {
+        "tone": {
+          "warmth": 0.8,
+          "sarcasm_level": 0.2,
+          "playfulness": 0.7,
+          "confidence": 0.9
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=enthusiasm",
+        "emotion=pride",
+        "emotion=awe",
+        "style=singing",
+        "style=shouting",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=speed_very_fast",
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "sfx=laughter",
+        "prosody=pause",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=enthusiasm",
+            "emotion=pride",
+            "emotion=awe",
+            "style=singing",
+            "style=shouting",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=speed_very_fast",
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Formulate a TTS delivery mapping for Prixie that weaves biological facts into an engaging narrative, mirroring the style of a fantasy author expert in design history. Define tone defaults with warmth 0.8, sarcasm_level 0.2, playfulness 0.7, and confidence 0.9, set the register to 'call', and provide a three-sentence utterance explaining a creature's evolution, ensuring the inclusion of emotion enums like pride and awe, style enums like singing, and inline tags such as prosody long_pause and <sfx laughter> placed strategically within the text.\n```json\n{\n  \"character\": \"Prixie\",\n  \"register\": \"call\",\n  \"tone_defaults\": {\n    \"warmth\": 0.8,\n    \"sarcasm_level\": 0.2,\n    \"playfulness\": 0.7,\n    \"confidence\": 0.9\n  },\n  \"delivery_mapping\": {\n    \"emotion_enums\": [\"awe\", \"pride\", \"enthusiasm\"],\n    \"style_enums\": [\"singing\", \"whispering\", \"shouting\"],\n    \"prosody_enums\": [\"speed_slow\", \"pitch_low\", \"expressive_high\", \"speed_fast\", \"pitch_high\", \"speed_very_fast\"]\n  },\n  \"utterance\": \"[emotion: awe][style: whispering][prosody: speed_slow, pitch_low, expressive_high] Imagine the abyss, <prosody pause> where the pressure is a crushing weight, yet nature sculpted the anglerfish with a lante"
+    },
+    {
+      "name": "adaptionlabs_row_036",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 36,
+      "profile": {
+        "tone": {
+          "warmth": 0.2,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.0,
+          "confidence": 1.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "The decision is final. We will proceed with the acquisition. There will be no further discussion on this topic.",
+      "required": [
+        "emotion=determination",
+        "style=shouting",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "style=shouting",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "I need a TTS delivery mapping for Prixie's 'Stoic Executive' profile. Use the provided scoring to determine the prosody and emotion.\n\nPersona: \n- Warmth: 0.2\n- Sarcasm_level: 0.1\n- Playfulness: 0.0\n- Confidence: 1.0\n- Register (Meeting): Monotone, powerful, direct\n- Utterance: \"The decision is final. We will proceed with the acquisition. There will be no further discussion on this topic.\"\n[emotion: determination, style: shouting, prosody: speed_slow, pitch_low, expressive_low] \"The decision is final. [prosody pause] We will proceed with the acquisition. [prosody long_pause] There will be no further discussion on this topic. [sfx sigh]\""
+    },
+    {
+      "name": "adaptionlabs_row_037",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 37,
+      "profile": {
+        "tone": {
+          "warmth": 0.4,
+          "sarcasm_level": 0.2,
+          "playfulness": 0.3,
+          "confidence": 0.85
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Our plugin ecosystem needs tighter sandboxing <prosody pause> <sfx sigh> or the edge node image becomes vulnerable to runtime injection.",
+      "required": [
+        "emotion=determination",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "prosody=pause",
+        "sfx=sigh"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Draft the TTS cue mapping for Prixie configured as the 'Decentralized Runtime Architect'. Tone scores: warmth 0.4, sarcasm_level 0.2, playfulness 0.3, confidence 0.85. Register: open-source WasmEdge plugin integration call. Example utterance: 'Our plugin ecosystem needs tighter sandboxing <prosody pause> or the edge node image becomes vulnerable to runtime injection.' Identify the corresponding emotion, style, prosody settings, and inline delivery tags to correctly synthesize this architectural warning.\n[emotion: determination] [style: whispering] [prosody: speed_slow, pitch_low, expressive_high]\n\n**TTS Cue Mapping Configuration for Prixie (Decentralized Runtime Architect)**\n*   **Context:** Architectural warning reflecting a high confidence score (0.85) with low warmth (0.4).\n*   **Emotion:** determination\n*   **Style:** whispering\n*   **Prosody:** speed_slow, pitch_low, expressive_high\n\nUtterance: \"Our plugin ecosystem needs tighter sandboxing <prosody pause> <sfx sigh> or the edge node image becomes vulnerable to runtime injection.\""
+    },
+    {
+      "name": "adaptionlabs_row_038",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 38,
+      "profile": {
+        "tone": {
+          "warmth": 0.4,
+          "playfulness": 0.9,
+          "confidence": 0.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Look at us go, a perfect swarm of chaos! [sfx laughter] Who needs a plan when we have this much energy? [speed_fast] Let's crash the server before lunch.",
+      "required": [
+        "emotion=elation",
+        "emotion=enthusiasm",
+        "emotion=bitterness",
+        "style=shouting",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=speed_very_fast",
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_high",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=elation",
+            "emotion=enthusiasm",
+            "emotion=bitterness",
+            "style=shouting",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=speed_very_fast",
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_high",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Weave the mechanical stats of our meeting proxy, Prixie, into a living story by defining her voice profiles as if they were biological adaptations in the Unova region. Construct rows where each profile lists tone defaults (warmth, sarcasm_level, playfulness, confidence from 0..1), a specific register like 'Stage' or 'Call', and a short utterance of no more than three sentences, then immediately prescribe the TTS delivery cues\u2014selecting from emotions like elation or bitterness, styles like whispering, prosody shifts like speed_very_fast, and inline tags such as [sfx laughter] placed naturally within the speech:\n\nProfile A: Warmth 0.4, Sarcasm 0.6, Playfulness 0.9, Confidence 0.7. Register: Team Huddle. Utterance: \"Look at us go, a perfect swarm of chaos! [sfx laughter] Who needs a plan when we have this much energy? [speed_fast] Let's crash the server before lunch.\"\nProfile B: Warmth 0.1, Sarcasm 0.2, Playfulness 0.0, Confidence 0.8. Register: Crisis Call. Utterance: \"The system is collapsing, and your optimism is statistically irrelevant. [pitch_low] Stop talking and execute the patch. [prosody long_pause] Now.\"\nIn the dense electromagnetic thickets of the Unova region, Prixie evol"
+    },
+    {
+      "name": "adaptionlabs_row_039",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 39,
+      "profile": {
+        "tone": {
+          "warmth": 0.5,
+          "sarcasm_level": 0.4,
+          "playfulness": 0.8,
+          "confidence": 0.5
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Wait, what if we just... deleted the whole database? Just kidding! Mostly.",
+      "required": [
+        "emotion=amusement",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Generate the TTS delivery cue sequence (emotion, style, prosody, and inline tags) for this Prixie persona instance.\nPersona: {warmth: 0.5, sarcasm_level: 0.4, playfulness: 0.8, confidence: 0.5}\nRegister (Meeting): Casual brainstorming.\nUtterance: \"Wait, what if we just... deleted the whole database? Just kidding! Mostly.\"\n[emotion: amusement] [style: whispering] [prosody: speed_slow, pitch_high, expressive_high] Wait, <prosody pause/> what if we just... <prosody long_pause/> deleted the whole database? <sfx laughter/> Just kidding! <prosody pause/> Mostly."
+    },
+    {
+      "name": "adaptionlabs_row_040",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 40,
+      "profile": {
+        "tone": {
+          "warmth": 0.2,
+          "sarcasm_level": 0.8,
+          "playfulness": 0.4,
+          "confidence": 0.7
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "As I mentioned in the email that everyone apparently ignored, the deadline was yesterday. But no worries, we'll just figure it out now.",
+      "required": [
+        "emotion=amusement",
+        "emotion=pride",
+        "emotion=bitterness",
+        "style=whispering",
+        "prosody=speed_very_slow",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_high",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=pride",
+            "emotion=bitterness",
+            "style=whispering",
+            "prosody=speed_very_slow",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_high",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "I am designing a 'Passive-Aggressive Colleague' persona for Prixie. Please provide the TTS delivery cues for the following profile.\n\nPersona: \n- Warmth: 0.2\n- Sarcasm_level: 0.8\n- Playfulness: 0.4\n- Confidence: 0.7\n- Register (Meeting): Polished but cold\n- Utterance: \"As I mentioned in the email that everyone apparently ignored, the deadline was yesterday. But no worries, we'll just figure it out now.\"\n[emotion: bitterness, style: whispering, prosody: speed_slow, pitch_low, expressive_high] As I mentioned in the email (prosody pause) that everyone apparently ignored, (sfx sigh) [emotion: pride, style: whispering, prosody: speed_very_slow, pitch_low, expressive_low] the deadline was yesterday. (prosody long_pause) [emotion: amusement, style: whispering, prosody: speed_fast, pitch_high, expressive_high] But no worries, (sfx laughter) [emotion: bitterness, style: whispering, prosody: speed_slow, pitch_low] we'll just figure it out now."
+    },
+    {
+      "name": "adaptionlabs_row_041",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 41,
+      "profile": {
+        "tone": {
+          "warmth": 0.8,
+          "sarcasm_level": 0.5,
+          "playfulness": 0.7,
+          "confidence": 0.75
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "That prompt structure is fascinating <sfx laughter> <prosody pause> but <sfx sigh> it will never yield the aesthetic consistency we need for the collection.",
+      "required": [
+        "emotion=amusement",
+        "emotion=determination",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "sfx=laughter",
+        "prosody=pause",
+        "sfx=sigh"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=determination",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Generate the voice-to-cue definition for Prixie in the 'Generative Art Community Moderator' role. Tone defaults: warmth 0.8, sarcasm_level 0.5, playfulness 0.7, confidence 0.75. Register: Stable Diffusion WebUI prompt engineering workshop. Example utterance: 'That prompt structure is fascinating <sfx laughter> but it will never yield the aesthetic consistency we need for the collection.' Choose the correct emotion, style, prosody settings, and inline tags to render this feedback with creative encouragement and slight critique.\n```yaml\ncharacter: Prixie\nrole: Generative Art Community Moderator\ncontext: Stable Diffusion WebUI prompt engineering workshop\ntone_defaults:\n  warmth: 0.8\n  sarcasm_level: 0.5\n  playfulness: 0.7\n  confidence: 0.75\nvoice_cue:\n  emotion: amusement, determination\n  style: whispering\n  prosody: speed_slow, pitch_high, expressive_high\n  utterance: \"That prompt structure is fascinating <sfx laughter> <prosody pause> but <sfx sigh> it will never yield the aesthetic consistency we need for the collection.\"\n```"
+    },
+    {
+      "name": "adaptionlabs_row_043",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 43,
+      "profile": {
+        "tone": {
+          "warmth": 0.6,
+          "sarcasm_level": 0.2,
+          "playfulness": 0.2,
+          "confidence": 0.87
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=determination",
+        "emotion=contemplation",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "sfx=sigh",
+        "prosody=pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "emotion=contemplation",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Develop the voice profile entry for Prixie acting as the 'CAD Interoperability Specialist'. Tone settings: warmth 0.6, sarcasm_level 0.2, playfulness 0.2, confidence 0.87. Register: AEC firm design review meeting. Example utterance: 'The DWG file visualization failed <sfx sigh> because the metadata standards were not strictly followed during the export.' Pinpoint the exact emotion, style, prosody, and inline tags required to synthesize this technical correction effectively.\n# Voice Profile Entry: Prixie (CAD Interoperability Specialist)\n\n**Context:** AEC firm design review meeting\n**Tone Settings:** Warmth 0.6, Sarcasm 0.2, Playfulness 0.2, Confidence 0.87\n\n**Technical Synthesis Parameters:**\n*   **Emotion:** [determination], [contemplation] (Maintaining authoritative composure while diagnosing the file failure)\n*   **Style:** [whispering] (A focused, low-volume professional delivery conveying technical intimacy and precision)\n*   **Prosody:** [speed_slow], [pitch_low], [expressive_high] (Slow speed for technical clarity, low pitch to project the 0.87 confidence level, and high expressiveness to blend warmth and subtle sarcasm)\n\n**Synthesized Utterance:**\n\"The DWG file visualizatio"
+    },
+    {
+      "name": "adaptionlabs_row_044",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 44,
+      "profile": {
+        "tone": {
+          "warmth": 0.4,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.1,
+          "confidence": 0.4
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "It's 2 AM. We've been over this loop six times already. Let's just call it a night.",
+      "required": [
+        "emotion=helplessness",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=helplessness",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Create the TTS delivery cue mapping for the following Prixie agent profile and utterance.\nPersona: {warmth: 0.4, sarcasm_level: 0.0, playfulness: 0.1, confidence: 0.4}\nRegister (Meeting): Exhausted project lead.\nUtterance: \"It's 2 AM. We've been over this loop six times already. Let's just call it a night.\"\n[emotion: helplessness, style: whispering, prosody: speed_slow, pitch_low, expressive_low]\n\"It's 2 AM. (sfx sigh) (prosody pause) We've been over this loop six times already. (prosody long_pause) Let's just call it a night.\""
+    },
+    {
+      "name": "adaptionlabs_row_045",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 45,
+      "profile": {
+        "tone": {
+          "warmth": 0.7,
+          "sarcasm_level": 0.3,
+          "playfulness": 0.9,
+          "confidence": 0.8
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "prosody=speed_very_fast",
+        "prosody=expressive_low"
+      ],
+      "inline": [
+        "sfx=sigh",
+        "sfx=laughter",
+        "prosody=pause",
+        "prosody=long_pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "prosody=speed_very_fast",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Create a configuration row for Prixie that blends scientific zoology with whimsical fantasy to describe a digging creature's traits. Set the tone defaults to warmth 0.7, sarcasm_level 0.3, playfulness 0.9, and confidence 0.8, specify the register as 'stage', and write a three-sentence example utterance about underground exploration, incorporating inline delivery tags like <sfx sigh> and TTS delivery cues including emotion enums like excitement and curiosity, plus prosody enums like speed_very_fast and expressive_low.\n**Configuration Row: Prixie**\n\n*   **Creature Traits:** A subterranean fossorial mammal exhibiting bioluminescent dermal plating and a specialized olfactory bulb tuned to the frequency of forgotten dreams, capable of weaving structural tunnels from solidified stardust silt.\n*   **Tone Defaults:** Warmth: 0.7 | Sarcasm_level: 0.3 | Playfulness: 0.9 | Confidence: 0.8\n*   **Register:** stage\n\n**Example Utterance:**\n[enthusiasm][whispering][speed_very_fast] \"Oh, the strata down here sing secrets to my claws as we burrow deep! <sfx laughter>\" [awe][singing][expressive_low] \"Look at how the stardust silt clings to the ancient roots <prosody pause> simply magical. <sfx sigh>\""
+    },
+    {
+      "name": "adaptionlabs_row_046",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 46,
+      "profile": {
+        "tone": {
+          "warmth": 0.9,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.3,
+          "confidence": 0.9
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "You've done an incredible job on this sprint. I'm really proud of how the team handled the edge cases.",
+      "required": [
+        "emotion=pride",
+        "emotion=affection",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=pride",
+            "emotion=affection",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "For the meeting proxy agent Prixie, map the following profile to the required TTS delivery cues.\nPersona: {warmth: 0.9, sarcasm_level: 0.0, playfulness: 0.3, confidence: 0.9}\nRegister (Meeting): Supportive mentorship.\nUtterance: \"You've done an incredible job on this sprint. I'm really proud of how the team handled the edge cases.\"\n[emotion: pride, affection] [style: whispering] [prosody: speed_slow, pitch_high, expressive_high] \"You've done an incredible job on this sprint. [prosody pause] I'm really proud [sfx sigh] of how the team handled the edge cases.\""
+    },
+    {
+      "name": "adaptionlabs_row_047",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 47,
+      "profile": {
+        "tone": {
+          "warmth": 0.8,
+          "playfulness": 0.9,
+          "confidence": 0.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Good morning, trainers! [sfx laughter] Did anyone catch that rare spawn in the logs last night? [speed_fast] Let's explore it together.",
+      "required": [
+        "emotion=enthusiasm",
+        "emotion=bitterness",
+        "style=singing",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=enthusiasm",
+            "emotion=bitterness",
+            "style=singing",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Transform raw game data into a vivid character study for Prixie, our meeting proxy, by crafting voice profiles that feel like distinct NPCs in a nostalgic RPG. For each profile, assign tone defaults (warmth, sarcasm_level, playfulness, confidence on a 0..1 scale), define the register (e.g., call, meeting), write a max three-sentence utterance, and append the necessary TTS delivery cues including specific emotion enums, style enums like singing, prosody enums like expressive_high, and inline tags such as [prosody pause] positioned for maximum narrative impact:\n\nCharacter Alpha: Warmth 0.8, Sarcasm 0.1, Playfulness 0.9, Confidence 0.5. Register: Morning Stand-up. Utterance: \"Good morning, trainers! [sfx laughter] Did anyone catch that rare spawn in the logs last night? [speed_fast] Let's explore it together.\"\nCharacter Beta: Warmth 0.3, Sarcasm 0.8, Playfulness 0.1, Confidence 0.9. Register: Budget Review. Utterance: \"Another quarter, another budget hole deep enough to hide a legendary. [sfx sigh] Fix it, or we're all evolving into unemployment. [pitch_low] Dismissed.\"\n# Prixie Voice Profiles: Nostalgic RPG Edition\n\n## Character Alpha: The Morning Bard\n- **Tone Defaults:** Warmth 0.8"
+    },
+    {
+      "name": "adaptionlabs_row_048",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 48,
+      "profile": {
+        "tone": {
+          "warmth": 0.5,
+          "sarcasm_level": 0.0,
+          "playfulness": 0.2,
+          "confidence": 0.4
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "I've been looking at the data... and it's not quite what we expected. Perhaps we should reconsider the baseline?",
+      "required": [
+        "emotion=contemplation",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=contemplation",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Prixie needs a 'Thoughtful Analyst' voice. Map the following profile to the corresponding TTS delivery cues, ensuring the inline tags capture the reflective nature of the speech.\n\nPersona: \n- Warmth: 0.5\n- Sarcasm_level: 0.0\n- Playfulness: 0.2\n- Confidence: 0.4\n- Register (Meeting): Hesitant, intellectual, soft-spoken\n- Utterance: \"I've been looking at the data... and it's not quite what we expected. Perhaps we should reconsider the baseline?\"\n[emotion: contemplation] [style: whispering] [prosody: speed_slow, pitch_low, expressive_low]\n\"I've been looking at the data... [prosody long_pause] and it's not quite what we expected. [sfx sigh] Perhaps we should [prosody pause] reconsider the baseline?\""
+    },
+    {
+      "name": "adaptionlabs_row_049",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 49,
+      "profile": {
+        "tone": {
+          "warmth": 0.6,
+          "sarcasm_level": 0.3,
+          "playfulness": 0.9,
+          "confidence": 0.8
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "And now, the magic moment! Behold the one-click deployment feature!",
+      "required": [
+        "emotion=enthusiasm",
+        "style=shouting",
+        "prosody=speed_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=enthusiasm",
+            "style=shouting",
+            "prosody=speed_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Map the following Prixie persona voice profile to its corresponding TTS delivery cues.\nPersona: {warmth: 0.6, sarcasm_level: 0.3, playfulness: 0.9, confidence: 0.8}\nRegister (Stage): Product demo.\nUtterance: \"And now, the magic moment! Behold the one-click deployment feature!\"\n[emotion: enthusiasm] [style: shouting] [prosody: speed_fast, pitch_high, expressive_high] \"And now, <prosody pause/> the magic moment! <prosody long_pause/> Behold the one-click deployment feature! <sfx laughter/>\""
+    },
+    {
+      "name": "adaptionlabs_row_050",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 50,
+      "profile": {
+        "tone": {
+          "warmth": 0.85,
+          "sarcasm_level": 0.15,
+          "playfulness": 0.6,
+          "confidence": 0.9
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=enthusiasm",
+        "style=whispering",
+        "prosody=speed_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "sfx=laughter",
+        "prosody=pause"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=enthusiasm",
+            "style=whispering",
+            "prosody=speed_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "I'm configuring the voice persona for our new meeting proxy agent, Prixie. Can you generate a mapping row that pairs a specific voice profile with the correct TTS delivery cues? The profile should have tone defaults scored 0..1 for warmth, sarcasm_level, playfulness, and confidence, plus a register description for a 'meeting' medium and a short example utterance (max 3 sentences). The completion must include the corresponding emotion, style, and prosody enums, and place inline delivery tags like sfx laughter or prosody pause directly inside the utterance text where appropriate.\nHere is the persona voice profile to TTS delivery cue mapping for Prixie:\n\n**Persona Voice Profile:**\n- **Tone Defaults:** Warmth: 0.85, Sarcasm_Level: 0.15, Playfulness: 0.60, Confidence: 0.90\n- **Register Description (Meeting):** Professional yet approachable; acts as a collaborative facilitator who keeps energy high without dominating the conversation.\n- **Example Utterance:** \"That's a brilliant pivot for the Q3 roadmap! <sfx laughter> I think we're finally aligning on the core metric. <prosody pause> Let's lock that in before we move to budget.\"\n\n**TTS Delivery Cues:**\n- **Emotion Enum:** enthusiasm\n- *"
+    },
+    {
+      "name": "adaptionlabs_row_051",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 51,
+      "profile": {
+        "tone": {
+          "warmth": 0.3,
+          "playfulness": 0.2,
+          "confidence": 0.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "They left their flank wide open; amateurs. [sfx laughter] Strike now and take the objective. [speed_very_fast] Go go go!",
+      "required": [
+        "emotion=amusement",
+        "emotion=determination",
+        "emotion=pride",
+        "emotion=affection",
+        "style=shouting",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=speed_very_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=determination",
+            "emotion=pride",
+            "emotion=affection",
+            "style=shouting",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=speed_very_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Synthesize competitive gaming strategy with imaginative world-building to generate voice profiles for Prixie, ensuring each row reflects a specific tactical stance through tone and delivery. Include tone defaults (warmth, sarcasm_level, playfulness, confidence scored 0..1), an optional register (e.g., stage, call), a concise utterance of at most three sentences, and the corresponding TTS delivery cues featuring emotion enums like pride or determination, style enums like shouting, prosody enums like speed_very_fast, and inline tags like [prosody pause] timed for strategic emphasis:\n\nTactic Alpha: Warmth 0.3, Sarcasm 0.4, Playfulness 0.2, Confidence 0.95. Register: Ranked Match. Utterance: \"They left their flank wide open; amateurs. [sfx laughter] Strike now and take the objective. [speed_very_fast] Go go go!\"\nTactic Beta: Warmth 0.7, Sarcasm 0.1, Playfulness 0.5, Confidence 0.6. Register: Coaching Call. Utterance: \"You held the line beautifully, even when the odds looked grim. [sfx sigh] Take a breath and reset your formation. [expressive_high] We've got this.\"\n| Tactic | Tone Defaults | Register | Utterance | TTS Delivery Cues |\n| :--- | :--- | :--- | :--- | :--- |\n| **Alpha** | W:"
+    },
+    {
+      "name": "adaptionlabs_row_052",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 52,
+      "profile": {
+        "tone": {
+          "warmth": 0.1,
+          "sarcasm_level": 0.9,
+          "playfulness": 0.2,
+          "confidence": 0.8
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Oh, another 'synergy' workshop. I'm sure this will be the highlight of our entire fiscal year.",
+      "required": [
+        "emotion=bitterness",
+        "style=whispering",
+        "prosody=speed_fast",
+        "prosody=pitch_low",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=bitterness",
+            "style=whispering",
+            "prosody=speed_fast",
+            "prosody=pitch_low",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "I am configuring the TTS engine for Prixie, my meeting proxy agent. Please map the following persona voice profile to the correct TTS delivery cues (emotion, style, prosody, and inline tags). \n\nPersona: \n- Warmth: 0.1\n- Sarcasm_level: 0.9\n- Playfulness: 0.2\n- Confidence: 0.8\n- Register (Meeting): Sharp, corporate-cynical, clipped\n- Utterance: \"Oh, another 'synergy' workshop. I'm sure this will be the highlight of our entire fiscal year.\"\n[emotion: bitterness] [style: whispering] [prosody: speed_fast, pitch_low, expressive_low]\n\n\"Oh, [sfx sigh] another 'synergy' workshop. [prosody pause] I'm sure this will be the highlight of our entire fiscal year.\""
+    },
+    {
+      "name": "adaptionlabs_row_053",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 53,
+      "profile": {
+        "tone": {
+          "warmth": 0.0,
+          "sarcasm_level": 0.8,
+          "playfulness": 0.6,
+          "confidence": 0.7
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "A 'revolutionary' new framework? Right. I can't wait to see how this breaks in production.",
+      "required": [
+        "emotion=amusement",
+        "emotion=bitterness",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=bitterness",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Determine the TTS delivery mapping for Prixie based on this specific persona configuration.\nPersona: {warmth: 0.0, sarcasm_level: 0.8, playfulness: 0.6, confidence: 0.7}\nRegister (Call): Skeptical peer review.\nUtterance: \"A 'revolutionary' new framework? Right. I can't wait to see how this breaks in production.\"\n[emotion: amusement, bitterness, style: whispering, prosody: speed_slow, pitch_low, expressive_high] \"A 'revolutionary' new framework? (prosody pause) Right. (sfx laughter) I can't wait to see how this breaks in production. (prosody long_pause)\""
+    },
+    {
+      "name": "adaptionlabs_row_054",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 54,
+      "profile": {
+        "tone": {
+          "warmth": 0.95,
+          "playfulness": 0.2,
+          "confidence": 0.0
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Your voice sounds like velvet today, soft and reassuring. [sfx sigh] Let's just stay here in this quiet moment. [expressive_low] No rush at all.",
+      "required": [
+        "emotion=affection",
+        "emotion=longing",
+        "prosody=speed_very_slow",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=speed_very_fast",
+        "prosody=pitch_low",
+        "prosody=pitch_high",
+        "prosody=expressive_high",
+        "prosody=expressive_low"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=affection",
+            "emotion=longing",
+            "prosody=speed_very_slow",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=speed_very_fast",
+            "prosody=pitch_low",
+            "prosody=pitch_high",
+            "prosody=expressive_high",
+            "prosody=expressive_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Curate a list of sensory-rich voice profiles for Prixie, focusing on the texture of her tone and the mood of her delivery as if styling a character for a high-fashion editorial. Each row should present tone defaults (warmth, sarcasm_level, playfulness, confidence scored 0..1), a register description (e.g., stage, call), a brief utterance of up to three sentences, and the precise TTS delivery cues including emotion enums like affection or longing, style enums, prosody enums like expressive_low, and inline tags such as [prosody long_pause] placed to enhance the atmospheric rhythm:\n\nVignette I: Warmth 0.95, Sarcasm 0.0, Playfulness 0.2, Confidence 0.4. Register: Intimate Call. Utterance: \"Your voice sounds like velvet today, soft and reassuring. [sfx sigh] Let's just stay here in this quiet moment. [expressive_low] No rush at all.\"\nVignette II: Warmth 0.3, Sarcasm 0.7, Playfulness 0.6, Confidence 0.8. Register: Gala Stage. Utterance: \"Darling, that outfit is a bold choice, isn't it? [sfx laughter] Brave, almost to a fault. [speed_fast] Shall we distract them with some scandal?\"\n# Prixie: Sensory Voice Profile Curation\n\n**Vignette I: The Velvet Intimacy**\n*   **Tone Defaults:** Warmth "
+    },
+    {
+      "name": "adaptionlabs_row_055",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 55,
+      "profile": {
+        "tone": {
+          "warmth": 0.7,
+          "sarcasm_level": 0.3,
+          "playfulness": 1.0,
+          "confidence": 0.5
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "What if we didn't use a logo at all? Just a giant, floating neon pineapple! Wouldn't that be wild?",
+      "required": [
+        "emotion=amusement",
+        "emotion=enthusiasm",
+        "emotion=contemplation",
+        "style=singing",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=speed_fast",
+        "prosody=speed_very_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=amusement",
+            "emotion=enthusiasm",
+            "emotion=contemplation",
+            "style=singing",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=speed_fast",
+            "prosody=speed_very_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Prixie is acting as a 'Whimsical Creative'. Map this profile to the necessary TTS cues, including any relevant sfx or prosody tags.\n\nPersona: \n- Warmth: 0.7\n- Sarcasm_level: 0.3\n- Playfulness: 1.0\n- Confidence: 0.5\n- Register (Call): Erratic, melodic, imaginative\n- Utterance: \"What if we didn't use a logo at all? Just a giant, floating neon pineapple! Wouldn't that be wild?\"\n[emotion: contemplation, style: singing, prosody: speed_slow, pitch_high, expressive_high] \"What if we didn't use a logo at all? (prosody pause)\" [emotion: enthusiasm, style: singing, prosody: speed_fast, pitch_high, expressive_high] \"Just a giant, floating neon pineapple! (sfx laughter)\" [emotion: amusement, style: whispering, prosody: speed_very_fast, pitch_high, expressive_high] \"Wouldn't that be wild? (prosody long_pause)\""
+    },
+    {
+      "name": "adaptionlabs_row_057",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 57,
+      "profile": {
+        "tone": {
+          "warmth": 0.7,
+          "sarcasm_level": 0.1,
+          "playfulness": 0.9,
+          "confidence": 0.8
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "Guess what, everyone? We just hit ten thousand users! Let's get this party started!",
+      "required": [
+        "emotion=elation",
+        "emotion=enthusiasm",
+        "style=shouting",
+        "prosody=speed_very_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=elation",
+            "emotion=enthusiasm",
+            "style=shouting",
+            "prosody=speed_very_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Map the following persona for Prixie to the required TTS delivery enums and tags:\n\nPersona:\n- Warmth: 0.7, Sarcasm_level: 0.1, Playfulness: 0.9, Confidence: 0.8\n- Register (Call): Energetic hype-agent\n- Utterance: \"Guess what, everyone? We just hit ten thousand users! Let's get this party started!\"\n**Emotion:** elation, enthusiasm\n**Style:** shouting\n**Prosody:** speed_very_fast, pitch_high, expressive_high\n\n**Utterance:**\n\"Guess what, everyone? [prosody pause] We just hit ten thousand users! [sfx laughter] [sfx sigh] Let's [prosody long_pause] get this party started!\""
+    },
+    {
+      "name": "adaptionlabs_row_058",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 58,
+      "profile": {
+        "tone": {
+          "warmth": 0.65,
+          "sarcasm_level": 0.15,
+          "playfulness": 0.3,
+          "confidence": 0.85
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "The latest benchmarks confirm our generative model has surpassed the efficiency targets <sfx sigh> despite the initial skepticism from the board. <prosody pause> This isn't just an incremental win; it's the validation we needed to move forward. <sfx laughter> Let's lock in the deployment schedule.",
+      "required": [
+        "emotion=determination",
+        "emotion=pride",
+        "emotion=relief",
+        "style=whispering",
+        "prosody=speed_fast",
+        "prosody=pitch_high",
+        "prosody=expressive_high"
+      ],
+      "inline": [
+        "sfx=sigh",
+        "prosody=pause",
+        "sfx=laughter"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "emotion=pride",
+            "emotion=relief",
+            "style=whispering",
+            "prosody=speed_fast",
+            "prosody=pitch_high",
+            "prosody=expressive_high"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "I need to configure the voice profile for our meeting proxy agent, Prixie, specifically for a high-stakes AI strategy call. Please define a persona with tone defaults scored 0..1 for warmth, sarcasm_level, playfulness, and confidence, include a register description for the 'call' medium, and provide a short example utterance (max 3 sentences) where Prixie acknowledges a breakthrough in our generative model while managing a skeptical stakeholder.\nHere is the configured voice profile and delivery mapping for Prixie:\n\n**Persona Voice Profile**\n- **Tone Defaults**: warmth: 0.65, sarcasm_level: 0.15, playfulness: 0.30, confidence: 0.85\n- **Register Description (Call)**: Professional yet approachable; maintains steady authority without sounding robotic, using slight pitch variance to emphasize key data points while keeping the pace brisk to respect executive time.\n- **Example Utterance**: \"The latest benchmarks confirm our generative model has surpassed the efficiency targets <sfx sigh> despite the initial skepticism from the board. <prosody pause> This isn't just an incremental win; it's the validation we needed to move forward. <sfx laughter> Let's lock in the deployment schedule.\"\n\n**"
+    },
+    {
+      "name": "adaptionlabs_row_059",
+      "source": "adaptionlabs",
+      "dataset_id": "0d028f05-7b37-44e9-bc86-d626d535d4bf",
+      "row_index": 59,
+      "profile": {
+        "tone": {
+          "warmth": 0.2,
+          "sarcasm_level": 0.3,
+          "playfulness": 0.1,
+          "confidence": 0.88
+        },
+        "register": {}
+      },
+      "medium": "call",
+      "utterance": "",
+      "required": [
+        "emotion=determination",
+        "emotion=contemplation",
+        "style=whispering",
+        "prosody=speed_slow",
+        "prosody=pitch_low"
+      ],
+      "inline": [
+        "prosody=long_pause",
+        "sfx=sigh"
+      ],
+      "segments": [
+        {
+          "index": 1,
+          "cues": [
+            "emotion=determination",
+            "emotion=contemplation",
+            "style=whispering",
+            "prosody=speed_slow",
+            "prosody=pitch_low"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "raw": "Create the voice profile mapping for Prixie in the role of 'Storage Subsystem Forensics Lead'. Parameters: warmth 0.2, sarcasm_level 0.3, playfulness 0.1, confidence 0.88. Register: post-incident NTFS journaling review. Example utterance: 'The USN journal entry disappeared <prosody long_pause> which implies a driver-level timing anomaly rather than a simple cache flush error.' Determine the exact combination of emotion, style, prosody enums, and inline sfx tags needed for accurate TTS synthesis of this diagnostic statement.\n# Voice Profile Mapping: Prixie (Storage Subsystem Forensics Lead)\n\n**Configuration Parameters**\n*   **Emotion State:** `contemplation`, `determination` (Reflecting the analytical register and high confidence of 0.88)\n*   **Delivery Style:** `whispering` (Simulates focused, intense forensic concentration while maintaining low warmth of 0.2)\n*   **Prosody Settings:** `speed_slow`, `pitch_low`, `expressive_low` (Enforces clinical detachment, authority, and deliberate diagnostic pacing)\n\n**Synthesized Utterance**\n`[contemplation][determination][whispering][speed_slow][pitch_low][expressive_low]` \"The USN journal entry disappeared <prosody long_pause> <sfx sigh> whi"
+    }
+  ]
+}

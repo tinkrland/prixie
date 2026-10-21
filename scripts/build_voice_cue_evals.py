@@ -63,28 +63,50 @@ def tone_scores(text: str) -> dict[str, float]:
     return scores
 
 
-def cues_in(text: str, utterance: str) -> tuple[list[str], list[str]]:
-    """(leading cues, inline tag cues) the row expects."""
-    low = text.lower()
-    leading: list[str] = []
-    for e in EMOTIONS:
-        if re.search(rf"emotion[^\n]{{0,30}}[:=]?\s*\"?{e}\b", low):
-            leading.append(f"emotion={e}")
-    for s in STYLES:
-        if re.search(rf"style[^\n]{{0,30}}[:=]?\s*\"?{s}\b", low):
-            leading.append(f"style={s}")
-    for p in PROSODY:
-        if re.search(rf"prosody[^\n]{{0,40}}{p}\b", low):
-            leading.append(f"prosody={p}")
+SEGMENT_RE = re.compile(
+    r"\*\*segment\s+(\d+):?\*\*\s*\n\[(.*?)\]", re.IGNORECASE | re.DOTALL
+)
+TAG_RE = re.compile(r"<\|(sfx|prosody):([a-z_ ]+)\|>|<(sfx|prosody)\s+([a-z_ ]+)>", re.IGNORECASE)
 
-    inline: list[str] = []
-    for m in re.finditer(r"<\|(sfx|prosody):([a-z_]+)\|>", utterance):
-        inline.append(f"{m.group(1)}={m.group(2)}")
-    for s in SFX:
-        if re.search(rf"<\|sfx:{s}\|>", low):
-            inline.append(f"sfx={s}")
-    # de-dup, order stable
-    return list(dict.fromkeys(leading)), list(dict.fromkeys(inline))
+
+def cues_in_block(block: str) -> list[str]:
+    """the cues named in one segment header like [emotion: amusement,
+    prosody: speed_slow, pitch_low]."""
+    cues: list[str] = []
+    for e in EMOTIONS:
+        if re.search(rf"emotion[^\n]{{0,30}}[:=]?\s*\"?{e}\b", block, re.IGNORECASE):
+            cues.append(f"emotion={e}")
+    for st in STYLES:
+        if re.search(rf"style[^\n]{{0,30}}[:=]?\s*\"?{st}\b", block, re.IGNORECASE):
+            cues.append(f"style={st}")
+    for pd in PROSODY:
+        if re.search(rf"(?:prosody[^\n]{{0,40}}|,\s*){pd}\b", block, re.IGNORECASE):
+            cues.append(f"prosody={pd}")
+    return cues
+
+
+def tags_in(text: str) -> list[str]:
+    """inline delivery tags, in either syntax: <|sfx:laughter|> or
+    <prosody long_pause> (the invented rows use the spaced form)."""
+    tags: list[str] = []
+    for m in TAG_RE.finditer(text):
+        kind = (m.group(1) or m.group(3) or "").lower()
+        val = (m.group(2) or m.group(4) or "").strip().lower().replace(" ", "_")
+        if val:
+            tags.append(f"{kind}={val}")
+    return tags
+
+
+def cues_in(text: str, utterance: str) -> tuple[list[str], list[str], list[dict]]:
+    """(first segment leading cues, inline tag cues, all segments)."""
+    segments = [{"index": int(m.group(1)), "cues": cues_in_block(m.group(2))}
+                for m in SEGMENT_RE.finditer(text)]
+    if not segments:
+        flat = cues_in_block(text)
+        segments = [{"index": 1, "cues": flat}] if flat else []
+    leading = segments[0]["cues"] if segments else []
+    inline = list(dict.fromkeys(tags_in(f"{text} {utterance}")))
+    return leading, inline, segments
 
 
 def medium(text: str) -> tuple[str, str | None]:
@@ -124,7 +146,7 @@ def main() -> int:
         m = re.search(r"utterance[^\n]{0,20}[:=]\s*\"([^\"]{5,400})\"", blob, re.IGNORECASE)
         if m:
             utterance = m.group(1)
-        leading, inline = cues_in(blob, f"{blob} {utterance}")
+        leading, inline, segments = cues_in(blob, f"{blob} {utterance}")
         if not leading and not inline:
             continue
         cases.append({
@@ -135,7 +157,14 @@ def main() -> int:
             "profile": {"tone": tones, "register": ({med: register} if register else {})},
             "medium": med,
             "utterance": utterance,
-            "required": leading + inline,
+            # required = the opening segment's leading cues, which is what
+            # voiceStyleFromProfile produces for one utterance. the rest of the
+            # row (later segments, inline tags) rides along as segments: the
+            # per-beat delivery the mapping cannot do yet, kept so the
+            # extension has the expectations in hand.
+            "required": leading,
+            "inline": inline,
+            "segments": segments,
             "forbidden": [],
             "raw": blob[:1200],
         })

@@ -11,10 +11,20 @@ two sources feed this set:
    behaviour and the gaps we already know about.
 2. rows invented through adaptionlabs.ai (dataset id 0d028f05-7b37-44e9-bc86-
    d626d535d4bf, "prixie voice profile to delivery cues", instruction_dataset,
-   ~60 rows) converted by `scripts/build_voice_cue_evals.py`. provenance: the
-   adaptionlabs dataset id, the row index, and the raw generated text stay in
-   the converted file, so any expectation can be traced back to the row that
-   suggested it.
+   60 rows, 58 parsed) converted by `scripts/build_voice_cue_evals.py`.
+   provenance: the adaptionlabs dataset id, the row index, and the raw
+   generated text stay in the converted file, so any expectation can be traced
+   back to the row that suggested it. the invented rows are per-segment
+   mappings (an utterance split into beats, each with its own cues and inline
+   tags), so a case's `required` is its opening segment, the part a single
+   voiceStyle can score, and the rest rides along as `segments` + `inline`:
+   the per-beat delivery roadmap in hand.
+
+current score: 69 cases (11 seed, 58 adapted), 8 pass, 61 mapping gaps, 0
+failures. the invented rows want delivery the mapping cannot produce yet:
+whispering as a style (42 rows), pitch shifts (68), per-beat emotion changes,
+and inline tags everywhere (83 pauses, 57 sighs, 50 laughs). that is the
+extension list, measured, not guessed.
 
 ## running it
 
