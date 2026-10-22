@@ -154,10 +154,13 @@ export function extractTimezone(text: string): string | null {
 // different utc instant than the same clock time a week later.
 export function convertToUTC(timeStr: string, sourceTz: string): string {
   try {
-    // already an absolute time (ISO with offset or Z): nothing to convert
-    const direct = new Date(timeStr);
-    if (!isNaN(direct.getTime()) && /T\d{2}:\d{2}/.test(timeStr)) {
-      return direct.toISOString();
+    // already an absolute time: ISO with a Z or a numeric offset. a
+    // naive "2026-11-01T14:30" is NOT absolute, it is a wall clock in
+    // sourceTz: the old shortcut fed it to the server's zone instead of
+    // the zone she was told about (oct 22 2026).
+    if (/T\d{2}:\d{2}(?::\d{2})?\s*(?:Z|[+-]\d{2}:?\d{2})$/i.test(timeStr.trim())) {
+      const direct = new Date(timeStr);
+      if (!isNaN(direct.getTime())) return direct.toISOString();
     }
 
     // wall-clock time: pin a date (today in the source zone), then find
@@ -248,70 +251,8 @@ function zoneOffsetMinutes(instant: Date, zone: string): number {
   return (asUTC - instant.getTime()) / 60000;
 }
 
-// parse a colloquial time reference
-// "tomorrow at 3pm est" -> ISO 8601
-// "friday 9am pacific" -> ISO 8601
-// "in 2 hours" -> ISO 8601
-export function parseColloquialTime(text: string): { time: string; timezone: string | null } {
-  const lower = text.toLowerCase();
-  const now = new Date();
-
-  // extract timezone first
-  const tz = extractTimezone(text);
-
-  // "in X hours/minutes"
-  const relativeMatch = lower.match(/in\s+(\d+)\s+(hour|minute|hr|min)/);
-  if (relativeMatch) {
-    const amount = parseInt(relativeMatch[1]);
-    const unit = relativeMatch[2];
-    const ms = unit.startsWith("hour") || unit.startsWith("hr") ? amount * 60 * 60 * 1000 : amount * 60 * 1000;
-    return { time: new Date(now.getTime() + ms).toISOString(), timezone: tz };
-  }
-
-  // "tomorrow at X"
-  const tomorrowMatch = lower.match(/tomorrow.*?(\d{1,2})[:\s]?(\d{2})?\s*(am|pm)?/);
-  if (tomorrowMatch) {
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const hours = parseInt(tomorrowMatch[1]);
-    const minutes = tomorrowMatch[2] ? parseInt(tomorrowMatch[2]) : 0;
-    const ampm = tomorrowMatch[3];
-    const finalHours = ampm === "pm" && hours < 12 ? hours + 12 : ampm === "am" && hours === 12 ? 0 : hours;
-    tomorrow.setHours(finalHours, minutes, 0, 0);
-    return { time: tomorrow.toISOString(), timezone: tz };
-  }
-
-  // "monday", "tuesday", etc.
-  const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  for (let i = 0; i < days.length; i++) {
-    if (lower.includes(days[i])) {
-      const targetDay = i;
-      const currentDay = now.getDay();
-      let diff = targetDay - currentDay;
-      if (diff <= 0) diff += 7; // next week
-
-      const target = new Date(now);
-      target.setDate(target.getDate() + diff);
-
-      // try to extract time
-      const timeMatch = lower.match(/(\d{1,2})[:\s]?(\d{2})?\s*(am|pm)?/);
-      if (timeMatch) {
-        const hours = parseInt(timeMatch[1]);
-        const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
-        const ampm = timeMatch[3];
-        const finalHours = ampm === "pm" && hours < 12 ? hours + 12 : ampm === "am" && hours === 12 ? 0 : hours;
-        target.setHours(finalHours, minutes, 0, 0);
-      }
-
-      return { time: target.toISOString(), timezone: tz };
-    }
-  }
-
-  // default: try to parse as-is
-  const parsed = new Date(text);
-  if (!isNaN(parsed.getTime())) {
-    return { time: parsed.toISOString(), timezone: tz };
-  }
-
-  return { time: now.toISOString(), timezone: tz };
-}
+// the legacy parseColloquialTime that lived here was removed (oct 22
+// 2026): it was the server-local half of the same name, with
+// setHours()/new Date() reading the server's zone, and nothing
+// imported it. the real parser is colloquial_time.ts, which converts
+// through shiftWallClock and is server-zone-independent.

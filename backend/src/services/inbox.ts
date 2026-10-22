@@ -5,6 +5,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { extractMeetingUrl, detectPlatform } from "./calendar_sync.ts";
+import { parseColloquialTime } from "./colloquial_time.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -245,25 +246,20 @@ export async function createMeetingsFromInbox(accessToken: string): Promise<{
   return { scanned: links.length, created, links };
 }
 
-// try to extract a start time from email subject/date
+// try to extract a start time from the email subject. the prose goes
+// through the real colloquial parser, anchored to the email's own
+// date (oct 22 2026: the old version placed the clock with setHours(),
+// which reads the server's zone, so the same email scheduled
+// different meetings depending on where the proxy ran).
 function extractTimeFromEmail(subject: string, emailDate: string): string {
-  // try subject patterns: "meeting at 3pm", "call tomorrow at 10am", etc.
-  const timeMatch = subject.match(/(\d{1,2})[:\s]?(\d{2})?\s*(am|pm)/i);
-  const dateFromEmail = new Date(emailDate);
-
-  if (timeMatch) {
-    let hours = parseInt(timeMatch[1]);
-    const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
-    const ampm = timeMatch[3].toLowerCase();
-
-    if (ampm === "pm" && hours < 12) hours += 12;
-    if (ampm === "am" && hours === 12) hours = 0;
-
-    dateFromEmail.setHours(hours, minutes, 0, 0);
-    return dateFromEmail.toISOString();
+  const anchor = new Date(emailDate);
+  if (!isNaN(anchor.getTime())) {
+    const prose = parseColloquialTime(subject, anchor);
+    if (prose?.iso) return prose.iso;
   }
 
-  // default: 24 hours from email date
-  dateFromEmail.setHours(dateFromEmail.getHours() + 24);
-  return dateFromEmail.toISOString();
+  // no parseable clock in the subject: 24 hours from the email's own
+  // date. absolute arithmetic, no zone anywhere.
+  const base = isNaN(anchor.getTime()) ? Date.now() : anchor.getTime();
+  return new Date(base + 24 * 60 * 60 * 1000).toISOString();
 }

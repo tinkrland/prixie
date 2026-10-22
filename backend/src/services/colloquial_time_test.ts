@@ -64,3 +64,28 @@ Deno.test("explicit date without a clock time is a date partial", () => {
   const t = parseColloquialTime("the review is tomorrow", NOW);
   assertEquals(t?.partial, "date-no-time");
 });
+
+// the double-subtract regression (the owner, oct 22 2026): the old toUtc
+// built the candidate with the local Date constructor (server zone
+// baked in) and then subtracted the source zone offset on top. on a
+// utc server the two canceled, so these exact-isos only failed on
+// other servers: "3pm est" on a new york server landed at 23:00Z,
+// "3pm ist" drifted by the server offset. these pin absolute truth:
+// the answers must not depend on the machine the parser runs on.
+Deno.test("country zones convert exactly once, whatever the server zone", () => {
+  const now = new Date("2026-10-21T19:00:00Z"); // 3pm et
+  const ist = parseColloquialTime("3pm ist", now);
+  assertEquals(ist?.iso, "2026-10-22T09:30:00.000Z"); // 15:00 +5:30, rolled (15:00 ist was before now)
+  const cet = parseColloquialTime("3pm cet", now);
+  assertEquals(cet?.iso, "2026-10-22T13:00:00.000Z"); // 15:00 +2 (cest), rolled
+  const bst = parseColloquialTime("2:30pm bst", now);
+  assertEquals(bst?.iso, "2026-10-22T13:30:00.000Z"); // 14:30 +1, rolled
+  const est = parseColloquialTime("4pm est", now);
+  assertEquals(est?.iso, "2026-10-21T20:00:00.000Z"); // 16:00 -4 (edt), still ahead of now
+});
+
+Deno.test("an explicit date converts in the source zone, not the server's", () => {
+  const now = new Date("2026-10-21T19:00:00Z");
+  const t = parseColloquialTime("10/25 at 10am ist", now);
+  assertEquals(t?.iso, "2026-10-25T04:30:00.000Z");
+});

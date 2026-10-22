@@ -147,9 +147,28 @@ export async function claimForDeploy(meetingId: string): Promise<Meeting | null>
   return (data as Meeting) ?? null;
 }
 
-// a deploy that died mid-join leaves its claim on the row. the sweep
-// hands the meeting back: scheduled again, no silent duplicate, no
-// meeting lost to a stale claim.
+// a live deploy touches its own lease: updated_at stays fresh while
+// the process that holds the claim is actually running, so the stale
+// sweep only ever reclaims a claim whose holder DIED (the owner, oct 22
+// 2026: a waiting-room join can run longer than the sweep threshold,
+// and reclaiming a lease that is still held would deploy a second
+// bot, the exact bug the claim exists to prevent).
+export async function touchDeployClaim(meetingId: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from("meetings")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("id", meetingId)
+    .eq("status", "bot_deploying");
+  if (error) {
+    console.error(`prixie: deploy lease touch failed for meeting ${meetingId}`, error.message);
+  }
+}
+
+// a deploy that died mid-join leaves its claim on the row, stale
+// because a LIVE deploy keeps touching its lease (touchDeployClaim).
+// the sweep hands only dead claims back: scheduled again, no silent
+// duplicate, no meeting lost to a stale claim.
 export async function resetStaleDeployClaims(staleMinutes = 15): Promise<number> {
   const supabase = getSupabase();
   const cutoff = new Date(Date.now() - staleMinutes * 60 * 1000).toISOString();

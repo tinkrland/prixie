@@ -2,6 +2,7 @@ import {
   getScheduledUpcomingMeetings,
   claimForDeploy,
   resetStaleDeployClaims,
+  touchDeployClaim,
   getActiveMeetings,
   getCompletedMeetingsWithoutTranscript,
   updateMeeting,
@@ -131,9 +132,22 @@ export class MeetingManager {
           continue;
         }
 
-        const bot = await provider.createBot(meeting, {
-          realtimeWebhookUrl: this.realtimeWebhookUrl(),
-        });
+        // the lease heartbeat: while this createBot is actually
+        // running (a waiting room can hold it for many minutes), the
+        // claim's updated_at keeps moving and the 15-minute sweep
+        // never reclaims it. if the process dies, the touches stop
+        // and the sweep hands the meeting back.
+        const leaseTimer = setInterval(() => {
+          touchDeployClaim(meeting.id).catch(() => {});
+        }, 5 * 60 * 1000);
+        let bot;
+        try {
+          bot = await provider.createBot(meeting, {
+            realtimeWebhookUrl: this.realtimeWebhookUrl(),
+          });
+        } finally {
+          clearInterval(leaseTimer);
+        }
 
         // success is entry, not deployment (the owner, oct 22 2026). a bot
         // still knocking on a waiting room is bot_joining, not

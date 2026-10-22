@@ -30,3 +30,10 @@ Deno.test("bad input fails honestly, never guesses a zone or time", () => {
   // absolute times pass through untouched
   assertEquals(convertToUTC("2026-10-21T19:00:00Z", "America/New_York"), "2026-10-21T19:00:00.000Z");
 });
+
+// naive ISO with no offset is a wall clock in sourceTz, never the
+// server's zone (oct 22 2026: the old shortcut swallowed it whole)
+Deno.test("naive ISO datetime converts in the source zone", () => {
+  assertEquals(convertToUTC("2026-11-01T14:30:00", "Asia/Kolkata"), "2026-11-01T09:00:00.000Z");
+  assertEquals(convertToUTC("2026-11-01T14:30:00", "America/New_York"), "2026-11-01T19:30:00.000Z");
+});

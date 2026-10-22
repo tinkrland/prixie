@@ -94,11 +94,16 @@ export async function syncGoogleCalendar(calendarId: string): Promise<MeetingCan
 
 export async function syncOutlookCalendar(accessToken: string): Promise<MeetingCandidate[]> {
   const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  // the window start is absolute (now minus 24h): the old version
+  // built host-local midnight with the server's calendar getters,
+  // which moved the fetch window with the server's zone (oct 22
+  // 2026). the wide start also lets late-join see meetings that
+  // began earlier.
+  const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   const endOfWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const res = await fetch(
-    `https://graph.microsoft.com/v1.0/me/calendarview?startDateTime=${startOfDay}&endDateTime=${endOfWeek}&$select=subject,start,end,location,onlineMeeting`,
+    `https://graph.microsoft.com/v1.0/me/calendarview?startDateTime=${windowStart}&endDateTime=${endOfWeek}&$select=subject,start,end,location,onlineMeeting`,
     { headers: { "Authorization": `Bearer ${accessToken}` } }
   );
 
@@ -183,7 +188,9 @@ export async function syncAppleCalendar(serverUrl: string, username: string, pas
 
   const auth = btoa(`${username}:${password}`);
   const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // absolute window, no host-local midnight: the server's zone must
+  // not move it (oct 22 2026)
+  const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const endOfWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   // caldav report query
@@ -196,7 +203,7 @@ export async function syncAppleCalendar(serverUrl: string, username: string, pas
       <c:filter>
         <c:comp-filter name="VCALENDAR">
           <c:comp-filter name="VEVENT">
-            <c:time-range start="${startOfDay.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')}" end="${endOfWeek.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')}" />
+            <c:time-range start="${windowStart.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')}" end="${endOfWeek.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')}" />
           </c:comp-filter>
         </c:comp-filter>
       </c:filter>

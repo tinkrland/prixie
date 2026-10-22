@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS public.meetings (
     start_time TIMESTAMPTZ NOT NULL,
     end_time TIMESTAMPTZ,
     status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN (
-        'scheduled', 'bot_joining', 'bot_in_meeting',
+        'scheduled', 'bot_deploying', 'bot_joining', 'bot_in_meeting',
         'completed', 'failed'
     )),
     bot_id TEXT,

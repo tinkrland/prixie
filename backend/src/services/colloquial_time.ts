@@ -9,6 +9,8 @@
 // or null when nothing time-shaped is in the text at all. callers decide
 // what a partial is worth; the parser never invents a timezone.
 
+import { shiftWallClock } from "./timezone.ts";
+
 export interface ColloquialTime {
   iso?: string; // complete: date + clock time + zone, converted to utc
   matched: string; // the phrase that matched, for showing our work
@@ -34,25 +36,6 @@ const TZ_TABLE: Record<string, string> = {
   bst: "Europe/London", ist: "Asia/Kolkata", cet: "Europe/Paris", cest: "Europe/Paris",
 };
 
-// offset minutes for a named zone on a date (the dst answer). era-accurate
-// us/eu rules via Intl, which is how deno ships it.
-function zoneOffsetMinutes(date: Date, timeZone: string): number | null {
-  try {
-    const dtf = new Intl.DateTimeFormat("en-US", {
-      timeZone,
-      hour12: false,
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
-    });
-    const parts = dtf.formatToParts(date);
-    const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
-    const asUTC = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute"), get("second"));
-    return Math.round((asUTC - date.getTime()) / 60000);
-  } catch {
-    return null; // unknown zone name: caller keeps the partial
-  }
-}
-
 const ZONE_RE = `(?:${Object.keys(TZ_TABLE).join("|")})`;
 
 export function parseColloquialTime(text: string, now = new Date()): ColloquialTime | null {
@@ -71,29 +54,39 @@ export function parseColloquialTime(text: string, now = new Date()): ColloquialT
   }
 
   // the date part: "today", "tomorrow", "tonight", an explicit date
-  // (10/25, oct 25), or nothing (meaning today).
-  let dateMatch: Date | null = null;
+  // (10/25, oct 25), or nothing (meaning today). it is carried as a
+  // token, not a Date: a Date needs a zone, and building it with the
+  // local constructor is how the double-subtract happened (below).
+  let dateKind: "none" | "today" | "tomorrow" | "explicit" = "none";
+  let explicitMonth = 0, explicitDay = 0;
   const day = text.match(/\b(today|tonight|tomorrow|tmrw?)\b/i);
   if (day) {
-    dateMatch = new Date(now);
-    if (!/today|tonight/i.test(day[1])) dateMatch.setDate(dateMatch.getDate() + 1);
+    dateKind = /today|tonight/i.test(day[1]) ? "today" : "tomorrow";
   }
   const md = text.match(/\b(\d{1,2})\/(\d{1,2})\b/);
   if (md) {
-    dateMatch = new Date(now.getFullYear(), parseInt(md[2], 10) - 1, parseInt(md[1], 10));
-    // a date already past must be next year's: nobody schedules the past
-    if (dateMatch.getTime() < now.getTime() - 86400000) dateMatch.setFullYear(dateMatch.getFullYear() + 1);
+    dateKind = "explicit";
+    // m/d, us convention, as the comment has always said: "10/25" is
+    // oct 25. the old version handed md[2] to the month slot, which
+    // rolled the date years into the future (a Date built with month
+    // 24 is oct 2028, not oct 2026).
+    explicitMonth = parseInt(md[1], 10);
+    explicitDay = parseInt(md[2], 10);
   }
+  // the clock scan runs on the text WITHOUT the date phrase: without
+  // this, "10/25 at 10am ist" matched the date's "10" as the clock and
+  // the actual "10am ist" was never read (oct 22 2026).
+  const textForClock = md ? text.replace(md[0], "  ") : text;
 
   // the clock part: "3pm", "2:30pm", "14:30", "3 pm eastern", "at 5".
-  const clock = text.match(
+  const clock = textForClock.match(
     new RegExp(
       `\\b(?:(\\d{1,2}):(\\d{2})|(\\d{1,2}))\\s*(am|pm)?\\s*(${ZONE_RE})?\\b`,
       "i",
     ),
   );
   if (!clock) {
-    return dateMatch
+    return dateKind !== "none"
       ? { matched: (day?.[0] || md?.[0] || "") as string, partial: "date-no-time", iso: undefined }
       : null;
   }
@@ -107,7 +100,7 @@ export function parseColloquialTime(text: string, now = new Date()): ColloquialT
   // be a section number, not a time, so a bare hour under 8 is not a time.
   const hasMeridiem = Boolean(clock[4]);
   if (!hasMeridiem && !clock[2] && hour >= 1 && hour <= 11 && !/at\s/i.test(text)) {
-    return dateMatch ? { matched: (day?.[0] || "") as string, partial: "date-no-time" } : null;
+    return dateKind !== "none" ? { matched: (day?.[0] || md?.[0] || "") as string, partial: "date-no-time" } : null;
   }
   if (!hasMeridiem && !clock[2] && (hour < 1 || hour > 11) && hour <= 12 && !/at\s/i.test(text)) {
     return null; // "chapter 9" is not a time
@@ -127,27 +120,56 @@ export function parseColloquialTime(text: string, now = new Date()): ColloquialT
   }
   const zone = TZ_TABLE[zoneLabel];
 
-  // convert in the source zone, and only then ask "did it pass?". the
-  // comparison happens in utc, not in the sandbox's local clock: a
-  // "3pm est" must not roll to tomorrow just because the server sits in
-  // a zone where it's already thursday.
-  const toUtc = (base: Date): string | null => {
-    const candidate = new Date(base.getFullYear(), base.getMonth(), base.getDate(), hour, minute);
-    const offset = zoneOffsetMinutes(candidate, zone);
-    if (offset === null) return null;
-    return new Date(candidate.getTime() - offset * 60000).toISOString();
+  // the conversion (the owner, oct 22 2026: the double-subtract fix). the
+  // clock is a wall clock in the SOURCE ZONE, so the calendar day it
+  // sits on is the zone's day too, read with Intl. the old version
+  // built the candidate with the local Date constructor (baking the
+  // server's zone into the instant) and then subtracted the zone
+  // offset on top: on a utc server the two happened to cancel, but on
+  // any other server "3pm est" lost the offset twice and landed at
+  // 23:00Z, and ist/cet drifted by the server offset. shiftWallClock
+  // applies the zone exactly once, server-independent.
+  const dayInZone = (instant: Date): string =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(instant);
+
+  const clock24 = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
+  const toUtc = (dayStr: string): string | null => {
+    try {
+      return shiftWallClock(`${dayStr}T${clock24}`, zone);
+    } catch {
+      return null;
+    }
   };
 
-  const base = dateMatch || now;
-  let iso = toUtc(base);
+  if (dateKind === "explicit") {
+    const year = parseInt(dayInZone(now).slice(0, 4), 10);
+    const mm = String(explicitMonth).padStart(2, "0");
+    const dd = String(explicitDay).padStart(2, "0");
+    let iso = toUtc(`${year}-${mm}-${dd}`);
+    // a date already past must be next year's: nobody schedules the past
+    if (iso && Date.parse(iso) < now.getTime() - 86400000) {
+      iso = toUtc(`${year + 1}-${mm}-${dd}`);
+    }
+    return iso ? { iso, matched } : { matched, partial: "time-no-zone", iso: undefined };
+  }
+
+  // today in the zone, or tomorrow in the zone (now + 24h read through
+  // the zone's calendar: a dst edge can make the wall clock 23 or 25
+  // hours away, and for prose that is the honest answer)
+  const baseDay = dateKind === "tomorrow"
+    ? dayInZone(new Date(now.getTime() + 86400000))
+    : dayInZone(now);
+
+  let iso = toUtc(baseDay);
   if (iso === null) return { matched, partial: "time-no-zone", iso: undefined };
 
   // no explicit date and the converted time already passed: it's the
-  // next occurrence. "join at 9pm" sent at 11pm means tomorrow.
-  if (!dateMatch && Date.parse(iso) < now.getTime()) {
-    const next = new Date(base);
-    next.setDate(next.getDate() + 1);
-    iso = toUtc(next);
+  // next occurrence. "join at 9pm" sent at 11pm means tomorrow. the
+  // comparison happens in utc, not in the sandbox's local clock.
+  if (dateKind === "none" && Date.parse(iso) < now.getTime()) {
+    iso = toUtc(dayInZone(new Date(now.getTime() + 86400000)));
   }
 
   return { iso: iso || undefined, matched };

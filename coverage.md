@@ -157,7 +157,7 @@ what she has assigned and prepared before she ever joins.
 | capture requests | working | pre-assigned per meeting (what to fetch, what to ask, what to mark attendance); keywords, questions, screenshot flags all ride on the meeting's requests |
 | prepared questions | working (assigned), voice asking on [@voice](https://github.com/tinkrland/prixie.ai/tree/voice) | CaptureRequest questions are assigned pre-meeting; asking them out loud is the [@voice](https://github.com/tinkrland/prixie.ai/tree/voice) transport (q&a flow below coordinates) |
 | profile / persona selection | designed | sandboxed identities, per-profile memory, shared global memory; profiles + profile_memory + global_memory exist in the schema |
-| colloquial timezone conversion | working | "3 pst", "evening for me" style references are converted to a joinable time |
+| colloquial timezone conversion | working | "3pm ist", "tomorrow 9am pt" style prose converts through the source zone exactly once, whatever zone the server runs in (the old version subtracted the offset twice on a non-utc server); email subjects parse through the same path, anchored to the email's own date |
 | the docket | working | not a schedule: each meeting is a watch with approximate details, regenerated from the live list every cycle, never a promise |
 | doc access | working | pre-meeting doc fetching for context she should walk in with |
 | join delay scheduling | working | the default trigger: she joins n minutes after start, set per meeting |
@@ -176,7 +176,7 @@ what happens between the join url and being in the room.
 | mic off | working | mic off by default; it turns on only for the voice feature's speaking turns |
 | late join | working | she joins ongoing meetings gracefully; the docket does not judge it |
 | join url safety | working | link_safety checks a url before she follows it |
-| one bot per meeting | working | the deploy claims the row (bot_deploying) before the join runs: overlapping cycles and a second isolate never deploy twice, and a deploy that dies mid-join has its claim swept back to scheduled after 15 minutes. the cycle also skips while the previous one is still running |
+| one bot per meeting | working | the deploy claims the row (bot_deploying) before the join runs: overlapping cycles and a second isolate never deploy twice. the claim is a lease with a heartbeat: a live deploy touches it every 5 minutes, so a waiting-room join can run as long as it needs; only a claim whose holder died goes stale and is swept back to scheduled after 15 minutes. the cycle also skips while the previous one is still running. migration 20261022a_bot_deploying.sql adds the status to the db's check constraint (run it before the proxy that uses it) |
 
 ## post joining checklist features
 
