@@ -175,7 +175,7 @@ what happens between the join url and being in the room.
 | camera off | working | she joins silently: camera off by default, always. the face is opt-in and lives on [@video](https://github.com/tinkrland/prixie.ai/tree/video) |
 | mic off | working | mic off by default; it turns on only for the voice feature's speaking turns |
 | late join | working | she joins ongoing meetings gracefully; the docket does not judge it |
-| join url safety | working | link_safety checks a url before she follows it |
+| join url safety | working | link_safety checks a url before she follows it; theurltell is her own wheregoes.com (the owner, oct 22 2026): it walks the redirect chain in house (no third party ever sees the url), strips marketing params before the first ping, re-gates every hop, parses meta refresh without executing it, and fails closed on loops, broken chains and 12+ hops. sessions only ever open the DESTINATION: the shortener hop and its pixels are told, never visited. wired into form entry and the shared-doc side session |
 | one bot per meeting | working | the deploy claims the row (bot_deploying) before the join runs: overlapping cycles and a second isolate never deploy twice. the claim is a lease with a heartbeat: a live deploy touches it every 5 minutes, so a waiting-room join can run as long as it needs; only a claim whose holder died goes stale and is swept back to scheduled after 15 minutes. the cycle also skips while the previous one is still running. migration 20261022a_bot_deploying.sql adds the status to the db's check constraint (run it before the proxy that uses it) |
 
 ## post joining checklist features

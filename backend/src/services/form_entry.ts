@@ -26,6 +26,7 @@ import { captureScreenshot } from "./screenshots.ts";
 import { registerDefaultScreenshotEngines } from "./screenshot_engines.ts";
 import { CODE_SELECTORS, REDEEM_TEXTS } from "./promo.ts";
 import { assertLinkSafe } from "./link_safety.ts";
+import { theUrlTell } from "./theurltell/mod.ts";
 
 // engines are idempotent to register; this keeps form_entry honest even
 // if it runs before the realtime webhook module ever loads
@@ -176,18 +177,33 @@ export async function enterForm(
     detail: "",
   };
 
-  // the gate comes before the session exists: an unsafe link is never
-  // even loaded in a throwaway browser
-  const verdict = await assertLinkSafe(url);
+  // the tell comes before the session exists (the owner, oct 22 2026):
+  // people pad links with shorteners and trackers, and she does not
+  // ask wheregoes.com or any third party where it goes. theurltell
+  // walks the chain itself, and only the destination is ever opened.
+  // an unsafe link is never even loaded in a throwaway browser.
+  const tell = await theUrlTell(url);
+  if (!tell.destination) {
+    receipt.detail = `link not opened: ${tell.reason}`;
+    return receipt;
+  }
+  // the full gate runs on the destination: that is the only url a
+  // session ever opens, so that is the url the safe browsing layer
+  // needs to judge
+  const verdict = await assertLinkSafe(tell.destination);
   if (!verdict.safe) {
     receipt.detail = `link blocked by safety gate: ${verdict.reason}`;
     return receipt;
+  }
+  if (tell.chain.length > 1) {
+    const dest = new URL(tell.destination);
+    receipt.detail += `link told through ${tell.chain.length - 1} hop(s) to ${dest.hostname}; `;
   }
 
   const session = await createSession();
 
   try {
-    await navigateTo(session.id, url); // consent banners are dismissed here
+    await navigateTo(session.id, tell.destination); // consent banners are dismissed here
     await sleep(4000); // let the page settle
 
     // the newsletter rule (the owner, oct 22 2026): opt-in boxes are never

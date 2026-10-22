@@ -193,11 +193,32 @@ async function maybeHandleSharedDocAccess(meeting: any, botId: string, chatText:
   console.log(`prixie: shared doc link in chat for ${meeting.id}: ${url}`);
   const receipt: DocAccessReceipt = { url, denied: false, requested: false, nudged_in_chat: false, detail: "" };
 
+  // the tell first (the owner, oct 22 2026): the chat link may be padded
+  // with a shortener and trackers, and she does not hand it to
+  // wheregoes.com or any third party. theurltell walks the chain in
+  // house, and the side session only ever opens the destination.
+  const { theUrlTell } = await import("../../services/theurltell/mod.ts");
+  const tell = await theUrlTell(url);
+  if (!tell.destination) {
+    receipt.denied = true;
+    receipt.detail = `link not opened: ${tell.reason}`;
+    console.log(`prixie: doc link told unsafe for ${meeting.id}: ${tell.reason}`);
+    // the attempt goes on the record even though nothing was opened
+    await createAttendanceMessage({
+      meeting_id: meeting.id,
+      message_text: `doc link not opened: ${tell.reason}`,
+      trigger: "access",
+      sent_status: "failed",
+      sent_at: new Date().toISOString(),
+    }).catch(() => {});
+    return;
+  }
+
   // a side session, NOT the call session: the call tab is untouched
   const side = await createSession();
   try {
-    await assertLinkSafeFor(url);
-    await navigateTo(side.id, url);
+    await assertLinkSafeFor(tell.destination);
+    await navigateTo(side.id, tell.destination);
     await new Promise((r) => setTimeout(r, 5000)); // google pages settle slowly
 
     const state = await readDocPageState(side.id);
