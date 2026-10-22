@@ -13,6 +13,12 @@ rtmp destination, so each platform is one small file:
   stable public constant. kick has no mature public api for chat or channel
   info, and nothing here pretends otherwise.
 
+- `youtube.ts` — youtube live's ingest url + key from the studio's
+  stream settings, read from env (`YOUTUBE_STREAM_URL`,
+  `YOUTUBE_STREAM_KEY`): unlike twitch there is no single stable
+  ingest constant, and both values rotate. the same shape as kick,
+  honestly so.
+
 adding a platform means adding one file with a `StreamTarget` and a
 point-at function. no bridge changes, no platform lock-in: the same rule as
 everywhere else in prixie, ours and not the platform's.

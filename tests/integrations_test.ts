@@ -5,6 +5,7 @@ import { assertEquals } from "jsr:@std/assert";
 import { ObsBridge, obsAuthHash } from "../integrations/obs.ts";
 import { TWITCH_INGEST, twitchTarget, pointObsAtTwitch } from "../integrations/twitch.ts";
 import { kickTarget, kickTargetFromEnv, pointObsAtKick } from "../integrations/kick.ts";
+import { youtubeTarget, youtubeTargetFromEnv, pointObsAtYoutube } from "../integrations/youtube.ts";
 
 // obs_test.ts's mock speaks the protocol; import its pieces so the target
 // tests ride the same bridge.
@@ -81,4 +82,46 @@ Deno.test("obsAuthHash still computes the protocol's challenge response", async 
   const hash = await obsAuthHash("password", "challenge", "salt");
   assertEquals(typeof hash, "string");
   assertEquals(hash.length > 0, true);
+});
+
+Deno.test("youtube target is the studio's ingest url, never a constant", () => {
+  const target = youtubeTarget("rtmps://a.rtmps.youtube.com/live2", "yt_123");
+  assertEquals(target.server, "rtmps://a.rtmps.youtube.com/live2");
+  assertEquals(target.key, "yt_123");
+});
+
+Deno.test("youtube target from env is null without both credentials", async () => {
+  const before = { url: Deno.env.get("YOUTUBE_STREAM_URL"), key: Deno.env.get("YOUTUBE_STREAM_KEY") };
+  Deno.env.delete("YOUTUBE_STREAM_URL");
+  Deno.env.delete("YOUTUBE_STREAM_KEY");
+  try {
+    assertEquals(youtubeTargetFromEnv(), null);
+    Deno.env.set("YOUTUBE_STREAM_URL", "rtmps://a.rtmps.youtube.com/live2");
+    Deno.env.set("YOUTUBE_STREAM_KEY", "yt_123");
+    assertEquals(youtubeTargetFromEnv(), youtubeTarget("rtmps://a.rtmps.youtube.com/live2", "yt_123"));
+  } finally {
+    for (const [k, v] of Object.entries(before)) {
+      if (v === undefined) Deno.env.delete(k!);
+      else Deno.env.set(k!, v);
+    }
+  }
+});
+
+Deno.test("pointObsAtYoutube drives the same SetStreamSettings seam", async () => {
+  const obs = mockObs();
+  const bridge = new ObsBridge({ url: obs.url });
+  await bridge.connect();
+
+  await pointObsAtYoutube(bridge, youtubeTarget("rtmps://a.rtmps.youtube.com/live2", "yt_123"));
+
+  assertEquals(
+    obs.requests.find((r) => r.requestType === "SetStreamSettings")?.requestData,
+    {
+      streamSettingsType: "custom",
+      settings: { server: "rtmps://a.rtmps.youtube.com/live2", key: "yt_123" },
+      save: true,
+    },
+  );
+  bridge.close();
+  await obs.finish();
 });
