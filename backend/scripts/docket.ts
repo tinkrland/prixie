@@ -62,7 +62,45 @@ async function main() {
     ? entries.join("\n\n")
     : "nothing is on the docket right now. this section regenerates from the live meeting list every time this script runs. an empty docket is an honest docket: no watch is fabricated to fill the page.";
 
-  const readme = DOCKET_TEMPLATE.replace("<!--calendar-->", calendar);
+  // the discord rooms, live: open voice channels (a call is open when
+  // someone is in a channel) and the guild's watchable events. this is
+  // the docket's look-out made real: she watches the rooms, not just
+  // the calendar. a failed read keeps the docket calendar-only: the
+  // section never fabricates a room.
+  let discord = "";
+  try {
+    const dr = await fetch(`${base}/api/discord/state`, {
+      headers: { "x-api-token": token },
+    });
+    if (dr.ok) {
+      const d = await dr.json();
+      const roomLines: string[] = [];
+      for (const vc of d.openVoiceChannels ?? []) {
+        const who = vc.occupants.map((o: any) => o.name || o.userId).join(", ");
+        roomLines.push(
+          `- a call is open in voice channel ${vc.channelId}: ${who}`,
+        );
+      }
+      for (const e of d.events ?? []) {
+        roomLines.push(
+          `- [${e.statusName}] event "${e.name}" starts ${e.scheduledStartTime}` +
+            (e.userCount !== null ? `, ${e.userCount} interested` : "") +
+            `: ${e.deepLink} (rsvp is yours to tap, not hers)`,
+        );
+      }
+      discord = roomLines.length
+        ? roomLines.join("\n")
+        : "the discord watch is running and the rooms are quiet right now. no call is open, no event is upcoming. quiet is honest too.";
+    } else {
+      discord = "the discord watch is not up right now. the rooms go unlisted until it is.";
+    }
+  } catch {
+    discord = "the discord watch could not be read. the rooms go unlisted until it can be.";
+  }
+
+  const readme = DOCKET_TEMPLATE
+    .replace("<!--calendar-->", calendar)
+    .replace("<!--discord-->", discord);
   await Deno.writeTextFile("/tmp/docket-readme.md", readme);
   console.log(`prixie: docket rendered for ${withRequests.length} watch(es), written to /tmp/docket-readme.md`);
   console.log("commit it to the docket branch: git worktree add /tmp/wt-docket docket, then copy + commit + push.");
@@ -94,6 +132,10 @@ each entry below is a watch, not a promise:
 ## the calendar
 
 <!--calendar-->
+
+## the discord rooms, live
+
+<!--discord-->
 
 ## regeneration
 

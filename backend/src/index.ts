@@ -13,6 +13,7 @@ import calendlyRouter from "./routes/calendly.ts";
 import hinglishRouter from "./routes/hinglish.ts";
 import inboxRouter from "./routes/inbox.ts";
 import liveLinksRouter from "./routes/live_links.ts";
+import discordRouter from "./routes/discord.ts";
 import forumLinksRouter from "./routes/forum_links.ts";
 import voiceAgentRouter from "./routes/voice_agent.ts";
 import memoriumRouter from "./routes/memorium.ts";
@@ -57,7 +58,7 @@ app.get("/", (c) => {
       "/api/profiles", "/api/stats", "/api/browserbase", "/api/luma",
       "/api/calendly", "/api/hinglish", "/api/inbox", "/api/live-links",
       "/api/forum", "/api/voice", "/api/memorium", "/api/voice-presets",
-      "/api/agentmail", "/api/zoom",
+      "/api/agentmail", "/api/zoom", "/api/discord",
     ],
   });
 });
@@ -75,6 +76,7 @@ app.route("/api/calendly", calendlyRouter);
 app.route("/api/hinglish", hinglishRouter);
 app.route("/api/inbox", inboxRouter);
 app.route("/api/live-links", liveLinksRouter);
+app.route("/api/discord", discordRouter);
 app.route("/api/forum", forumLinksRouter);
 app.route("/api/voice", voiceAgentRouter);
 app.route("/api/memorium", memoriumRouter);
