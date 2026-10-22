@@ -59,6 +59,10 @@ export class StreamSession {
   }
 
   async goLive(): Promise<void> {
+    // a stream is on camera by definition: the persona default flipped to
+    // voice-first for calls (oct 22 2026), so the stream surface says so
+    // explicitly instead of relying on a default it no longer has.
+    this.deps.voice.onCamera = true;
     await this.deps.obs.switchScene(this.deps.config.scene);
     await this.deps.obs.startStream();
   }

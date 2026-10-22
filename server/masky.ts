@@ -8,10 +8,16 @@
 // small head motion) while the next turn renders. scripted speak turns are
 // cached: identical text + avatar + voice renders once, replays are free.
 //
-// note on voice: the speak flow takes TEXT, not audio. masky owns the tts
-// (higgs, with delivery cues via voiceStyle) and the lip-sync together.
-// yap's live voice stays separate; for camera presence the avatar's cloned
-// voice is the one on screen.
+// note on voice (updated oct 22 2026, the flip): the call STARTS as a
+// livekit voice call; the face matches that voice, not the other way
+// around. the speak flow takes TEXT, not audio: masky renders tts
+// (higgs) + lip-sync together, and the api reference is explicit that
+// /videos/generate with an audio url is NOT a lip-sync model. so the
+// match is at the voice-identity level: clone the call voice in masky's
+// web ui (upload samples), the custom voice appears in GET /voices, and
+// setAvatarVoice attaches it to the avatar. same voice everywhere; on
+// camera the render engine is higgs, off camera it is the voice leg's
+// own tts. one voice, two engines agreeing on whose voice it is.
 
 const MASKY_API_KEY = Deno.env.get("MASKY_API_KEY") || "";
 const MASKY_BASE = Deno.env.get("MASKY_BASE_URL") || "https://masky.ai/api";
@@ -126,6 +132,26 @@ async function call<T>(
 
 export function listVoices(): Promise<{ voices: Voice[] }> {
   return call("GET", "/voices");
+}
+
+// pure: find a voice by exact name among presets and customs. the flip
+// (the owner, oct 22 2026) needs the CLONED copy of the call voice: presets
+// plus customs live in one list, and the match is by name.
+export function findVoiceByName(voices: Voice[], name: string): Voice | null {
+  return voices.find((v) => v.name === name) ?? null;
+}
+
+// attach a voice to an avatar (verified oct 22 2026 against the api
+// reference: POST /avatars/{avatarId}/voice { voiceId }). this is how the
+// face "matches that voice": the cloned copy of the livekit voice is
+// attached to the avatar, so on-camera speak turns render in the voice
+// the room already knows. cloning itself is done in masky's web ui
+// (upload samples of the call voice); the api only lists + attaches.
+export function setAvatarVoice(
+  avatarId: string,
+  voiceId: string,
+): Promise<{ avatar: Avatar }> {
+  return call("POST", `/avatars/${avatarId}/voice`, { voiceId });
 }
 
 export async function listAvatars(): Promise<Avatar[]> {

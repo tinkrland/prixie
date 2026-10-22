@@ -20,6 +20,13 @@
 // -> what she says next), and inventing a default for it here would be
 // inventing a fake agent. the caller passes the loop that produces
 // utterances; this file only guarantees they leave as one voice.
+//
+// THE FLIP (the owner, oct 22 2026): the call STARTS as a livekit voice call.
+// voice turns route to the caller's voice leg (faceOff, the livekit audio
+// transport from the voice branch, same seam as hear: caller-owned). the
+// face is opt-in: cameraOn() and the persona's avatar speaks the CLONED
+// match of that same voice (PersonaInit.voiceMatch). voice call first,
+// face when wanted, one voice throughout.
 
 import {
   CameraOffAdapter,
@@ -43,6 +50,11 @@ export interface CallSessionDeps {
   publisher: LkPublisher;
   // yap: transcript -> next utterance. null = the call is over.
   hear(): Promise<Utterance | null>;
+  // the voice leg (the flip's default path): the livekit audio transport
+  // from the voice branch. voice-first means most turns never render a
+  // face at all; when it is absent, voice-only turns idle and the run
+  // stays honest: no fake tts is invented here.
+  faceOff?: (utterance: Utterance) => Promise<void>;
   timer?: Timer; // tests pass a fake clock; the default sleeps for real
 }
 
@@ -72,10 +84,19 @@ export function callSession(deps: CallSessionDeps): LiveCall {
       await deps.publisher.unpublishAudio();
     },
   }, timer);
+  // runCall's publisher: the livekit pair on camera, the voice leg off
+  // camera. the compose never invents a tts for the voice leg; the caller
+  // passes the real one (the voice branch's transport).
+  const runPublisher = {
+    publish: (published: { audioUrl: string; videoUrl: string }) =>
+      deps.publisher.publish(published),
+    idle: () => deps.publisher.idle?.() ?? Promise.resolve(),
+    publishFaceOff: deps.faceOff,
+  };
   return {
     voice: deps.voice,
     publisher: deps.publisher,
-    run: () => runCall(deps.voice, deps.publisher, deps.hear),
+    run: () => runCall(deps.voice, runPublisher, deps.hear),
     async cameraOff(render, clipMs) {
       const plan = await adapter.cameraOff(render, clipMs);
       deps.voice.onCamera = false;
@@ -99,6 +120,11 @@ export interface PersonaInit {
   personalityPrompt?: string;
   avatarImageUrl?: string;
   set?: SetSpec;
+  // the flip: name of the masky voice that is a clone of the CALL voice
+  // (cloned in masky's web ui from livekit voice samples). when given,
+  // the avatar wears it, so an on-camera face speaks the same voice the
+  // room has been hearing. missing clone = hard error, never a mismatch.
+  voiceMatch?: string;
 }
 
 export interface LiveCallDeps {
@@ -107,6 +133,9 @@ export interface LiveCallDeps {
   // time (the voice branch's room rule). never a shared default.
   room: { url: string; token: string };
   hear(): Promise<Utterance | null>;
+  // the voice leg: the livekit audio transport (voice branch). the call
+  // starts as a voice call, so this leg carries every off-camera turn.
+  faceOff?: (utterance: Utterance) => Promise<void>;
   timer?: Timer;
 }
 
@@ -115,7 +144,13 @@ export interface LiveCallDeps {
 export async function startLiveCall(deps: LiveCallDeps): Promise<LiveCall> {
   const voice = await PersonaVoice.init(deps.persona);
   const publisher = await createLivekitPublisher(deps.room);
-  return callSession({ voice, publisher, hear: deps.hear, timer: deps.timer });
+  return callSession({
+    voice,
+    publisher,
+    hear: deps.hear,
+    faceOff: deps.faceOff,
+    timer: deps.timer,
+  });
 }
 
 // the plan is the protocol's own shape: re-exported so the compose's

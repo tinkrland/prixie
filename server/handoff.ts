@@ -11,9 +11,12 @@
 //   videoUrl -> livekit camera track     (what the room sees)
 //
 // the room hears exactly the render the mouth is moving to, by construction,
-// not by syncing two providers. masky owns the voice whenever she is on
-// camera; yap's own tts only covers face-off turns. idle clips keep the face
-// alive between turns instead of freezing on a still.
+// not by syncing two providers. THE FLIP (the owner, oct 22 2026): a call starts
+// as a livekit VOICE call. the livekit voice is the canonical voice; when
+// she goes on camera the avatar speaks a CLONED COPY of that voice
+// (voiceMatch), so the face matches the voice the room already knows and
+// never the other way around. idle clips keep the face alive between turns
+// instead of freezing on a still.
 //
 // retelldb decides what the voice is: what she knows (memory query) and how
 // she says it (the persona's voice profile: lingvist/lexica/lingvica). the
@@ -28,6 +31,9 @@ import {
   type VoiceStyle,
   enableIdleLoop,
   ensurePersonaAvatar,
+  findVoiceByName,
+  listVoices,
+  setAvatarVoice,
   startConversation,
   speak,
   waitForClip,
@@ -73,8 +79,29 @@ export class PersonaVoice {
     // authored still, so the background is the same in every clip instead of
     // model-invented per render.
     set?: SetSpec;
+    // THE FLIP: the livekit voice is the canonical voice, and the face
+    // matches it. voiceMatch names the masky voice that is a CLONE of the
+    // call voice (cloned in masky's web ui from samples of the livekit
+    // voice; the api lists + attaches, it does not clone). when given, the
+    // avatar is re-attached to that voice if it does not already wear it,
+    // and a missing clone is a hard error with the instruction, never a
+    // silent mismatch: continuity is the whole point of the flip.
+    voiceMatch?: string;
   }): Promise<PersonaVoice> {
-    const avatar = await ensurePersonaAvatar(opts);
+    let avatar = await ensurePersonaAvatar(opts);
+    if (opts.voiceMatch) {
+      const { voices } = await listVoices();
+      const match = findVoiceByName(voices, opts.voiceMatch);
+      if (!match) {
+        throw new Error(
+          `voiceMatch: no masky voice named "${opts.voiceMatch}" exists. clone the call voice from samples in masky's web ui first (it then appears in GET /voices), then start the call again. a face that speaks a different voice defeats the flip.`,
+        );
+      }
+      if (avatar.voiceId !== match.id) {
+        const { avatar: updated } = await setAvatarVoice(avatar.avatarId, match.id);
+        avatar = updated;
+      }
+    }
     const set = opts.set ?? defaultSet();
     const handle = await startConversation(avatar, {
       avatarImageUrl: opts.avatarImageUrl,
@@ -98,9 +125,13 @@ export class PersonaVoice {
     return new PersonaVoice(opts.personaRef, avatar, handle, profile, set);
   }
 
-  // on camera: masky owns the voice (speak turns render voice + face
-  // together). off camera: yap tts owns it, per the camera-off handoff.
-  onCamera = true;
+  // THE FLIP: the call starts as a livekit voice call. onCamera starts
+  // FALSE: voice turns go to the voice leg (yap), low latency, no render
+  // in the loop. the face is opt-in: cameraOn() flips this, and from then
+  // on masky owns the render pair (voice + face together, in the cloned
+  // match of the same voice). a meeting face is optional presence; a
+  // voice call is the useful default (the owner, oct 22 2026).
+  onCamera = false;
 
   // say one utterance and get both tracks back. keep text to <= 3 sentences:
   // masky chunks longer text into extra turn docs and the id/clip pairing

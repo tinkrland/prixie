@@ -87,6 +87,7 @@ globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
 const { PersonaVoice, runCall, planCameraOff, CameraOffAdapter } = await import(
   "../server/handoff.ts",
 );
+const { findVoiceByName } = await import("../server/masky.ts");
 const { voiceStyleFromProfile } = await import("../persona/voice_adapter.ts");
 const { speak } = await import("../server/masky.ts");
 
@@ -108,6 +109,21 @@ interface TestUtterance {
 function assert(cond: boolean, msg: string) {
   if (!cond) throw new Error(msg);
 }
+
+// the flip's pure half: find the cloned match by exact name among
+// presets + customs. verified oct 22 2026: cloning happens in masky's web
+// ui, GET /voices lists both, POST /avatars/{id}/voice attaches.
+Deno.test("findVoiceByName: exact match among presets and customs", () => {
+  const voices = [
+    { id: "v1", name: "Alice Bennett", source: "preset" },
+    { id: "v2", name: "prixie's voice", source: "custom" },
+    { id: "v3", name: "Anna", source: "preset" },
+  ];
+  const found = findVoiceByName(voices, "prixie's voice");
+  assert(found?.id === "v2" && found.source === "custom", "the clone is found by exact name");
+  assert(findVoiceByName(voices, "Prixie's Voice") === null, "the match is exact, not case-folded");
+  assert(findVoiceByName(voices, "nobody") === null, "a missing clone is null, so init can refuse honestly");
+});
 
 Deno.test("init wires face, idle loop and profile together", async () => {
   const voice = await PersonaVoice.init({
@@ -158,6 +174,9 @@ Deno.test("runCall publishes the same render to the room, then idles", async () 
     facePrompt: "unused",
     voiceId: "voice_1",
   });
+  // the on-camera contract: the flip made calls start voice-first, so this
+  // test says the camera is on the way a real caller would (cameraOn)
+  voice.onCamera = true;
 
   const published: { audioUrl: string; videoUrl: string }[] = [];
   let idleCalls = 0;

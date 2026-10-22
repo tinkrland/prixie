@@ -109,21 +109,70 @@ Deno.test("cameraOn: back on camera; end closes the room", async () => {
   assertEquals(log, ["close"]);
 });
 
-Deno.test("off camera: face-off turns go to the yap leg, not the camera", async () => {
+Deno.test("the flip: a call starts as a voice call, face is opt-in", async () => {
+  const voice = fakeVoice();
+  voice.onCamera = false; // the persona default since the flip
+  const { publisher, log } = fakePublisher();
+  const spoken: string[] = [];
+  const utterances: (Utterance | null)[] = [
+    { text: "voice only, as most turns are" },
+    { text: "still voice" },
+    null,
+  ];
+  let i = 0;
+  const call = callSession({
+    voice,
+    publisher,
+    hear: async () => utterances[i++],
+    faceOff: async (u) => {
+      spoken.push(u.text); // the livekit audio leg, caller-owned
+    },
+    timer: fakeTimer({ now: 0 }),
+  });
+
+  await call.run();
+  // every turn went out as voice: nothing rendered, nothing published
+  assertEquals(spoken, ["voice only, as most turns are", "still voice"]);
+  assertEquals(log, []);
+
+  // the camera comes on: the NEXT utterance renders through masky, as the
+  // pair the room hears and sees from one turn
+  call.cameraOn();
+  assertEquals(voice.onCamera, true);
+  const heard: (Utterance | null)[] = [{ text: "now you see me" }, null];
+  let j = 0;
+  const call2 = callSession({
+    voice,
+    publisher,
+    hear: async () => heard[j++],
+    faceOff: async (u) => {
+      spoken.push(u.text);
+    },
+    timer: fakeTimer({ now: 0 }),
+  });
+  await call2.run();
+  assertEquals(log, ["publish a-now you see me.mp3 | v-now you see me.mp4"]);
+  assertEquals(spoken.length, 2); // the on-camera turn never doubled up
+});
+
+Deno.test("off camera: face-off turns go to the voice leg, not the camera", async () => {
   const voice = fakeVoice();
   const { publisher, log } = fakePublisher();
   const faceOff: string[] = [];
-  const publisherFaceOff = {
-    ...publisher,
-    async publishFaceOff(utterance: Utterance) {
-      faceOff.push(utterance.text);
-    },
-  } as LkPublisher;
   const utterances: (Utterance | null)[] = [{ text: "off camera line" }, null];
   let i = 0;
   voice.onCamera = false;
-  const call = callSession({ voice, publisher: publisherFaceOff, hear: async () => utterances[i++] });
+  const call = callSession({
+    voice,
+    publisher,
+    hear: async () => utterances[i++],
+    // since the flip the voice leg is a call-level dep (like hear), never a
+    // method on the livekit publisher: lk_publisher has no tts to call
+    faceOff: async (u) => {
+      faceOff.push(u.text);
+    },
+  });
   await call.run();
   assertEquals(faceOff, ["off camera line"]);
-  assertEquals(log, []); // nothing was rendered on camera: yap owned the voice
+  assertEquals(log, []); // nothing was rendered on camera: the voice leg owned it
 });

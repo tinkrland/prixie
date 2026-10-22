@@ -27,8 +27,10 @@ function fakeObs(): { obs: StreamObs; log: Recorded[] } {
   };
 }
 
+// the persona default is voice-first since the flip (oct 22 2026), so the
+// fake starts like the real thing: off camera until goLive says otherwise
 function fakeVoice() {
-  return { onCamera: true } as { onCamera: boolean };
+  return { onCamera: false } as { onCamera: boolean };
 }
 
 const config = { scene: "live", cameraSource: "prixie cam" };
@@ -39,13 +41,15 @@ const render = {
 
 Deno.test("go live: scene first, then the stream", async () => {
   const { obs, log } = fakeObs();
+  const voice = fakeVoice();
   const session = new StreamSession({
     obs: obs as unknown as ObsBridge,
     config,
-    voice: fakeVoice() as never,
+    voice: voice as never,
     unpublishMaskyAudio: async () => {},
   });
   await session.goLive();
+  assert(voice.onCamera === true, "a stream is on camera: goLive says so explicitly now");
   assert(log[0].op === "switchScene" && log[0].args[0] === "live", "the live scene is switched first");
   assert(log[1].op === "startStream", "then obs starts streaming (the target: whatever integrations/ pointed obs at)");
   await session.end();

@@ -6,30 +6,47 @@ the proskena-derived pieces live in studioify/ (the plate builder that speaks pr
 
 why decoupled: the join engine (main) and the voice (voice) do not care what she looks like. video only matters where the platform renders a face, and it plugs in at the camera stream level once the other layers are solid.
 
-status: wired. server/masky.ts talks to the real api (https://masky.ai/masky-api.md) and the full flow is smoke-tested live: portrait image -> prixie avatar -> conversation -> speak turn -> lip-synced 6s h264 clip, ~20s end to end, ~$0.16 in credits. camera publishing is wired too (server/lk_publisher.ts, the owner oct 21 2026): the render demuxes with ffmpeg -re (native-rate pacing, the pipe IS the clock) and publishes into the livekit room as her camera and audio tracks; rtc-node loads lazily, geometry from ffprobe, publishFaceOff stays with yap. server/call.ts composes the bridge with no injectables: startLiveCall() builds PersonaVoice (real masky) + LkPublisher (real rtc) + the camera-off handoff as one call, so voice.say -> publisher.publish is one unbroken render, by construction.
+status: wired, and FLIPPED voice-first (oct 22 2026): calls start as livekit voice calls, the face is opt-in and speaks the cloned match of the call voice. server/masky.ts talks to the real api (https://masky.ai/masky-api.md) and the full flow is smoke-tested live: portrait image -> prixie avatar -> conversation -> speak turn -> lip-synced 6s h264 clip, ~20s end to end, ~$0.16 in credits. camera publishing is wired too (server/lk_publisher.ts, the owner oct 21 2026): the render demuxes with ffmpeg -re (native-rate pacing, the pipe IS the clock) and publishes into the livekit room as her camera and audio tracks; rtc-node loads lazily, geometry from ffprobe, publishFaceOff stays with yap. server/call.ts composes the bridge with no injectables: startLiveCall() builds PersonaVoice (real masky) + LkPublisher (real rtc) + the camera-off handoff as one call, so voice.say -> publisher.publish is one unbroken render, by construction.
 
-## flow: one voice, two rooms
+## flow: one voice, two rooms, voice first
 
-one call uses livekit for voice and masky for the face, and they must not drift.
-so there is only one voice: the speak turn renders higgs tts (the avatar's cloned
-voice) and the lip-sync together and hands back both files.
+THE FLIP (the owner, oct 22 2026): a call STARTS as a livekit voice call. the
+livekit voice is the canonical voice and most turns never render a face at
+all: off-camera utterances route straight to the voice leg (the voice
+branch's audio transport, a caller-owned seam like hear). the face is
+opt-in: cameraOn(), and from that turn on masky renders the pair.
 
 ```
 retelldb (persona memory)          what she knows, how she says it
         |                          voice profile -> voiceStyle cues
         v
-masky speak turn (text in, ~20-60s, cached per script, draft by default)
-        |
+off camera (the default):  utterance -> voice leg (livekit audio, low latency)
+on camera (opt-in):        masky speak turn (text in, ~20-60s, cached per script)
+        |                          ...in the CLONED match of the call voice
         +--> audioUrl --> livekit audio track   (what the room hears)
         +--> videoUrl --> livekit camera track  (what the room sees)
         |
         +--> idle clips between turns (silent renders, blinks, head motion)
 ```
 
-the room hears exactly the render the mouth is moving to, by construction, not
-by syncing two providers. masky owns the voice whenever she is on camera; voice's
-own tts covers face-off turns only. server/handoff.ts is that seam, and voice
-implements one interface (RoomPublisher.publish) to take both tracks.
+how the face matches the voice (verified against the api reference, oct 22
+2026): masky's speak flow takes TEXT and renders higgs tts + lip-sync
+together; /videos/generate with an audio url is explicitly NOT a lip-sync
+model, so the face cannot lip-sync to the livekit audio directly. the match
+is at the voice-identity level instead: the call voice is cloned once in
+masky's web ui (upload samples of the livekit voice), the custom voice
+appears in GET /voices, and PersonaVoice.init({ voiceMatch }) attaches it
+to the avatar via POST /avatars/{avatarId}/voice. the avatar then speaks
+the same voice the room already knows; a missing clone is a hard error with
+the instruction, never a silent mismatch. on camera the render engine is
+higgs, off camera it is the voice leg's tts: one voice, two engines
+agreeing on whose voice it is.
+
+the room hears exactly the render the mouth is moving to when on camera, by
+construction, not by syncing two providers. server/handoff.ts is that seam
+(PersonaVoice, runCall, the camera-off handoff); the voice leg implements
+the caller-owned faceOff seam, the livekit side implements
+RoomPublisher.publish for the on-camera pair.
 
 seams:
 
