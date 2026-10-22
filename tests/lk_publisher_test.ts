@@ -71,6 +71,9 @@ function fakeHandle(log: string[]) {
     unpublishAudio: async () => {
       log.push("unpublish audio");
     },
+    unpublishVideo: async () => {
+      log.push("unpublish video");
+    },
     close: async () => {
       log.push("close");
     },
@@ -88,6 +91,20 @@ function demuxPipes(videoChunks: Uint8Array[], audioChunks: Uint8Array[]): RunPi
     return gen();
   };
 }
+
+Deno.test("the camera leg unpublishes, idempotently", async () => {
+  const log: string[] = [];
+  const publisher = await createLivekitPublisher({
+    url: "wss://room.test",
+    token: "t",
+    rtc: { connect: async () => fakeHandle(log) },
+    probe: async () => ({ width: 2, height: 2 }),
+    runPipe: demuxPipes([], []),
+  });
+  await publisher.unpublishVideo();
+  await publisher.unpublishVideo(); // already dark: fine, not an error
+  assertEquals(log, ["unpublish video"]);
+});
 
 Deno.test("publish: both pipes reach the room, video chunks sized as whole frames", async () => {
   const log: string[] = [];

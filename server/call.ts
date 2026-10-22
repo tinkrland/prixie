@@ -1,0 +1,123 @@
+// the compose (the owner, oct 22 2026): the bridge, assembled with no
+// injectables. this is the answer to "did the bridge ever run with the
+// real masky and the real rtc and nothing faked between them": from
+// here, PersonaVoice.init talks to the real masky api under the owner's own
+// key, createLivekitPublisher loads the real rtc-node, demuxes with real
+// ffmpeg, and probes with real ffprobe. nothing in this file injects a
+// seam, because the seam's whole point is that tests sit BEHIND it and
+// the compose sits IN FRONT of it.
+//
+// the continuity question, answered by construction:
+//
+//   voice.say(utterance)  ->  { audioUrl, videoUrl }   one masky turn
+//   publisher.publish(render)                          the same render
+//
+// there is no step between say and publish where a second voice could
+// enter. the room hears the render the mouth moves to, and no schedule
+// or sync protocol exists to drift.
+//
+// hear() is the only thing the caller owns: it is yap's side (transcript
+// -> what she says next), and inventing a default for it here would be
+// inventing a fake agent. the caller passes the loop that produces
+// utterances; this file only guarantees they leave as one voice.
+
+import {
+  CameraOffAdapter,
+  PersonaVoice,
+  planCameraOff,
+  runCall,
+  type CameraOffPlan,
+  type Render,
+  type Timer,
+  type Utterance,
+} from "./handoff.ts";
+import { createLivekitPublisher, type LkPublisher } from "./lk_publisher.ts";
+import type { SetSpec } from "../studioify/set.ts";
+
+// the orchestration half: the pieces are built, the wiring is what needs
+// proving. voice + publisher + hear + the camera-off handoff as one call
+// object. tested with unit fakes (no test claims a transport loaded);
+// startLiveCall is the same wiring with every piece real.
+export interface CallSessionDeps {
+  voice: PersonaVoice;
+  publisher: LkPublisher;
+  // yap: transcript -> next utterance. null = the call is over.
+  hear(): Promise<Utterance | null>;
+  timer?: Timer; // tests pass a fake clock; the default sleeps for real
+}
+
+export interface LiveCall {
+  voice: PersonaVoice;
+  publisher: LkPublisher;
+  // the call loop: hear -> say -> publish, one voice, two rooms
+  run(): Promise<void>;
+  // the meeting-side camera-off handoff: no obs here, the livekit camera
+  // track IS the browser-level switch. dark now, audio to the sentence's
+  // end, then yap owns the voice from the next utterance on.
+  cameraOff(render: Render, clipMs: number): Promise<CameraOffPlan>;
+  // the face comes back with the next render (the camera track
+  // republishes itself on the next publish; there is no idle face in a
+  // meeting room, so this is honest: she is camera-off until she speaks)
+  cameraOn(): void;
+  end(): Promise<void>;
+}
+
+export function callSession(deps: CallSessionDeps): LiveCall {
+  const timer = deps.timer ?? { sleep: (ms) => new Promise((r) => setTimeout(r, ms)) };
+  const adapter = new CameraOffAdapter({
+    hideCamera: async () => {
+      await deps.publisher.unpublishVideo();
+    },
+    unpublishMaskyAudio: async () => {
+      await deps.publisher.unpublishAudio();
+    },
+  }, timer);
+  return {
+    voice: deps.voice,
+    publisher: deps.publisher,
+    run: () => runCall(deps.voice, deps.publisher, deps.hear),
+    async cameraOff(render, clipMs) {
+      const plan = await adapter.cameraOff(render, clipMs);
+      deps.voice.onCamera = false;
+      return plan;
+    },
+    cameraOn() {
+      deps.voice.onCamera = true;
+    },
+    async end() {
+      await deps.publisher.close();
+    },
+  };
+}
+
+// persona init, verbatim: personaRef is who she is (memory + voice
+// profile), voiceId the avatar's own voice, facePrompt her look.
+export interface PersonaInit {
+  personaRef: string;
+  facePrompt: string;
+  voiceId: string;
+  personalityPrompt?: string;
+  avatarImageUrl?: string;
+  set?: SetSpec;
+}
+
+export interface LiveCallDeps {
+  persona: PersonaInit;
+  // the session's OWN room and identity, minted by the caller at call
+  // time (the voice branch's room rule). never a shared default.
+  room: { url: string; token: string };
+  hear(): Promise<Utterance | null>;
+  timer?: Timer;
+}
+
+// the compose: everything real, nothing injected. this is the function
+// a meeting join calls when she goes on camera.
+export async function startLiveCall(deps: LiveCallDeps): Promise<LiveCall> {
+  const voice = await PersonaVoice.init(deps.persona);
+  const publisher = await createLivekitPublisher(deps.room);
+  return callSession({ voice, publisher, hear: deps.hear, timer: deps.timer });
+}
+
+// the plan is the protocol's own shape: re-exported so the compose's
+// callers can assert the no-cut invariant without importing handoff.
+export { planCameraOff };

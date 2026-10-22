@@ -72,6 +72,9 @@ export interface LkRoomHandle {
   publishVideo(frame: Uint8Array, spec: { width: number; height: number }): Promise<void>;
   publishAudio(pcm: Int16Array, sampleRate: number): Promise<void>;
   unpublishAudio(): Promise<void>;
+  // the camera-off leg, meeting-side: the video track unpublishes, the
+  // room sees her camera go dark. the audio keeps its own protocol.
+  unpublishVideo(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -146,45 +149,77 @@ export function defaultLkRtc(): LkRtc {
       const room = new rtc.Room({ adaptiveStream: false, dynacast: false });
       await room.connect(url, token);
 
-      const source = new rtc.VideoSource(new rtc.VideoFrame(rtc.VideoFormatType.RGBA, 480, 270), 1000);
-      const videoTrack = new rtc.LocalVideoTrack(source);
-      await room.localParticipant.publishTrack(videoTrack, { name: "prixie camera" });
+      // both tracks are rebuilt-state: the source/track pair swaps together
+      // when a render's geometry differs from the placeholder, and each leg
+      // republishes itself after an unpublish (camera off / on cycles).
+      const video = {
+        source: new rtc.VideoSource(
+          new rtc.VideoFrame(rtc.VideoFormatType.RGBA, 480, 270),
+          1000,
+        ),
+        track: null as any,
+        up: false,
+        published: 0,
+      };
+      video.track = new rtc.LocalVideoTrack(video.source);
+      await room.localParticipant.publishTrack(video.track, { name: "prixie camera" });
+      video.up = true;
 
-      const audioSource = new rtc.AudioSource(48000, 1);
-      const audioTrack = new rtc.LocalAudioTrack(audioSource);
-      await room.localParticipant.publishTrack(audioTrack, { name: "prixie voice" });
+      const audio = {
+        source: new rtc.AudioSource(48000, 1),
+        track: null as any,
+        up: false,
+      };
+      audio.track = new rtc.LocalAudioTrack(audio.source);
+      await room.localParticipant.publishTrack(audio.track, { name: "prixie voice" });
+      audio.up = true;
 
-      let framesPublished = 0;
       return {
         async publishVideo(frame, spec) {
-          // the source is rebuilt at the render's real geometry on the
-          // first frame: the room sees the clip's own pixels, stretched
-          // by no one
-          if (framesPublished === 0 && (spec.width !== 480 || spec.height !== 270)) {
-            await videoTrack.unpublish();
-            room.localParticipant["source"] = undefined; // the old source is gone
-            const rebuilt = new rtc.VideoSource(
+          // the source is rebuilt at the render's real geometry when the
+          // first frame says so: the room sees the clip's own pixels,
+          // stretched by no one. source and track swap together; frames
+          // only ever go to the source of the live track.
+          if (video.published === 0 && (spec.width !== 480 || spec.height !== 270)) {
+            if (video.up) await video.track.unpublish();
+            video.source = new rtc.VideoSource(
               new rtc.VideoFrame(rtc.VideoFormatType.RGBA, spec.width, spec.height),
               1000,
             );
-            const track = new rtc.LocalVideoTrack(rebuilt);
-            await room.localParticipant.publishTrack(track, { name: "prixie camera" });
+            video.track = new rtc.LocalVideoTrack(video.source);
+            await room.localParticipant.publishTrack(video.track, { name: "prixie camera" });
+            video.up = true;
           }
-          framesPublished++;
+          video.published++;
           const vf = new rtc.VideoFrame(
             new rtc.VideoBuffer(spec.width, spec.height, rtc.VideoFormatType.RGBA),
             frame,
             0,
           );
-          await source.captureFrame(vf, 0);
+          await video.source.captureFrame(vf, 0);
         },
         async publishAudio(pcm, sampleRate) {
-          await audioSource.captureFrame(
+          if (!audio.up) {
+            // the camera-off handoff unpublished this leg; a turn that puts
+            // her back on camera republishes it before it speaks
+            audio.source = new rtc.AudioSource(48000, 1);
+            audio.track = new rtc.LocalAudioTrack(audio.source);
+            await room.localParticipant.publishTrack(audio.track, { name: "prixie voice" });
+            audio.up = true;
+          }
+          await audio.source.captureFrame(
             new rtc.AudioFrame(pcm, sampleRate, 1, pcm.length),
           );
         },
         async unpublishAudio() {
-          await audioTrack.unpublish();
+          if (!audio.up) return; // idempotent: nothing in flight is fine
+          await audio.track.unpublish();
+          audio.up = false;
+        },
+        async unpublishVideo() {
+          if (!video.up) return; // idempotent: the camera is already dark
+          await video.track.unpublish();
+          video.up = false;
         },
         async close() {
           await room.disconnect();
@@ -234,9 +269,18 @@ export async function createLivekitPublisher(deps: LivekitPublisherDeps): Promis
   const handle = await rtc.connect(deps.url, deps.token);
 
   let inFlight: Promise<void> | null = null;
+  // idempotence is the surface's promise, not the transport's mood: the
+  // camera leg and the audio leg both tolerate being called when they
+  // are already down ("nothing in flight is fine"), whatever the handle
+  // underneath would do with a second call.
+  let videoUp = true;
+  let audioUp = true;
 
   return new (class implements LkPublisher {
     async publish(published: { audioUrl: string; videoUrl: string }): Promise<void> {
+      // a render is on camera and spoken: both legs are up for it
+      videoUp = true;
+      audioUp = true;
       // the geometry comes from the clip before either pipe starts:
       // measured, never a default
       const spec = await probe(published.videoUrl);
@@ -260,7 +304,17 @@ export async function createLivekitPublisher(deps: LivekitPublisherDeps): Promis
     }
 
     async unpublishAudio(): Promise<void> {
+      if (!audioUp) return;
+      audioUp = false;
       await handle.unpublishAudio();
+    }
+
+    // camera dark, meeting-side. the next publish() brings the camera
+    // back with the next render's own pixels.
+    async unpublishVideo(): Promise<void> {
+      if (!videoUp) return;
+      videoUp = false;
+      await handle.unpublishVideo();
     }
 
     async idle(): Promise<void> {
@@ -277,6 +331,7 @@ export async function createLivekitPublisher(deps: LivekitPublisherDeps): Promis
 // extends the handoff seam with the legs the stream session needs
 export interface LkPublisher extends RoomPublisher {
   unpublishAudio(): Promise<void>;
+  unpublishVideo(): Promise<void>;
   close(): Promise<void>;
   probeGeometry(videoUrl: string): Promise<{ width: number; height: number }>;
 }
