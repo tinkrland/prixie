@@ -583,6 +583,97 @@ export function entryVerdict(sessionId: string, outcome: EntryOutcome): JoinResu
 
 // --- mainline platforms (zoom, meet, teams) ---
 
+// zoom registration links (the owner, oct 22 2026): a zoom meeting behind
+// registration sends a link shaped zoom.us/meeting/register/<id> (or
+// webinar/register), and the real join link only exists after the
+// form is filled and submitted. this is register-then-source, the
+// same truth as luma: she registers first, then joins. the form
+// identity is the form identity (PRIXIE_FORM_NAME / PRIXIE_FORM_EMAIL,
+// never the owner's), and if zoom chooses to EMAIL the link instead of
+// showing it, the flow says so and stops. no guessed links, ever.
+export function isZoomRegisterUrl(url: string): boolean {
+  return /https:\/\/[a-z0-9-]+\.zoom\.us\/(meeting|webinar)\/register\//i.test(url);
+}
+
+export interface ZoomRegistrationResult {
+  ok: boolean;
+  joinUrl?: string;
+  error?: string;
+}
+
+// the join link on the confirmation page: an anchor or a copyable
+// input pointing at the zoom.us/j/ (meeting) or zoom.us/w/ (webinar)
+// shape. read from the dom, never constructed.
+async function extractZoomJoinLink(sessionId: string): Promise<string | null> {
+  const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `(() => {
+      const linkShape = /zoom\\.us\\/(j|w)\\//;
+      for (const a of document.querySelectorAll("a[href]")) {
+        if (linkShape.test(a.href)) return a.href;
+      }
+      for (const inp of document.querySelectorAll("input")) {
+        if (inp.value && linkShape.test(inp.value)) return inp.value;
+      }
+      return null;
+    })()`,
+    returnByValue: true,
+  });
+  return result?.result?.value ?? null;
+}
+
+export async function registerZoom(
+  sessionId: string,
+  registerUrl: string,
+  formName: string,
+  formEmail: string,
+): Promise<ZoomRegistrationResult> {
+  await navigateTo(sessionId, registerUrl);
+  await new Promise((r) => setTimeout(r, 6000)); // zoom pages settle slowly
+
+  // first name / last name / email, the registration trio. zoom's
+  // markup has carried more than one shape over the years, so a few
+  // candidates each, first one that types wins.
+  const first = formName.split(/\s+/)[0] || formName;
+  const last = formName.split(/\s+/).slice(1).join(" ") || first;
+
+  await findAndType(
+    sessionId,
+    'input[name="fname"], input[name="first_name"], input[id*="first" i][type="text"], input[placeholder*="first" i]',
+    first,
+    6000,
+  );
+  await findAndType(
+    sessionId,
+    'input[name="lname"], input[name="last_name"], input[id*="last" i][type="text"], input[placeholder*="last" i]',
+    last,
+    6000,
+  );
+  const emailTyped = await findAndType(
+    sessionId,
+    'input[type="email"], input[name="email"], input[placeholder*="email" i]',
+    formEmail,
+    6000,
+  );
+  if (!emailTyped) {
+    return { ok: false, error: "registration form had no email field she could type" };
+  }
+
+  const submitted = await findAndClickByText(sessionId, ["register"], "button", 12000);
+  if (!submitted) {
+    return { ok: false, error: "no register button on the page" };
+  }
+  await new Promise((r) => setTimeout(r, 6000)); // let the confirmation land
+
+  const joinUrl = await extractZoomJoinLink(sessionId);
+  if (!joinUrl) {
+    // honest: some zoom setups mail the link instead of showing it.
+    // the agentmail path can pick it up from the inbox later; this
+    // flow never guesses.
+    return { ok: false, error: "confirmation page showed no join link (zoom may have emailed it)" };
+  }
+  return { ok: true, joinUrl };
+}
+
 export async function joinZoom(sessionId: string, meetingUrl: string, profileName: string): Promise<JoinResult> {
   await navigateTo(sessionId, meetingUrl);
   await new Promise(r => setTimeout(r, 6000));

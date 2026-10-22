@@ -158,6 +158,42 @@ async function tryApplyPromo(
   return { attempted: true, applied: false, detail: "redeem button opened but no code field appeared" };
 }
 
+// flowing forms (the owner, oct 22 2026): typeform and surveymonkey advance
+// one screen at a time, and a single-page fill would answer screen
+// one and stop. these engines get a per-screen loop instead: fill
+// what is on the screen, then click the submit-shaped button when
+// one exists (that screen is the last), the next-shaped one when it
+// does not, and stop honestly at a screen with neither. max 15
+// screens, because a survey that long is not a form, it is a career.
+const FLOWING_HOSTS = ["typeform.com", "surveymonkey.com"];
+const FLOW_SUBMIT_TEXTS = ["submit", "done", "complete", "finish", "submit response", "submit form", "see results", "get results"];
+const FLOW_ADVANCE_TEXTS = ["next", "continue", "ok", "arrow", "forward", "next page"];
+const MAX_FLOW_SCREENS = 15;
+
+// pure: is this url a one-screen-at-a-time engine?
+export function isFlowingForm(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return FLOWING_HOSTS.some((f) => host === f || host.endsWith("." + f));
+  } catch {
+    return false;
+  }
+}
+
+// pure: the precedence rule for one screen. submit-shaped wins over
+// next-shaped (a screen with both is the last screen), and a screen
+// with neither is where the truth stops.
+export function flowActionFor(buttonTexts: string[]): { act: "submit" | "advance" | "stuck" } {
+  const labels = buttonTexts.map((t) => t.toLowerCase());
+  if (labels.some((l) => FLOW_SUBMIT_TEXTS.some((t) => l === t || l.includes(t)))) {
+    return { act: "submit" };
+  }
+  if (labels.some((l) => FLOW_ADVANCE_TEXTS.some((t) => l === t || l.includes(t)))) {
+    return { act: "advance" };
+  }
+  return { act: "stuck" };
+}
+
 // best-effort generic form act. the contract is a receipt, not a
 // promise: submitted=true means a submit-shaped click happened after
 // the email landed. the screenshots are the proof.
@@ -201,6 +237,12 @@ export async function enterForm(
   }
 
   const session = await createSession();
+
+  // a one-screen-at-a-time engine never sees the single-page fill:
+  // the flow loop owns it, screen by screen
+  if (isFlowingForm(tell.destination)) {
+    return await enterFlowingForm(session.id, tell.destination, identity, receipt);
+  }
 
   try {
     await navigateTo(session.id, tell.destination); // consent banners are dismissed here
@@ -319,4 +361,85 @@ export async function redeemAndNotify(
     promoCode: context.promoCode,
   });
   return await notifyOwner(email);
+}
+
+// the flow loop: one screen at a time, fill then advance, submit when
+// the button is submit-shaped. the receipt is the same contract as
+// the single-page fill: submitted means a submit-shaped click, the
+// screenshots are the proof, and a screen she cannot pass is told,
+// never pretended past.
+async function enterFlowingForm(
+  sessionId: string,
+  url: string,
+  identity: FormIdentity,
+  receipt: FormEntryReceipt,
+): Promise<FormEntryReceipt> {
+  await navigateTo(sessionId, url); // consent banners are dismissed here
+  await sleep(4000);
+
+  for (let screen = 1; screen <= MAX_FLOW_SCREENS; screen++) {
+    // fill what is on THIS screen
+    if (identity.email && !receipt.filled_email) {
+      for (const sel of EMAIL_SELECTORS) {
+        if (await findAndType(sessionId, sel, identity.email, 3000)) {
+          receipt.filled_email = true;
+          break;
+        }
+      }
+    }
+    if (identity.name && !receipt.filled_name) {
+      for (const sel of NAME_SELECTORS) {
+        if (await findAndType(sessionId, sel, identity.name, 3000)) {
+          receipt.filled_name = true;
+          break;
+        }
+      }
+    }
+
+    // the newsletter rule rides every screen, not just the first
+    const aligned = await alignNewsletterBoxes(sessionId);
+    receipt.newsletters_cleared = (receipt.newsletters_cleared ?? 0) + aligned.optInsUnchecked;
+    receipt.newsletter_opt_outs = (receipt.newsletter_opt_outs ?? 0) + aligned.optOutsChecked;
+
+    // the no-cc gate, probed per screen
+    for (const sel of ["input[autocomplete*='cc' i]", 'input[name*="card" i][type!="email"]', 'input[id*="card" i][type!="email"]', 'input[placeholder*="card" i]', 'input[name*="cvc" i]', 'input[name*="cvv" i]', 'input[name*="csc" i]']) {
+      if (await elementExists(sessionId, sel, 2500)) {
+        receipt.cc_detected = true;
+        receipt.detail = `cc field on screen ${screen}, she stopped there`;
+        return receipt;
+      }
+    }
+
+    if (screen === 1) receipt.before_screenshot = await captureScreenshot(sessionId, "browserbase");
+
+    // submit-shaped wins (flowActionFor's precedence, in the dom):
+    // a screen with both next and submit is the last screen
+    const submitted = await findAndClickByText(
+      sessionId,
+      FLOW_SUBMIT_TEXTS,
+      "button, input[type='submit'], a[role='button'], div[role='button']",
+      8000,
+    );
+    if (submitted) {
+      receipt.submitted = true;
+      receipt.detail += `flowed through ${screen} screen(s), submitted`;
+      break;
+    }
+
+    const advanced = await findAndClickByText(
+      sessionId,
+      FLOW_ADVANCE_TEXTS,
+      "button, a[role='button'], div[role='button']",
+      8000,
+    );
+    if (!advanced) {
+      receipt.detail += `stopped at screen ${screen}: no submit- or next-shaped button`;
+      break;
+    }
+    await sleep(3000); // let the next screen render
+  }
+
+  await sleep(3000); // let the result settle
+  receipt.after_screenshot = await captureScreenshot(sessionId, "browserbase");
+  return receipt;
 }

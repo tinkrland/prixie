@@ -10,6 +10,7 @@ import type {
 } from "./bot_provider.ts";
 import type { Meeting } from "../types.ts";
 import {
+  createSession,
   joinMeeting,
   getSessionStatus,
   stopSession,
@@ -24,6 +25,12 @@ import {
   KNOCK_TEXTS,
 } from "./browserbase.ts";
 import { transcribeBrowserbaseSession } from "./browserbase_transcript.ts";
+import {
+  isZoomRegisterUrl,
+  registerZoom,
+  type ZoomRegistrationResult,
+} from "./browserbase.ts";
+import { updateMeeting } from "./supabase.ts";
 import { readPreJoinParticipantCount } from "./browserbase_extended.ts";
 
 // session statuses browserbase reports, normalized to prixie lifecycle states
@@ -43,7 +50,34 @@ export class BrowserbaseProvider implements BotProvider {
     options?: CreateBotOptions
   ): Promise<{ id: string; status: ProviderBotStatus }> {
     const profileName = await resolveProfileName(meeting);
-    const result = await joinMeeting(meeting.platform || "custom", meeting.join_url, profileName);
+
+    // zoom registration links (the owner, oct 22 2026): a register-shaped
+    // link is a signup, not a join. she registers in a side session,
+    // and only the confirmation page's real join link is ever joined.
+    // the row records the resolved link, so no cycle registers twice.
+    let meetingUrl = meeting.join_url;
+    if (isZoomRegisterUrl(meetingUrl)) {
+      const formName = Deno.env.get("PRIXIE_FORM_NAME") || profileName;
+      const formEmail = Deno.env.get("PRIXIE_FORM_EMAIL");
+      if (!formEmail) {
+        throw new Error("zoom registration needs PRIXIE_FORM_EMAIL, never the owner's address");
+      }
+      const regSession = await createSession();
+      let reg: ZoomRegistrationResult;
+      try {
+        reg = await registerZoom(regSession.id, meetingUrl, formName, formEmail);
+      } finally {
+        await stopSession(regSession.id).catch(() => {});
+      }
+      if (!reg.ok || !reg.joinUrl) {
+        throw new Error(`zoom registration did not yield a join link: ${reg.error}`);
+      }
+      console.log(`prixie: zoom registration resolved the join link for meeting ${meeting.id}`);
+      meetingUrl = reg.joinUrl;
+      await updateMeeting(meeting.id, { join_url: meetingUrl }).catch(() => {});
+    }
+
+    const result = await joinMeeting(meeting.platform || "custom", meetingUrl, profileName);
 
     if (result.status === "waiting_room") {
       // she asked (maybe several times) and nobody let her in yet. the

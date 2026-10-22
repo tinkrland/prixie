@@ -172,6 +172,7 @@ what happens between the join url and being in the room.
 | waiting room handling | working | "asked" is not "in": success is the in-call UI being seen, never a clicked button. a meeting stays bot_joining until the page says she entered. nobody answering means she asks again on a bounded cadence (the mods-missed-a-popup badger), and every ask is counted on the result |
 | join triggers | working | delay (default, n minutes after start), participants (n humans already inside from the pre-join page read), or room_open (the discord watcher's state: a voice channel with occupants is the call happening, the schedule was a guess) |
 | auth modes | working | anonymous by default; zoom signature (HMAC-SHA256) signed via /api/zoom/signature when the meeting wants a signed participant; registration-gated events follow register-then-source |
+| zoom registration links | working in principle (built, never live-run) | a zoom.us/meeting/register or /webinar/register link is a signup, not a join (the owner, oct 22 2026). she fills the form in a side session with the form identity (PRIXIE_FORM_NAME / PRIXIE_FORM_EMAIL, never the owner's), reads the real join link off the confirmation page, records it as the meeting's join_url (no cycle registers twice), and joins that. if zoom emails the link instead of showing it, the flow says so and stops; the agentmail inbox path can complete the sourcing when the email lands |
 | camera off | working | she joins silently: camera off by default, always. the face is opt-in and lives on [@video](https://github.com/tinkrland/prixie.ai/tree/video) |
 | mic off | working | mic off by default; it turns on only for the voice feature's speaking turns |
 | late join | working | she joins ongoing meetings gracefully; the docket does not judge it |
@@ -241,8 +242,8 @@ so the honest answer per platform is about page structure, not brand:
 | fillout | presumed yes | published forms (form.fillout.com) are react pages with standard inputs; structure not inspected, never live-filled |
 | airtable forms | presumed yes | one-page share forms with standard inputs; structure not inspected, never live-filled |
 | microsoft forms | needs a probe first | the standalone ResponsePage renders custom question widgets and embedded office forms come in iframes; neither inspected nor live-filled. no claim until a live one is probed |
-| surveymonkey | not yet (multi-page) | surveys advance page by page; the engine fills what is on the page and clicks once, and the per-page "next" step is not built. reCAPTCHA shows up on free plans too |
-| typeform | not yet (one question at a time) | a typeform advances per question; the engine has no advance-the-flow step, so it would answer q1 and stop. the homepage demos are marketing mockups, not live forms (checked oct 22 2026) |
+| surveymonkey | working in principle (advance step built, never live-filled) | the flow loop (oct 22 2026): fill the screen, click next until a submit-shaped button, max 15 screens, newsletter + cc rules ride every screen. reCAPTCHA on free plans can still stop her cold, and that would be told, not hidden |
+| typeform | working in principle (advance step built, never live-filled) | same flow loop: one question per screen, the arrow button carries "next" in aria-label which the click matcher reads, submit-shaped wins over next-shaped. the homepage demos are marketing mockups (checked oct 22 2026); a real typeform link is the first verified row upgrade |
 
 or simply put: single-page standard-dom forms (google forms verified,
 tally structure-verified, jotform / fillout / airtable presumed) are
