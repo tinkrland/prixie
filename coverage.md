@@ -225,6 +225,33 @@ what is waiting for the owner after the meeting ends.
 | screenshots | working | captured on request, stored, linked in the take-home |
 | summaries | working (only when asked) | a summary is never sent unless the owner specifically asked for one: the default take-home is the transcript, the answers, and the receipts. no unrequested summaries |
 
+## form platforms she can fill
+
+which form engines she can in fact fill out (the owner asked, oct 22 2026).
+the fill engine (form_entry.enterForm) is engine-agnostic: it walks
+standard dom selectors, types her identity, aligns newsletter boxes,
+refuses cc fields, and clicks one submit. that is the whole machine,
+so the honest answer per platform is about page structure, not brand:
+
+| platform | status | notes |
+| --- | --- | --- |
+| google forms | working (verified) | the only one live-proven: the attendance flow runs on it end to end (theurltell + safety gate, form email identity, cc hard stop, submit receipt) |
+| tally.so | working in principle (structure verified, never live-filled) | a published tally inspected oct 22 2026: real dom radio inputs and a real submit button, whole form on one page. no advance step needed, so the generic fill applies as is |
+| jotform | presumed yes | classic form engine, standard inputs and submit buttons; structure not inspected, never live-filled |
+| fillout | presumed yes | published forms (form.fillout.com) are react pages with standard inputs; structure not inspected, never live-filled |
+| airtable forms | presumed yes | one-page share forms with standard inputs; structure not inspected, never live-filled |
+| microsoft forms | needs a probe first | the standalone ResponsePage renders custom question widgets and embedded office forms come in iframes; neither inspected nor live-filled. no claim until a live one is probed |
+| surveymonkey | not yet (multi-page) | surveys advance page by page; the engine fills what is on the page and clicks once, and the per-page "next" step is not built. reCAPTCHA shows up on free plans too |
+| typeform | not yet (one question at a time) | a typeform advances per question; the engine has no advance-the-flow step, so it would answer q1 and stop. the homepage demos are marketing mockups, not live forms (checked oct 22 2026) |
+
+or simply put: single-page standard-dom forms (google forms verified,
+tally structure-verified, jotform / fillout / airtable presumed) are
+hers. one-screen-at-a-time engines (typeform, surveymonkey) need a
+per-screen advance step that is not built. microsoft forms is not
+claimed until a live form is probed. every "presumed" row becomes
+"working (verified)" the first time a real link of that engine is
+filled, and not before.
+
 ## unsuccessful attempts
 
 what she does when the answer is no. she does not give up silently
