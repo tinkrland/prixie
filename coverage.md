@@ -293,3 +293,4 @@ not promises, direction (the owner, oct 22 2026). entries wait until they are bu
 | multilingual coverage | speech-to-speech and transcript coverage beyond english (hinglish transliteration already keeps latin script) |
 | book a meeting with her | people can book time with prixie herself |
 | she hosts meetings | from attendee to host: her room, her invite, her rules |
+| an oss join engine | a self-hosted alternative to the browserbase subscription, for people who want no dependency on it (the owner, oct 22 2026): playwright + chromium, or camoufox for stealth, running on her own vm and speaking the same cdp seams. the swap is an engine, not a rewrite, because everything above browserbase.ts talks cdpExecute and findAndType, not browserbase. the honest trade: she keeps the join flows, the flow loop, the tell, and loses browserbase's captcha solving and stealth fingerprints, so the harder sites get harder. discussion, nothing built |
