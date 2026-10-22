@@ -53,6 +53,18 @@ where she registers for an event when the link is behind a signup.
 | eventbrite | planned | same shape as luma: register, then source the link from the confirmation path |
 | zoom webinars / teams live events | planned | registration-locked; same register-then-source shape as luma |
 
+## consent
+
+the standing rules (the owner, oct 22 2026): she never ever accepts cookies
+that are not necessary, and she never ever opts into newsletters. not
+per-site judgment: a policy module every surface shares
+(services/consent.ts), and the banner walk rides every navigation.
+
+| rule | status | how | notes |
+| --- | --- | --- | --- |
+| necessary-only cookies | working | consentChoice picks reject-all / only-necessary from the banner's buttons; an accept-only banner is left standing and reported, a close button is a dismissal, never an agreement | the walk runs on every navigation: join pages, registrations, doc side sessions, recap fetches |
+| no newsletters | working | pre-checked marketing boxes are unchecked before any form is filled (enterForm, newsletters_cleared on the receipt); unchecked boxes stay unchecked | opt-in smells: newsletter, mailing list, marketing, promo emails, subscribe, opt-in |
+
 ## source links through
 
 every way a meeting link can reach her, monitored live.
@@ -207,3 +219,28 @@ what is waiting for the owner after the meeting ends.
 | codes and access info | working | term_detector's take-home terms (hackathon access codes, join info) relayed verbatim, never paraphrased |
 | screenshots | working | captured on request, stored, linked in the take-home |
 | summaries | working (only when asked) | a summary is never sent unless the owner specifically asked for one: the default take-home is the transcript, the answers, and the receipts. no unrequested summaries |
+
+## unsuccessful attempts
+
+what she does when the answer is no. she does not give up silently
+and she never fakes success: she asks again, or asks someone, and the
+receipt says exactly what happened.
+
+| situation | status | what she does | notes |
+| --- | --- | --- | --- |
+| the waiting room never answers | working | she asks again on a bounded cadence (the mods-missed-a-popup badger), every ask counted on the result; still ignored is waiting_room, not failed | awaitEntry in browserbase.ts |
+| the join attempt fails | partial | the failure is recorded honestly (status failed, the reason kept); the waiting-room ask is the built re-request, a retry ladder for failed joins is planned | one deploy attempt per meeting today; nothing retried silently |
+| a shared file she cannot open | working | doc_access: she reads the access state in a side session, tries the request-access flow, and asks the host in the chat by name; one attempt per link per meeting | never assumed open, never assumed requested |
+| a promo code with no straightforward place to apply it, when she has been told it is time-bound / limited keys | planned | she asks in the chat: "wait can someone confirm if i need my card on file for this? i dont have it on me at the moment lol" | the honest hedge: sometimes a promo works without a card, and asking beats a blind checkout. the redeem flow today extracts codes (capture-gated) and applies them only outside cc flows; this ask is the next branch of it |
+
+## improved understanding
+
+the reading that makes the transcript more than text.
+
+| ability | status | notes |
+| --- | --- | --- |
+| persona context | designed | one retelldb persona memory across all surfaces (context branch owns it); the proxy reads her identity and register from it, never a blank slate |
+| technical term detection | working | term_detector pulls codes, access info, and jargon from the live text verbatim; assembly.ai custom vocabulary for technical jargon is the next step (configured per environment) |
+| multilingual: hinglish transliteration | working | hinglish renders latin script, phonetically written, italics on the hinglish portion, devanagari never in the take-home |
+| multi-speaker transcript parsing | working | assembly.ai diarization (speaker_labels), utterances speaker-tagged end to end: capture keyword hits carry the speaker, host reads carry the name |
+| screenshare, call voice, and chat treated hand in hand | working | chat and spoken prompts count equally in the q&a flow (her permission ask answers either), the voice agent pauses through screen-share setup silence, and the chat monitor runs beside the transcript | reading the share's contents is a later step (planned) |

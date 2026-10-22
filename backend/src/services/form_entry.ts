@@ -13,6 +13,7 @@
 // OUTSIDE the checkout flow entirely, so the code step runs before the
 // email fill, and the no-cc gate only governs forms she would fill.
 
+import { uncheckNewsletterOptIns } from "./consent.ts";
 import {
   createSession,
   elementExists,
@@ -43,6 +44,10 @@ export interface FormEntryReceipt {
   promo_attempted: boolean;
   promo_applied: boolean;
   cc_detected: boolean;
+  // marketing boxes that were pre-checked and got unchecked (the owner, oct
+  // 22 2026: she never opts in, and a pre-checked box is the site's
+  // yes, not hers). unchecked boxes stay unchecked and are not counted.
+  newsletters_cleared?: number;
   before_screenshot?: string;
   after_screenshot?: string;
   detail: string;
@@ -179,8 +184,12 @@ export async function enterForm(
   const session = await createSession();
 
   try {
-    await navigateTo(session.id, url);
+    await navigateTo(session.id, url); // consent banners are dismissed here
     await sleep(4000); // let the page settle
+
+    // the newsletter rule (the owner, oct 22 2026): pre-checked marketing
+    // boxes are unchecked before anything is filled. she never opts in.
+    receipt.newsletters_cleared = await uncheckNewsletterOptIns(session.id);
 
     // promo/redeem first: the button often exists outside the entire
     // checkout flow, and applying the code may be all she needs to do

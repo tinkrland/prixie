@@ -63,6 +63,16 @@ export async function navigateTo(sessionId: string, url: string): Promise<void> 
   if (!res.ok) {
     throw new Error(`navigation failed: ${res.statusText}`);
   }
+
+  // the consent policy rides every navigation (the owner, oct 22 2026): a
+  // banner she sees anywhere is a banner she declines. one bounded
+  // walk per page load, never throws: a page with no banner pays one
+  // quiet read.
+  try {
+    await dismissConsentBanners(sessionId);
+  } catch {
+    // a consent walk that fails changed nothing: nothing was agreed to
+  }
 }
 
 // the page's text, read through cdp. used by the pre-join reads (the
@@ -788,4 +798,5 @@ export async function heartbeatSession(sessionId: string): Promise<void> {
     returnByValue: true,
   });
 }
+import { dismissConsentBanners } from "./consent.ts";
 import { resolveAudioMode } from "./assemblyai.ts";
