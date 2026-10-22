@@ -10,10 +10,19 @@
 // neither is left standing and reported, never agreed to.
 //
 //   consentChoice(labels)      which button, if any, deserves a click
-//   newsletterOptIn(text)      does this checkbox/name smell like an
-//                              opt-in? (never checked by her)
+//   newsletterOptIn(text)      does this checkbox smell like a
+//                              newsletter box at all?
+//   newsletterDirection(text)  which way the tick cuts: opt-in (tick =
+//                              subscribe, never hers) or opt-out (tick =
+//                              stay off the list, always hers)
 //   dismissConsentBanners()    the engine walk, bounded and honest
-//   uncheckNewsletterOptIns() pre-checked marketing boxes get unchecked
+//   alignNewsletterBoxes()      every newsletter box read to its rule:
+//                              opt-ins never checked (a pre-checked one
+//                              is the site's yes, not hers), opt-outs
+//                              always checked (the owner, oct 22 2026: the
+//                              signup needs the real email, the form
+//                              makes her tick to NOT be added, she
+//                              ticks it)
 
 import { cdpExecute } from "./browserbase.ts";
 
@@ -91,6 +100,26 @@ export function newsletterOptIn(text: string): boolean {
   const t = norm(text).replace(/[_\-.]+/g, " ");
   if (!t) return false;
   return NEWSLETTER_MARKERS.some((m) => t.includes(m));
+}
+
+// the negation shapes that flip a box's meaning: "tick if you do NOT
+// wish to receive" is opt-out (the tick keeps her OFF the list), and
+// those are the ones she clicks. "subscribe to our newsletter" is
+// opt-in, and those she never touches.
+const OPT_OUT_MARKERS = [
+  "do not wish", "do not want", "do not receive", "dont wish",
+  "dont want", "dont receive", "not to be added", "not to receive",
+  "not be added", "opt out", "unsubscribe", "no thanks",
+  "stop receiving", "stop these emails", "rather not", "prefer not",
+];
+
+export function newsletterDirection(text: string): "opt_in" | "opt_out" | "none" {
+  // apostrophes read as nothing: "don't" is "dont", "you'll" is "youll
+  const t = norm(text).replace(/[_\-.]+/g, " ").replace(/['’]/g, "");
+  if (!t) return "none";
+  if (OPT_OUT_MARKERS.some((m) => t.includes(m))) return "opt_out";
+  if (NEWSLETTER_MARKERS.some((m) => t.includes(m))) return "opt_in";
+  return "none";
 }
 
 // ---------------------------------------------------------------------------
@@ -215,35 +244,53 @@ export async function dismissConsentBanners(sessionId: string): Promise<ConsentR
   return receipt;
 }
 
-// pre-checked newsletter/marketing checkboxes get UNchecked, and an
-// unchecked one stays unchecked: she never opts in. bounded, never
-// throws, returns how many boxes she had to clear.
-export async function uncheckNewsletterOptIns(sessionId: string): Promise<number> {
+// every newsletter checkbox is read to its rule and made to agree
+// (the owner, oct 22 2026):
+//   opt-in boxes (tick = subscribe): never checked; a pre-checked one
+//     is the site's yes, not hers, and gets unchecked
+//   opt-out boxes (tick = stay off the list, common on signups that
+//     need the real email): always checked, clicked if not already
+// bounded, never throws, returns how many boxes moved which way.
+export interface NewsletterAlignment {
+  optInsUnchecked: number;
+  optOutsChecked: number;
+}
+
+export async function alignNewsletterBoxes(
+  sessionId: string,
+): Promise<NewsletterAlignment> {
+  const out: NewsletterAlignment = { optInsUnchecked: 0, optOutsChecked: 0 };
   try {
     const r = await cdpExecute(sessionId, "Runtime.evaluate", {
       expression: `
         (() => {
           const markers = ${JSON.stringify(NEWSLETTER_MARKERS)};
-          let cleared = 0;
+          const optOuts = ${JSON.stringify(OPT_OUT_MARKERS)};
+          const reads = (box) => [
+            box.name, box.id,
+            (box.getAttribute("aria-label") || ""),
+            (box.closest("label")?.textContent || ""),
+          ].join(" ").toLowerCase().replace(/[_\-.]+/g, " ").replace(/['’]/g, "");
+          const moved = { optInsUnchecked: 0, optOutsChecked: 0 };
           for (const box of Array.from(document.querySelectorAll("input[type='checkbox']"))) {
-            if (!box.checked) continue; // unchecked stays unchecked, always
-            const name = [
-              box.name, box.id,
-              (box.getAttribute("aria-label") || ""),
-              (box.closest("label")?.textContent || ""),
-            ].join(" ").toLowerCase();
-            if (markers.some((m) => name.includes(m))) {
-              box.click(); // the checkbox's own click is the honest toggle
-              cleared++;
+            const t = reads(box);
+            const isOptOut = optOuts.some((m) => t.includes(m));
+            const isNewsletter = isOptOut || markers.some((m) => t.includes(m));
+            if (!isNewsletter) continue;
+            if (isOptOut) {
+              if (!box.checked) { box.click(); moved.optOutsChecked++; }
+            } else {
+              if (box.checked) { box.click(); moved.optInsUnchecked++; }
             }
           }
-          return String(cleared);
+          return JSON.stringify(moved);
         })()
       `,
       returnByValue: true,
     });
-    return Number(r?.result?.value ?? 0);
+    const moved = r?.result?.value ? JSON.parse(r.result.value) : null;
+    return moved ?? out;
   } catch {
-    return 0;
+    return out;
   }
 }

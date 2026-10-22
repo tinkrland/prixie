@@ -13,7 +13,7 @@
 // OUTSIDE the checkout flow entirely, so the code step runs before the
 // email fill, and the no-cc gate only governs forms she would fill.
 
-import { uncheckNewsletterOptIns } from "./consent.ts";
+import { alignNewsletterBoxes } from "./consent.ts";
 import {
   createSession,
   elementExists,
@@ -44,10 +44,13 @@ export interface FormEntryReceipt {
   promo_attempted: boolean;
   promo_applied: boolean;
   cc_detected: boolean;
-  // marketing boxes that were pre-checked and got unchecked (the owner, oct
+  // opt-in boxes that were pre-checked and got unchecked (the owner, oct
   // 22 2026: she never opts in, and a pre-checked box is the site's
-  // yes, not hers). unchecked boxes stay unchecked and are not counted.
+  // yes, not hers). unchecked opt-ins stay unchecked and are not counted.
   newsletters_cleared?: number;
+  // opt-out boxes she ticked (tick to NOT be added to the list): the
+  // signup needs the real email, so she takes the out the form offers
+  newsletter_opt_outs?: number;
   before_screenshot?: string;
   after_screenshot?: string;
   detail: string;
@@ -187,9 +190,13 @@ export async function enterForm(
     await navigateTo(session.id, url); // consent banners are dismissed here
     await sleep(4000); // let the page settle
 
-    // the newsletter rule (the owner, oct 22 2026): pre-checked marketing
-    // boxes are unchecked before anything is filled. she never opts in.
-    receipt.newsletters_cleared = await uncheckNewsletterOptIns(session.id);
+    // the newsletter rule (the owner, oct 22 2026): opt-in boxes are never
+    // hers (a pre-checked one is the site's yes, not hers, and gets
+    // unchecked); opt-out boxes (tick to NOT be added) are always
+    // hers, and she ticks them.
+    const aligned = await alignNewsletterBoxes(session.id);
+    receipt.newsletters_cleared = aligned.optInsUnchecked;
+    receipt.newsletter_opt_outs = aligned.optOutsChecked;
 
     // promo/redeem first: the button often exists outside the entire
     // checkout flow, and applying the code may be all she needs to do

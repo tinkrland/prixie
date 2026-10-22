@@ -63,7 +63,7 @@ per-site judgment: a policy module every surface shares
 | rule | status | how | notes |
 | --- | --- | --- | --- |
 | necessary-only cookies | working | consentChoice picks reject-all / only-necessary from the banner's buttons; an accept-only banner is left standing and reported, a close button is a dismissal, never an agreement | the walk runs on every navigation: join pages, registrations, doc side sessions, recap fetches |
-| no newsletters | working | pre-checked marketing boxes are unchecked before any form is filled (enterForm, newsletters_cleared on the receipt); unchecked boxes stay unchecked | opt-in smells: newsletter, mailing list, marketing, promo emails, subscribe, opt-in |
+| no newsletters | working | opt-in boxes are never checked (a pre-checked one is the site's yes, not hers, and gets unchecked); opt-out boxes, tick-to-NOT-be-added, are always hers and she ticks them (enterForm, newsletters_cleared + newsletter_opt_outs on the receipt) | opt-in smells: newsletter, mailing list, marketing, promo emails, subscribe; opt-out shapes: do not wish, not to be added, unsubscribe, prefer not |
 
 ## source links through
 
@@ -86,7 +86,6 @@ honest not-built list.
 | channel | status | notes |
 | --- | --- | --- |
 | email (agentmail outbound) | working | notifyOwner sends the take-home to PRIXIE_OWNER_EMAIL using the creds she already has from the inbound side |
-| this chat (the superagent) | working | the meeting manager workflow's agent step delivers transcripts + capture results in the owner conversation |
 | imessage | not built | same notifyOwner seam, not wired |
 | signal | not built | same seam |
 | whatsapp | not built | same seam |
@@ -109,32 +108,33 @@ destination for twitch and kick and youtube live both.
 
 | platform | status | how | notes |
 | --- | --- | --- | --- |
-| twitch | working (streaming) | the obs bridge on the video branch: integrations/twitch.ts speaks the obs protocol and the stream key rides the env; she goes live as a stream session (goLive) with the camera toggle honest | joining a twitch stream to read and comment is webinar mode, planned |
+| twitch | working (streaming) | the obs bridge on [@video](https://github.com/tinkrland/prixie.ai/tree/video): integrations/twitch.ts speaks the obs protocol and the stream key rides the env; she goes live as a stream session (goLive) with the camera toggle honest | joining a twitch stream to read and comment is webinar mode, planned |
 | kick | working (streaming) | integrations/kick.ts reads KICK_STREAM_URL / KICK_STREAM_KEY from the env, same obs bridge: adding a platform was adding a file | webinar mode, planned, same shape |
 | youtube live | planned | no integration built yet: the stream-out side would be an rtmp push, the join side is webinar mode | on the roadmap (confirmed): she joins youtube live streams to read and comment |
 
 ## social media presence coverage
 
-the socmed branch renders her presence per platform. the rule is the
+[@socmed](https://github.com/tinkrland/prixie.ai/tree/socmed) renders her presence per platform. the rule is the
 pipeline renders, it never publishes: captions, attribution, and
 posting stay with the creator. numbers are proskena's platform
 reference (checked oct 2026), not a second invented set.
 
-| platform / surface | dimensions | notes |
-| --- | --- | --- |
-| calls (meeting / livekit) | 16:9, 1280x720 | the call surface, no ui bands |
-| youtube long form | 16:9, 1920x1080 (4k 3840x2160 supported) | burned captions live in the bottom tenth; end screens cover the edges late in the video |
-| youtube shorts | 9:16, 1080x1920, up to 3 minutes | 14 percent top and bottom ui safe bands (title, engagement rail, comment band) |
-| youtube thumbnail | 16:9, 3840x2160 (2026 guidance) | the duration badge covers the bottom-right corner: nothing critical there |
-| twitch vod / republish | 16:9, 1920x1080 (1080p60) | the vod inherits the broadcast; the to-youtube republish is a corner-cam composite, not a crop |
-| reels / stories / tiktok | 9:16, 1080x1920 | 14 percent top and bottom ui safe bands, same shape as shorts |
-| instagram / facebook feed | 4:5, 1080x1350 (3:4 also native) | |
-| instagram / facebook carousel | 1:1, 1080x1080 | |
-| pinterest pin | 2:3, 1000x1500 | standard pin |
+| platform | surface | dimensions | notes |
+| --- | --- | --- | --- |
+| calls (meeting / livekit) | call | 16:9, 1280x720 | the call surface, no ui bands |
+| youtube | long form | 16:9, 1920x1080 (4k 3840x2160 supported) | burned captions live in the bottom tenth; end screens cover the edges late in the video |
+|  | shorts | 9:16, 1080x1920, ≤ 3 mins | 14 percent top and bottom ui safe bands (title, engagement rail, comment band) |
+|  | thumbnail | 16:9, 3840x2160 (2026 guidance) | the duration badge covers the bottom-right corner: nothing critical there |
+| twitch | vod / republish | 16:9, 1920x1080 (1080p60) | the vod inherits the broadcast; the to-youtube republish is a corner-cam composite, not a crop |
+| tiktok | vertical | 9:16, 1080x1920 | 14 percent top and bottom ui safe bands |
+| instagram / facebook | reels / stories | 9:16, 1080x1920 | 14 percent top and bottom ui safe bands, same shape as shorts |
+|  | feed | 4:5, 1080x1350 (3:4 also native) | |
+|  | carousel | 1:1, 1080x1080 | |
+| pinterest | standard pin | 2:3, 1000x1500 | standard pin |
 
 ## recaps
 
-the recap branch: a meeting missed is not a meeting lost. someone
+[@recap](https://github.com/tinkrland/prixie.ai/tree/recap): a meeting missed is not a meeting lost. someone
 sends the recording link, and the recap pass turns it into the same
 take-home a live meeting gets: transcript fetched, ingested, capture
 requests answered with h:mm:ss citations back into the source, never
@@ -154,7 +154,7 @@ what she has assigned and prepared before she ever joins.
 | feature | status | notes |
 | --- | --- | --- |
 | capture requests | working | pre-assigned per meeting (what to fetch, what to ask, what to mark attendance); keywords, questions, screenshot flags all ride on the meeting's requests |
-| prepared questions | working (assigned), voice asking on the voice branch | CaptureRequest questions are assigned pre-meeting; asking them out loud is the voice branch's transport (q&a flow below coordinates) |
+| prepared questions | working (assigned), voice asking on [@voice](https://github.com/tinkrland/prixie.ai/tree/voice) | CaptureRequest questions are assigned pre-meeting; asking them out loud is the [@voice](https://github.com/tinkrland/prixie.ai/tree/voice) transport (q&a flow below coordinates) |
 | profile / persona selection | designed | sandboxed identities, per-profile memory, shared global memory; profiles + profile_memory + global_memory exist in the schema |
 | colloquial timezone conversion | working | "3 pst", "evening for me" style references are converted to a joinable time |
 | the docket | working | not a schedule: each meeting is a watch with approximate details, regenerated from the live list every cycle, never a promise |
@@ -171,7 +171,7 @@ what happens between the join url and being in the room.
 | waiting room handling | working | "asked" is not "in": success is the in-call UI being seen, never a clicked button. a meeting stays bot_joining until the page says she entered. nobody answering means she asks again on a bounded cadence (the mods-missed-a-popup badger), and every ask is counted on the result |
 | join triggers | working | delay (default, n minutes after start), participants (n humans already inside from the pre-join page read), or room_open (the discord watcher's state: a voice channel with occupants is the call happening, the schedule was a guess) |
 | auth modes | working | anonymous by default; zoom signature (HMAC-SHA256) signed via /api/zoom/signature when the meeting wants a signed participant; registration-gated events follow register-then-source |
-| camera off | working | she joins silently: camera off by default, always. the face is opt-in and lives on the video branch |
+| camera off | working | she joins silently: camera off by default, always. the face is opt-in and lives on [@video](https://github.com/tinkrland/prixie.ai/tree/video) |
 | mic off | working | mic off by default; it turns on only for the voice feature's speaking turns |
 | late join | working | she joins ongoing meetings gracefully; the docket does not judge it |
 | join url safety | working | link_safety checks a url before she follows it |
@@ -189,7 +189,7 @@ what she does once she is in the room.
 | capture request answering |  | working | keywords watched in chat and transcript; screenshots on request; chat links captured; answers recorded per request |
 | term detection |  | working | term_detector picks up codes, access info, and other take-home terms from the live text |
 | host identification |  | working | the host name is read from the room and carried into the take-home |
-| relay back to owner |  | working (email + this chat) | the notifyOwner seam; the imessage / signal / line / wechat / whatsapp / telegram / dm list above is the honest not-built remainder |
+| relay back to owner |  | working (email) | the notifyOwner seam; the imessage / signal / line / wechat / whatsapp / telegram / dm list above is the honest not-built remainder |
 
 ## interactive participation meeting features
 
@@ -201,7 +201,7 @@ how she takes part in the room, not just listens.
 | raise hand | working | zoom web sdk participant path (recall's limits were recall's, not zoom's) |
 | chat messages | working | she posts in meeting chat: questions, attendance marks |
 | reactions | working | zoom web sdk participant reactions |
-| asking out loud (voice) | working (transport on the voice branch) | the q&a flow coordinates when to speak; the livekit audio transport does the speaking. barging and interruption handling are assembly.ai's job, never custom logic |
+| asking out loud (voice) | working (transport on [@voice](https://github.com/tinkrland/prixie.ai/tree/voice)) | the q&a flow coordinates when to speak; the livekit audio transport does the speaking. barging and interruption handling are assembly.ai's job, never custom logic |
 | breakout rooms | designed | breakout_room_id / breakout_room_mode live on the Meeting entity; the join-and-follow flow is not built yet |
 | screenshare awareness | planned | she knows a share is up; reading it is a later step |
 
@@ -213,7 +213,7 @@ what is waiting for the owner after the meeting ends.
 | --- | --- | --- |
 | full transcript | working | the complete transcript, searchable; assembly.ai is the engine |
 | capture answers | working | every capture request answered with what was found: captured_content, captured links, screenshots |
-| answers with timestamps | working (recap branch) | h:mm:ss citations back into the transcript, never a summary standing in for the source; the recap branch owns that surface |
+| answers with timestamps | working ([@recap](https://github.com/tinkrland/prixie.ai/tree/recap)) | h:mm:ss citations back into the transcript, never a summary standing in for the source; [@recap](https://github.com/tinkrland/prixie.ai/tree/recap) owns that surface |
 | the questions you asked her to ask | working | the answer to each prepared CaptureRequest question, quoted from the room |
 | attendance receipts | working | the message text, sent_at, sent_status, and trigger for every attendance mark, plus form fills |
 | codes and access info | working | term_detector's take-home terms (hackathon access codes, join info) relayed verbatim, never paraphrased |
@@ -239,7 +239,7 @@ the reading that makes the transcript more than text.
 
 | ability | status | notes |
 | --- | --- | --- |
-| persona context | designed | one retelldb persona memory across all surfaces (context branch owns it); the proxy reads her identity and register from it, never a blank slate |
+| persona context | designed | one retelldb persona memory across all surfaces ([@context](https://github.com/tinkrland/prixie.ai/tree/context) owns it); the proxy reads her identity and register from it, never a blank slate |
 | technical term detection | working | term_detector pulls codes, access info, and jargon from the live text verbatim; assembly.ai custom vocabulary for technical jargon is the next step (configured per environment) |
 | multilingual: hinglish transliteration | working | hinglish renders latin script, phonetically written, italics on the hinglish portion, devanagari never in the take-home |
 | multi-speaker transcript parsing | working | assembly.ai diarization (speaker_labels), utterances speaker-tagged end to end: capture keyword hits carry the speaker, host reads carry the name |

@@ -5,7 +5,7 @@
 // navigateTo and enterForm and is deliberately thin around these.
 
 import { assertEquals } from "jsr:@std/assert";
-import { consentChoice, newsletterOptIn } from "./consent.ts";
+import { consentChoice, newsletterOptIn, newsletterDirection } from "./consent.ts";
 
 Deno.test("consentChoice: reject all wins, before anything else", () => {
   const c = consentChoice(["Accept all", "Reject all", "Manage preferences"]);
@@ -57,4 +57,23 @@ Deno.test("newsletterOptIn: ordinary form fields are left alone", () => {
   assertEquals(newsletterOptIn("first_name"), false);
   assertEquals(newsletterOptIn("attendance"), false);
   assertEquals(newsletterOptIn(""), false);
+});
+
+Deno.test("newsletterDirection: tick-to-NOT-be-added boxes are the ones she clicks", () => {
+  assertEquals(newsletterDirection("Tick this box if you do NOT wish to receive our newsletter"), "opt_out");
+  assertEquals(newsletterDirection("tick here to not be added to the mailing list"), "opt_out");
+  assertEquals(newsletterDirection("unsubscribe from marketing emails"), "opt_out");
+  assertEquals(newsletterDirection("I would rather not receive product updates"), "opt_out");
+  assertEquals(newsletterDirection("newsletter_opt_out"), "opt_out");
+});
+
+Deno.test("newsletterDirection: plain subscribe boxes are opt-in, never hers", () => {
+  assertEquals(newsletterDirection("Subscribe to our newsletter"), "opt_in");
+  assertEquals(newsletterDirection("I want marketing emails"), "opt_in");
+  assertEquals(newsletterDirection("Join our mailing list"), "opt_in");
+});
+
+Deno.test("newsletterDirection: ordinary fields are none of her business", () => {
+  assertEquals(newsletterDirection("first_name"), "none");
+  assertEquals(newsletterDirection(""), "none");
 });
