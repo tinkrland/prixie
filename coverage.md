@@ -203,6 +203,8 @@ how she takes part in the room, not just listens.
 | q&a flow | working | qna_flow: she waits for the "any questions?" moment, watches raised hands, asks permission in chat, and posts her question in the window. three honest paths: hands-up, asked_permission, asked_in_chat |
 | raise hand | working | zoom web sdk participant path (recall's limits were recall's, not zoom's) |
 | chat messages | working | she posts in meeting chat: questions, attendance marks |
+| chat dm to one person | working | she can speak to the whole room or dm one person (the organizer case). page seam first (prixieSendChat -> ZoomMtg.sendChat with the matched userId) with a To:-dropdown fallback in the generic web client. the one rule: a dm that cannot be made is NOT broadcast; the caller picks the fallback, never the seam. the host's "participants can chat with" setting is the honest gate, never bypassed. the q&a permission ask dms the host by name when she read who runs the room, and falls back to everyone explicitly |
+| screenshare control | working | she does not share a screen in general; the show-and-tell moment is the on-demand microvm's job. these seams are the switch: setScreenshareInSession start/stop (page seam prixieShareScreen -> ZoomMtg.shareScreen first, dom share button as the fallback), provider seams + POST /api/meetings/:id/screenshare. from a cloud browser she shares the page's own view (canvas renders), no standing vm |
 | reactions | working | zoom web sdk participant reactions |
 | asking out loud (voice) | working (transport on [@voice](https://github.com/tinkrland/prixie.ai/tree/voice)) | the q&a flow coordinates when to speak; the livekit audio transport does the speaking. barging and interruption handling are assembly.ai's job, never custom logic |
 | breakout rooms | designed | breakout_room_id / breakout_room_mode live on the Meeting entity; the join-and-follow flow is not built yet |
@@ -247,3 +249,19 @@ the reading that makes the transcript more than text.
 | multilingual: hinglish transliteration | working | hinglish renders latin script, phonetically written, italics on the hinglish portion, devanagari never in the take-home |
 | multi-speaker transcript parsing | working | assembly.ai diarization (speaker_labels), utterances speaker-tagged end to end: capture keyword hits carry the speaker, host reads carry the name |
 | screenshare, call voice, and chat treated hand in hand | working | chat and spoken prompts count equally in the q&a flow (her permission ask answers either), the voice agent pauses through screen-share setup silence, and the chat monitor runs beside the transcript | reading the share's contents is a later step (planned) |
+
+## on the horizon
+
+not promises, direction (the owner, oct 22 2026). entries wait until they are built.
+
+| horizon | notes |
+| --- | --- |
+| voice: her own phone number | she joins conference calls, regular calls, facetime (audio and video) and whatsapp calls. first pass on an easier service for audio/video calls, then sip trunking, with the SAME number across platforms. the docket branch keeps the phone legs as watches |
+| context across calls | she retains context over a period of multiple calls: what she heard and said in one call carries into the next |
+| wallet / identity rails | clawbank, agentcard or similar: her own payment and identity rails, so she can transact as herself |
+| her own cloud vm | the on-demand microvm stops being a per-call spawn and becomes a dedicated cloud virtual machine (still on-demand in spirit, hers in fact) |
+| her own password manager | a 1password / bitwarden style vault that is HERS, not the owner's: she holds credentials as herself, never borrows the owner's |
+| vtuber-esque features | the proskena room + masky face go full vtuber: expressive presence beyond the meeting cam box |
+| multilingual coverage | speech-to-speech and transcript coverage beyond english (hinglish transliteration already keeps latin script) |
+| book a meeting with her | people can book time with prixie herself |
+| she hosts meetings | from attendee to host: her room, her invite, her rules |

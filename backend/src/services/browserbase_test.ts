@@ -5,18 +5,32 @@
 // payloads: the payload must land as data and never execute as code.
 
 import { assertEquals } from "jsr:@std/assert@1";
-import { findAndClick, findAndType, sendChatInSession } from "./browserbase.ts";
+import { findAndClick, findAndType, sendChatInSession, setScreenshareInSession } from "./browserbase.ts";
 
 // capture the last Runtime.evaluate expression sent over cdp
 let lastExpression = "";
-function stubCdpFetch(): () => void {
+function stubCdpFetch(evaluate = false): () => void {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body));
     if (body.method === "Runtime.evaluate") {
       lastExpression = body.params.expression;
     }
-    // "clicked" satisfies the polling helpers so the suite stays fast
+    // genuine mode runs the captured expression for real (against the
+    // installed fake dom / page seams), awaiting promises like cdp's
+    // awaitPromise. default mode keeps "clicked" so polling helpers
+    // stay fast for the older tests.
+    if (evaluate) {
+      try {
+        let value = evalCaptured();
+        if (value instanceof Promise && body.params?.awaitPromise) {
+          value = await value;
+        }
+        return new Response(JSON.stringify({ result: { value: value ?? null } }), { status: 200 });
+      } catch {
+        return new Response(JSON.stringify({ result: {} }), { status: 200 });
+      }
+    }
     return new Response(JSON.stringify({ result: { value: "clicked" } }), {
       status: 200,
     });
@@ -123,9 +137,10 @@ Deno.test("findAndClick: missing element reports not found, no click", async () 
 });
 
 Deno.test("sendChatInSession: message text never escapes the literal", async () => {
-  const restoreFetch = stubCdpFetch();
+  const restoreFetch = stubCdpFetch(true);
   const hostile = `present! '; globalThis.__chatInjected = true; //`;
   const dom = installFakeDocument();
+  dom.el.textContent = "chat";
   // deno has no KeyboardEvent; the page-side expression needs one
   const g = globalThis as Record<string, unknown>;
   const originalKE = g.KeyboardEvent;
@@ -143,8 +158,10 @@ Deno.test("sendChatInSession: message text never escapes the literal", async () 
     }
   };
   try {
-    await sendChatInSession("s1", hostile);
+    const r = await sendChatInSession("s1", hostile);
     assertEquals((globalThis as Record<string, unknown>).__chatInjected, undefined);
+    assertEquals(r.sent, true);
+    assertEquals(r.to, "everyone");
     assertEquals(evalCaptured(), "sent");
     assertEquals(dom.el.value, hostile);
   } finally {
@@ -228,5 +245,101 @@ Deno.test("awaitEntry: ignored forever is waiting, with every knock counted", as
   } finally {
     globalThis.fetch = originalFetch;
     fakeDoc.restore();
+  }
+});
+
+// a fake page seam installed as window.prixieSendChat /
+// window.prixieShareScreen, recording what it was called with
+function installFakePageSeams(chatVerdict?: string, shareVerdict?: string) {
+  const calls: { chat?: [string, string | null]; share?: string } = {};
+  const g = globalThis as Record<string, unknown>;
+  const originalWindow = g.window;
+  g.window = {
+    prixieSendChat: (message: string, toName?: string | null) => {
+      calls.chat = [message, toName ?? null];
+      return Promise.resolve(chatVerdict);
+    },
+    prixieShareScreen: (action: string) => {
+      calls.share = action;
+      return Promise.resolve(shareVerdict);
+    },
+  };
+  return {
+    calls,
+    restore() {
+      g.window = originalWindow;
+    },
+  };
+}
+
+Deno.test("sendChatInSession: the page seam carries the dm to the named recipient", async () => {
+  const restoreFetch = stubCdpFetch(true);
+  const page = installFakePageSeams("sent-dm");
+  try {
+    const r = await sendChatInSession("s1", "hey can you see my hand?", "Priya Organizer");
+    assertEquals(r, { sent: true, to: "dm" });
+    // the hostile-escape guarantee holds on the seam path too: the
+    // payload is data in the expression, so what the fake receives is
+    // the exact string
+    assertEquals(page.calls.chat?.[0], "hey can you see my hand?");
+    assertEquals(page.calls.chat?.[1], "Priya Organizer");
+    // and the expression itself never evaluated a document (no dom
+    // typing happened: the seam is the whole path)
+  } finally {
+    page.restore();
+    restoreFetch();
+  }
+});
+
+Deno.test("sendChatInSession: a refused dm is not a broadcast", async () => {
+  const restoreFetch = stubCdpFetch(true);
+  // the seam exists but the host blocks private chat
+  const page = installFakePageSeams("send-failed");
+  const dom = installFakeDocument();
+  dom.el.textContent = "chat";
+  try {
+    const r = await sendChatInSession("s1", "psst", "Priya Organizer");
+    assertEquals(r, { sent: false, to: "nobody" });
+    // nothing was typed anywhere
+    assertEquals(dom.el.value, "");
+  } finally {
+    dom.restore();
+    page.restore();
+    restoreFetch();
+  }
+});
+
+Deno.test("sendChatInSession: without a seam and without a recipient menu, no dm and no broadcast", async () => {
+  const restoreFetch = stubCdpFetch(true);
+  const dom = installFakeDocument(); // no matching dropdown options
+  dom.el.textContent = "chat";
+  try {
+    const r = await sendChatInSession("s1", "private note", "Priya Organizer");
+    assertEquals(r, { sent: false, to: "nobody" });
+    assertEquals(dom.el.value, "");
+  } finally {
+    dom.restore();
+    restoreFetch();
+  }
+});
+
+Deno.test("setScreenshareInSession: the page seam answers start and stop", async () => {
+  const restoreFetch = stubCdpFetch(true);
+  const page = installFakePageSeams(undefined, "started");
+  try {
+    assertEquals(await setScreenshareInSession("s1", "start"), true);
+    assertEquals(page.calls.share, "start");
+    page.calls.share = undefined;
+    (globalThis as Record<string, unknown>).window = {
+      prixieShareScreen: (action: string) => {
+        page.calls.share = action;
+        return Promise.resolve("stopped");
+      },
+    };
+    assertEquals(await setScreenshareInSession("s1", "stop"), true);
+    assertEquals(page.calls.share, "stop");
+  } finally {
+    page.restore();
+    restoreFetch();
   }
 });

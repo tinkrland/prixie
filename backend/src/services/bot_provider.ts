@@ -48,6 +48,13 @@ export interface BotProvider {
 
   // send a chat message as prixie from inside the meeting
   sendChatMessage(botId: string, messageText: string): Promise<boolean>;
+  // dm: a named recipient only; the caller owns any fallback to
+  // everyone, this method never broadcasts quietly
+  sendDirectChatMessage?(botId: string, messageText: string, toName: string): Promise<boolean>;
+  // the show-and-tell switch: start/stop her screenshare in a live
+  // session (page seam first, dom buttons as the fallback)
+  startScreenshare?(botId: string): Promise<boolean>;
+  stopScreenshare?(botId: string): Promise<boolean>;
 
   // optional: the q&a flow's prompted out-loud ask. unmute and speak a
   // question, only ever after a human prompted her to. engines whose

@@ -644,13 +644,76 @@ export async function joinTeams(sessionId: string, meetingUrl: string, profileNa
 }
 
 // --- chat send (prixie speaking into the meeting chat) ---
+//
+// she can speak to the whole room or to one person (the organizer, a
+// host). the dm is a first-class thing, not an accident of whatever
+// recipient the panel happens to be set to.
+//
+// the rule that matters: a message that named a recipient is only
+// ever sent to that recipient. if the recipient cannot be picked, the
+// message is not sent at all. a dm that falls back to the whole room
+// is a leak, so the fallback is always the CALLER's explicit choice,
+// never something this function does quietly.
 
-export async function sendChatInSession(sessionId: string, messageText: string): Promise<boolean> {
-  // open the chat panel if it is closed
+export interface ChatSendResult {
+  sent: boolean;
+  // "dm" only when a named recipient was confirmed; "everyone" when
+  // the send went to the whole room; "nobody" when nothing was sent
+  to: "dm" | "everyone" | "nobody";
+}
+
+// the page seam contract (the hosted join page implements it on top
+// of the zoom web sdk; prixieAttendees is the same shape's list):
+//   window.prixieSendChat(message, toName?)
+//     -> Promise<"sent-dm" | "sent-everyone" |
+//                 "recipient-not-found" | "send-failed" | "no-chat">
+// toName resolves against the attendee list; the matched userId rides
+// ZoomMtg.sendChat (no userId = everyone). the host's "participants
+// can chat with" setting is the honest gate: when the host blocks
+// private chat the page answers send-failed and the caller decides
+// what to do, not the seam.
+
+export async function sendChatInSession(
+  sessionId: string,
+  messageText: string,
+  toName?: string,
+): Promise<ChatSendResult> {
+  // the page seam first: it knows the sdk's attendee shape and the
+  // chat settings, so it is the only one that can CONFIRM a dm.
+  // JSON.stringify produces a valid JS string literal for any payload
+  const msgLiteral = JSON.stringify(messageText);
+  const nameLiteral = JSON.stringify(toName ?? null);
+  const seam = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        if (typeof window.prixieSendChat !== "function") return null;
+        try {
+          return Promise.resolve(window.prixieSendChat(${msgLiteral}, ${nameLiteral}))
+            .catch(() => "send-failed");
+        } catch (e) { return "send-failed"; }
+      })()
+    `,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const seamVerdict = seam?.result?.value;
+  if (seamVerdict === "sent-dm") return { sent: true, to: "dm" };
+  if (seamVerdict === "sent-everyone") return { sent: true, to: "everyone" };
+  if (seamVerdict) {
+    // the seam answered: recipient-not-found / send-failed / no-chat.
+    // honest refusals, especially when a dm was requested.
+    return { sent: false, to: "nobody" };
+  }
+
+  // no page seam: the generic web-client path. open the chat panel if
+  // it is closed, pick the recipient if one was named, then type.
   await findAndClickByText(sessionId, ["chat", "show conversation", "conversation"], "button, div[role='button']", 6000);
 
-  // JSON.stringify produces a valid JS string literal for any payload
-  const escaped = JSON.stringify(messageText);
+  if (toName) {
+    const picked = await pickChatRecipientInSession(sessionId, toName);
+    if (!picked) return { sent: false, to: "nobody" };
+  }
+
   const result = await cdpExecute(sessionId, "Runtime.evaluate", {
     expression: `
       (() => {
@@ -665,7 +728,7 @@ export async function sendChatInSession(sessionId: string, messageText: string):
           const el = document.querySelector(sel);
           if (el && el.offsetParent !== null) {
             el.focus();
-            el.value = ${escaped};
+            el.value = ${msgLiteral};
             el.dispatchEvent(new Event('input', { bubbles: true }));
             // send: enter keydown for most web clients
             el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
@@ -678,7 +741,96 @@ export async function sendChatInSession(sessionId: string, messageText: string):
     returnByValue: true,
   });
 
-  return result?.result?.value === "sent";
+  const sent = result?.result?.value === "sent";
+  if (!sent) return { sent: false, to: "nobody" };
+  // with a picked recipient the web client sends to the To: target;
+  // without one it sends to whoever the panel is set to (everyone).
+  return { sent: true, to: toName ? "dm" : "everyone" };
+}
+
+// best effort: open the chat panel's To: dropdown and pick the named
+// participant. the web clients render different menus, so the scan is
+// by role and text, never by one known selector. returns true only
+// when a matching option was clicked.
+export async function pickChatRecipientInSession(sessionId: string, toName: string): Promise<boolean> {
+  const nameLiteral = JSON.stringify(toName);
+  const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        const want = ${nameLiteral}.toLowerCase();
+        const openers = [...document.querySelectorAll(
+          '[aria-label*="to" i], [class*="chat-to" i], [class*="recipient" i]'
+        )].filter((el) => el.offsetParent !== null);
+        for (const opener of openers) {
+          opener.click();
+          const menu = [...document.querySelectorAll('[role="option"], [role="menuitem"], li')]
+            .filter((el) => el.offsetParent !== null);
+          const hit = menu.find((el) => (el.textContent || "").trim().toLowerCase().includes(want));
+          if (hit) { hit.click(); return "picked"; }
+        }
+        return "recipient-not-picked";
+      })()
+    `,
+    returnByValue: true,
+  });
+  return result?.result?.value === "picked";
+}
+
+// --- screenshare management (the show-and-tell moment) ---
+//
+// she does not share a screen in general: joins are camera-off and
+// mic-off, and a show-and-tell moment (presenting a bug, a demo) is
+// the microvm's job. these seams are the on/off switch for that
+// moment, so whatever flow spawns the moment can also drive the room.
+// the page seam contract (the hosted sdk page implements it):
+//   window.prixieShareScreen("start" | "stop")
+//     -> Promise<"started" | "stopped" | "failed">
+// underneath: ZoomMtg.shareScreen. what she shares from a cloud
+// browser is the browser's own view (the hosted page / canvas
+// render), which is exactly the design: canvas renders, no standing
+// vm.
+
+export async function setScreenshareInSession(sessionId: string, action: "start" | "stop"): Promise<boolean> {
+  const seam = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        if (typeof window.prixieShareScreen !== "function") return null;
+        try {
+          return Promise.resolve(window.prixieShareScreen(${JSON.stringify(action)}))
+            .catch(() => "failed");
+        } catch (e) { return "failed"; }
+      })()
+    `,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const verdict = seam?.result?.value;
+  if (verdict === "started" || verdict === "stopped") return true;
+  if (verdict) return false;
+
+  // generic web client: the share button. starting opens a picker;
+  // the confirm shares the first shareable thing (the browser's own
+  // view in a cloud session).
+  if (action === "start") {
+    const opened = await findAndClickByText(
+      sessionId,
+      ["share screen", "share content", "present"],
+      "button, div[role='button']",
+      8000,
+    );
+    if (!opened) return false;
+    // the picker's confirm, best effort: some clients share straight
+    // away with no dialog
+    await findAndClickByText(sessionId, ["share", "continue", "confirm"], "button, div[role='button']", 5000);
+    return true;
+  }
+  const stopped = await findAndClickByText(
+    sessionId,
+    ["stop share", "stop sharing"],
+    "button, div[role='button']",
+    8000,
+  );
+  return stopped;
 }
 
 // who is running the room (the owner, oct 21 2026): read the participant

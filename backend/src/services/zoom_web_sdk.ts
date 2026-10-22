@@ -27,6 +27,25 @@
 //   4. camera off, mic off, name: prixie. the popup question, if any,
 //      shows up in that page and is answered there.
 //
+// the hosted page's seams (what the browserbase automation calls on
+// it, all name-spaced prixie* so they are hers and hers only):
+//   window.prixieAttendees() -> attendee list (roles readable)
+//   window.prixieSendChat(message, toName?)
+//     -> Promise<"sent-dm" | "sent-everyone" |
+//                 "recipient-not-found" | "send-failed" | "no-chat">
+//     toName resolves against the attendee list and the matched
+//     userId rides ZoomMtg.sendChat; no toName = everyone. the host's
+//     "participants can chat with" setting is the honest gate: a host
+//     who blocks private chat makes the page answer send-failed, and
+//     the CALLER chooses the fallback, not the seam. a dm that would
+//     quietly fall back to the whole room is a leak, never a feature.
+//   window.prixieShareScreen("start" | "stop")
+//     -> Promise<"started" | "stopped" | "failed">
+//     ZoomMtg.shareScreen underneath; what she shares from the cloud
+//     browser is the page's own view (canvas renders), per the
+//     screenshare design: no standing vm, the show-and-tell moment is
+//     on demand.
+//
 // credentials: ZOOM_SDK_KEY + ZOOM_SDK_SECRET (a zoom "meeting sdk" app
 // type in the zoom marketplace). the signature math below is the classic
 // meeting-sdk signature: HMAC-SHA256 over base64(header).payload with the

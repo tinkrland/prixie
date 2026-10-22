@@ -134,6 +134,29 @@ meetingsRouter.put("/:id", handleUpdate);
  * DELETE /api/meetings/:id
  * Delete a meeting
  */
+/**
+ * POST /api/meetings/:id/screenshare
+ * The show-and-tell switch: start or stop her screenshare in a live
+ * meeting. The microvm flow (or the owner, manually) drives it; she does
+ * not share a screen in general, so nothing calls this on its own.
+ */
+meetingsRouter.post("/:id/screenshare", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const action = body?.action;
+  if (action !== "start" && action !== "stop") {
+    return c.json({ error: "action must be 'start' or 'stop'" }, 400);
+  }
+  const meeting = await getMeetingById(c.req.param("id"));
+  if (!meeting) return c.json({ error: "meeting not found" }, 404);
+  if (!meeting.bot_id) return c.json({ error: "no live session for meeting" }, 409);
+
+  const { botProvider } = await import("../services/browserbase_provider.ts");
+  const fn = action === "start" ? botProvider.startScreenshare : botProvider.stopScreenshare;
+  if (!fn) return c.json({ error: "provider cannot manage screenshare" }, 501);
+  const ok = await fn.call(botProvider, meeting.bot_id).catch(() => false);
+  return c.json({ ok, action, meeting_id: meeting.id });
+});
+
 meetingsRouter.delete("/:id", async (c) => {
   try {
     const id = c.req.param("id");

@@ -104,7 +104,18 @@ async function advanceQna(
   }
 
   if (outcome.action === "hands_clear" && state) {
-    const sent = await botProvider.sendChatMessage(botId, buildPermissionChatMessage(meeting.host_name));
+    // the ask goes to the host directly when she read who is running
+    // the room (the dm seam, the owner's organizer case, oct 22 2026).
+    // broadcast is the explicit fallback when the dm cannot be made:
+    // host blocks private chat, or no host name was read. never both.
+    const permissionMsg = buildPermissionChatMessage(meeting.host_name);
+    let sent = false;
+    if (meeting.host_name && botProvider.sendDirectChatMessage) {
+      sent = await botProvider.sendDirectChatMessage(botId, permissionMsg, meeting.host_name);
+    }
+    if (!sent) {
+      sent = await botProvider.sendChatMessage(botId, permissionMsg);
+    }
     if (sent) {
       state.phase = "asked_permission";
       state.permissionAskedAt = Date.now();

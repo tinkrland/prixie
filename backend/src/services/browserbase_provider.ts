@@ -15,6 +15,7 @@ import {
   stopSession,
   installChatMonitor,
   sendChatInSession,
+  setScreenshareInSession,
   heartbeatSession,
   unmuteAndSpeakInSession,
   getParticipantsInSession,
@@ -104,7 +105,24 @@ export class BrowserbaseProvider implements BotProvider {
   }
 
   async sendChatMessage(botId: string, messageText: string): Promise<boolean> {
-    return sendChatInSession(botId, messageText);
+    const r = await sendChatInSession(botId, messageText);
+    return r.sent;
+  }
+
+  // a named recipient, and only that recipient. no silent broadcast
+  // when the dm cannot be made: the caller decides the fallback.
+  async sendDirectChatMessage(botId: string, messageText: string, toName: string): Promise<boolean> {
+    const r = await sendChatInSession(botId, messageText, toName);
+    return r.sent && r.to === "dm";
+  }
+
+  // the show-and-tell switch (see setScreenshareInSession)
+  async startScreenshare(botId: string): Promise<boolean> {
+    return setScreenshareInSession(botId, "start");
+  }
+
+  async stopScreenshare(botId: string): Promise<boolean> {
+    return setScreenshareInSession(botId, "stop");
   }
 
   // entry-time monitor install. installChatMonitor carries its own
