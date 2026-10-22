@@ -99,3 +99,36 @@ Deno.test("unified sync keeps cal.com and zcal candidates separate", async () =>
   assertEquals(zcal.length, 2); // the duplicate uid is dropped
   assertEquals(candidates.filter(c => c.source === "calcom").length, 0);
 });
+
+// the invitation parser, honestly (the owner, oct 22 2026): the TZID half is
+// the time's zone, the old code read every local time as utc and
+// shifted event times by the source's offset. these tests pin the
+// three shapes: named zone, utc, floating.
+import { parseICalDate } from "./calendar_sync.ts";
+
+Deno.test("ical TZID time sits at the moment the author meant", () => {
+  // 19:00 america/new_york, edt (utc-4) on oct 22 2026
+  const got = parseICalDate("20261022T190000", ";TZID=America/New_York");
+  assertEquals(got, "2026-10-22T23:00:00.000Z");
+});
+
+Deno.test("ical TZID time crosses dst with the zone, not the server", () => {
+  // 19:00 america/new_york in january is est (utc-5)
+  const winter = parseICalDate("20270115T190000", ";TZID=America/New_York");
+  assertEquals(winter, "2027-01-16T00:00:00.000Z");
+});
+
+Deno.test("ical Z time is absolute, verbatim", () => {
+  const got = parseICalDate("20261022T190000Z", "");
+  assertEquals(got, "2026-10-22T19:00:00Z");
+});
+
+Deno.test("ical all-day is midnight utc, never shifted", () => {
+  const got = parseICalDate("20261022", "");
+  assertEquals(got, "2026-10-22T00:00:00Z");
+});
+
+Deno.test("ical floating time with no tzid reads as utc, warned not shifted", () => {
+  const got = parseICalDate("20261022T190000", "");
+  assertEquals(got, "2026-10-22T19:00:00Z");
+});

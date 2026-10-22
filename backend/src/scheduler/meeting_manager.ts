@@ -13,6 +13,8 @@ import { searchForKeywords } from "../services/browserbase_transcript.ts";
 import { processTranscript, containsDevanagari, hinglishStats } from "../services/hinglish.ts";
 import { calendarService } from "../services/calendar.ts";
 import { shouldJoinNow } from "./join_trigger.ts";
+import { discordChannelFromUrl, roomIsOpen } from "../services/discord_watcher.ts";
+import { getSharedWatcher } from "../services/discord_watch_runtime.ts";
 import { enterForm } from "../services/form_entry.ts";
 import { chooseFormEmail } from "../services/form_email.ts";
 import { assertLinkSafe } from "../services/link_safety.ts";
@@ -73,13 +75,25 @@ export class MeetingManager {
         // the join gate. delay: N minutes after start. participants: hold
         // until N humans are already inside (the engine reads the count
         // from the pre-join page; a page that will not say is a hold).
+        // room_open: the discord watcher's state decides (the owner, oct 22
+        // 2026): a voice channel with occupants IS the call happening.
         let participantCount: number | null | undefined = undefined;
-        if ((meeting.join_trigger || "delay") === "participants") {
+        let roomOpen: boolean | null | undefined = undefined;
+        const trigger = meeting.join_trigger || "delay";
+        if (trigger === "participants") {
           participantCount = provider.participantCount
             ? await provider.participantCount(meeting).catch(() => null)
             : null;
         }
-        const decision = shouldJoinNow(meeting, new Date(), participantCount);
+        if (trigger === "room_open") {
+          const w = getSharedWatcher();
+          // a url that is not a channel link is "cannot see", not
+          // "closed": the watcher would never say false about a room it
+          // cannot name.
+          const target = discordChannelFromUrl(meeting.join_url);
+          roomOpen = w && target ? roomIsOpen(w.state, meeting.join_url) : null;
+        }
+        const decision = shouldJoinNow(meeting, new Date(), participantCount, roomOpen);
         if (!decision.join) {
           console.log(`prixie scheduler: ${meeting.title}: ${decision.reason}`);
           continue;
@@ -91,13 +105,20 @@ export class MeetingManager {
           realtimeWebhookUrl: this.realtimeWebhookUrl(),
         });
 
+        // success is entry, not deployment (the owner, oct 22 2026). a bot
+        // still knocking on a waiting room is bot_joining, not
+        // bot_in_meeting, and prixie_attended flips only when the page
+        // says she is in the call.
+        const entered = bot.status === "in_meeting";
         await updateMeeting(meeting.id, {
           bot_id: bot.id,
-          status: "bot_in_meeting",
-          prixie_attended: true,
+          status: entered ? "bot_in_meeting" : "bot_joining",
+          ...(entered ? { prixie_attended: true } : {}),
         });
 
-        console.log(`prixie scheduler: bot ${bot.id} joined meeting ${meeting.id}`);
+        console.log(
+          `prixie scheduler: bot ${bot.id} ${entered ? "entered" : "deployed, still waiting on entry"} meeting ${meeting.id}`,
+        );
       } catch (err: any) {
         console.error(`prixie scheduler: failed to deploy for meeting ${meeting.id}:`, err);
         await updateMeeting(meeting.id, { status: "failed" }).catch(() => {});
@@ -140,6 +161,14 @@ export class MeetingManager {
           new Date().getTime() > new Date(meeting.end_time).getTime() + END_GRACE_MINUTES * 60 * 1000;
 
         if (status === "ended" || endedByTime) {
+          // a session that ran out while she never got in is a failure
+          // with the story on it, never a quiet "completed" (the owner, oct
+          // 22 2026: clicked ask to join is not success).
+          if (meeting.status !== "bot_in_meeting" && !meeting.prixie_attended) {
+            console.log(`prixie scheduler: meeting ${meeting.id} ended without her ever entering`);
+            await updateMeeting(meeting.id, { status: "failed" });
+            continue;
+          }
           console.log(`prixie scheduler: meeting ${meeting.id} completed`);
           await updateMeeting(meeting.id, { status: "completed" });
         }

@@ -13,35 +13,18 @@
 // the server its own credentials. unset = closed, the house rule.
 
 import { Hono } from "hono";
-import { DiscordWatcher } from "../services/discord_watcher.ts";
+import {
+  ensureSharedWatcher as ensureWatcher,
+  watcherToken,
+  getSharedWatcher,
+} from "../services/discord_watch_runtime.ts";
 
 const app = new Hono();
 
-let watcher: DiscordWatcher | null = null;
-let starting: Promise<DiscordWatcher> | null = null;
-
-function watcherToken(): string | null {
-  return Deno.env.get("DISCORD_BOT_TOKEN") || null;
-}
-
-// one watcher per process. concurrent callers share the same start.
-async function ensureWatcher(): Promise<DiscordWatcher | null> {
-  if (watcher) return watcher;
-  const token = watcherToken();
-  if (!token) return null; // closed is closed
-  if (!starting) {
-    starting = (async () => {
-      const w = new DiscordWatcher({ botToken: token });
-      await w.start();
-      watcher = w;
-      return w;
-    })().catch((e) => {
-      starting = null;
-      throw e;
-    });
-  }
-  return starting;
-}
+// the watcher singleton lives in services/discord_watch_runtime.ts:
+// the routes start it, the scheduler reads the same instance to
+// dispatch an attendee when a watched room's call opens. one watcher
+// per process, shared by everything.
 
 app.post("/watch", async (c) => {
   const token = watcherToken();
@@ -77,11 +60,12 @@ app.post("/watch", async (c) => {
 
 app.get("/state", async (c) => {
   const guildId = c.req.query("guild_id") || undefined;
-  if (!watcher) {
+  const w = getSharedWatcher();
+  if (!w) {
     // not started: honest emptiness, never a fabricated docket
     return c.json({ watching: false, openVoiceChannels: [], events: [] });
   }
-  return c.json({ watching: true, ...watcher.view(guildId) });
+  return c.json({ watching: true, ...w.view(guildId) });
 });
 
 export default app;

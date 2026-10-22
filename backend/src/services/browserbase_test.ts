@@ -155,3 +155,78 @@ Deno.test("sendChatInSession: message text never escapes the literal", async () 
     delete (globalThis as Record<string, unknown>).__chatInjected;
   }
 });
+
+// honest entry tests (the owner, oct 22 2026): a click on "ask to join" is a
+// knock, not success. classifyEntry is the probe's honest mapping,
+// entryVerdict is the join result, and awaitEntry re-knocks while the
+// waiting room ignores her.
+import { awaitEntry, classifyEntry, entryVerdict } from "./browserbase.ts";
+
+Deno.test("classifyEntry: only entered and waiting count, everything else is unknown", () => {
+  assertEquals(classifyEntry("entered"), "entered");
+  assertEquals(classifyEntry("waiting"), "waiting");
+  assertEquals(classifyEntry("unknown"), "unknown");
+  assertEquals(classifyEntry(undefined), "unknown");
+});
+
+Deno.test("entryVerdict: entered is joined, waiting is never success, unknown fails honestly", () => {
+  const joined = entryVerdict("s1", { state: "entered", knocks: 1 });
+  assertEquals(joined.status, "joined");
+  assertEquals(joined.knocks, 1);
+
+  const waiting = entryVerdict("s1", { state: "waiting", knocks: 4 });
+  assertEquals(waiting.status, "waiting_room");
+  assertEquals(waiting.knocks, 4);
+  assertEquals(waiting.error, "asked 4x, not admitted yet");
+
+  const unknown = entryVerdict("s1", { state: "unknown", knocks: 2 });
+  assertEquals(unknown.status, "failed");
+  assertEquals(unknown.error, "clicked join but never entered the room (entry state unknown)");
+});
+
+Deno.test("awaitEntry: a missed popup gets knocked again, entry is seen", async () => {
+  // the probe says waiting first; the re-knock click lands; then she
+  // is let in. the loop must report the extra knock.
+  const fakeDoc = installFakeDocument();
+  const originalFetch = globalThis.fetch;
+  // probe says waiting; she re-knocks; the next probe sees her let in
+  const probes = ["waiting", "waiting", "entered"];
+  globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body));
+    const expr = String(body.params?.expression || "");
+    const value = expr.includes("el.click()") // the knock click, not the probe
+      ? "clicked"
+      : probes.shift() ?? "entered";
+    return new Response(JSON.stringify({ result: { value } }), { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    const outcome = await awaitEntry("s1", { pollMs: 10, reknockEveryMs: 10, maxWaitMs: 5000 });
+    assertEquals(outcome.state, "entered");
+    assertEquals(outcome.knocks, 2); // the ask, then the re-knock
+  } finally {
+    globalThis.fetch = originalFetch;
+    fakeDoc.restore();
+  }
+});
+
+Deno.test("awaitEntry: ignored forever is waiting, with every knock counted", async () => {
+  const fakeDoc = installFakeDocument();
+  const originalFetch = globalThis.fetch;
+  let knocks = 0;
+  globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body));
+    const expr = String(body.params?.expression || "");
+    const value = expr.includes("el.click()") ? (knocks++, "clicked") : "waiting";
+    return new Response(JSON.stringify({ result: { value } }), { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    const outcome = await awaitEntry("s1", { pollMs: 5, reknockEveryMs: 10, maxWaitMs: 80 });
+    assertEquals(outcome.state, "waiting");
+    assertEquals(outcome.knocks >= 5, true); // the ask plus every re-knock, not one and done
+  } finally {
+    globalThis.fetch = originalFetch;
+    fakeDoc.restore();
+  }
+});

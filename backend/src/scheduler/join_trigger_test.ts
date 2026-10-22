@@ -53,3 +53,37 @@ Deno.test("misconfigured participants trigger falls back to delay, never joins b
   assertEquals(d.join, true); // the delay fallback window has passed
   assertEquals(d.reason.includes("falling back to delay"), true);
 });
+
+// room_open (the owner, oct 22 2026): the discord watcher's state is the
+// fact, the schedule was a guess. a room with occupants dispatches.
+Deno.test("room_open trigger: joins the moment the watched room is open", () => {
+  const d = shouldJoinNow(
+    { start_time: "2026-10-25T18:00:00.000Z", join_trigger: "room_open", join_delay_minutes: 2, join_after_participants: null },
+    new Date("2026-10-22T03:00:00.000Z"),
+    undefined,
+    true,
+  );
+  assertEquals(d.join, true);
+  assertEquals(d.reason, "the watched room's call is open: dispatching");
+});
+
+Deno.test("room_open trigger: a closed room is a hold, not a failure", () => {
+  const d = shouldJoinNow(
+    { start_time: "2026-10-22T18:00:00.000Z", join_trigger: "room_open", join_delay_minutes: 2, join_after_participants: null },
+    new Date("2026-10-22T19:00:00.000Z"),
+    undefined,
+    false,
+  );
+  assertEquals(d.join, false);
+});
+
+Deno.test("room_open trigger: an unseen room is a hold, never a fake open", () => {
+  const d = shouldJoinNow(
+    { start_time: "2026-10-22T18:00:00.000Z", join_trigger: "room_open", join_delay_minutes: 2, join_after_participants: null },
+    new Date("2026-10-22T19:00:00.000Z"),
+    undefined,
+    null,
+  );
+  assertEquals(d.join, false);
+  assertEquals(d.reason, "holding: the watcher cannot see this room yet");
+});

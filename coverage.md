@@ -79,12 +79,61 @@ honest not-built list.
 | signal | not built | same seam |
 | whatsapp | not built | same seam |
 | telegram | not built | same seam |
+| line | not built | same seam |
+| wechat | not built | same seam |
 | slack dm | not built | same seam |
 | discord dm | not built | same seam |
 | sms | not built | same seam |
 
 every later channel plugs into the same notifyOwner call; that is the
 whole design of the seam.
+
+## streaming coverage
+
+she is not only in meetings: she streams. twitch and kick are wired
+through the obs bridge today; joining a stream as a webinar (reading
+the stream, commenting) is the roadmap shape, confirmed as the
+destination for twitch and kick and youtube live both.
+
+| platform | status | how | notes |
+| --- | --- | --- | --- |
+| twitch | working (streaming) | the obs bridge on the video branch: integrations/twitch.ts speaks the obs protocol and the stream key rides the env; she goes live as a stream session (goLive) with the camera toggle honest | joining a twitch stream to read and comment is webinar mode, planned |
+| kick | working (streaming) | integrations/kick.ts reads KICK_STREAM_URL / KICK_STREAM_KEY from the env, same obs bridge: adding a platform was adding a file | webinar mode, planned, same shape |
+| youtube live | planned | no integration built yet: the stream-out side would be an rtmp push, the join side is webinar mode | on the roadmap (confirmed): she joins youtube live streams to read and comment |
+
+## social media presence coverage
+
+the socmed branch renders her presence per platform. the rule is the
+pipeline renders, it never publishes: captions, attribution, and
+posting stay with the creator. numbers are proskena's platform
+reference (checked oct 2026), not a second invented set.
+
+| platform / surface | dimensions | notes |
+| --- | --- | --- |
+| calls (meeting / livekit) | 16:9, 1280x720 | the call surface, no ui bands |
+| youtube long form | 16:9, 1920x1080 (4k 3840x2160 supported) | burned captions live in the bottom tenth; end screens cover the edges late in the video |
+| youtube shorts | 9:16, 1080x1920, up to 3 minutes | 14 percent top and bottom ui safe bands (title, engagement rail, comment band) |
+| youtube thumbnail | 16:9, 3840x2160 (2026 guidance) | the duration badge covers the bottom-right corner: nothing critical there |
+| twitch vod / republish | 16:9, 1920x1080 (1080p60) | the vod inherits the broadcast; the to-youtube republish is a corner-cam composite, not a crop |
+| reels / stories / tiktok | 9:16, 1080x1920 | 14 percent top and bottom ui safe bands, same shape as shorts |
+| instagram / facebook feed | 4:5, 1080x1350 (3:4 also native) | |
+| instagram / facebook carousel | 1:1, 1080x1080 | |
+| pinterest pin | 2:3, 1000x1500 | standard pin |
+
+## recaps
+
+the recap branch: a meeting missed is not a meeting lost. someone
+sends the recording link, and the recap pass turns it into the same
+take-home a live meeting gets: transcript fetched, ingested, capture
+requests answered with h:mm:ss citations back into the source, never
+a summary standing in for it.
+
+| source | status | how | notes |
+| --- | --- | --- | --- |
+| youtube unlisted link | working | yt-dlp fetches the video, assembly.ai transcribes it, retelldb ingests it, capture requests are answered against it | the first-class path: someone sends her the unlisted link |
+| youtube live recap | working | same pipeline on the live vod once it exists as a recording | the link arrives the same way |
+| twitch rewatch | partial | the yt-dlp transport is real and covers twitch vods, but the end-to-end pass has not been exercised on a twitch vod yet | honest: the pipe is built, the run has not happened |
+| sequel.io link rewatch | planned | an ingest adapter is not built: the pipeline is source-agnostic (fetch, transcribe, ingest) but sequel.io's own access rules have not been verified | same shape as the others once the fetch rules are checked |
 
 ## pre-meeting task checklist features
 
@@ -107,8 +156,8 @@ what happens between the join url and being in the room.
 
 | feature | status | notes |
 | --- | --- | --- |
-| waiting room handling | working | zoom waiting rooms: she joins and waits, status waiting_room, no guesswork about being let in |
-| join triggers | working | delay (default, n minutes after start) or participants (n humans already inside from the pre-join page read) |
+| waiting room handling | working | "asked" is not "in": success is the in-call UI being seen, never a clicked button. a meeting stays bot_joining until the page says she entered. nobody answering means she asks again on a bounded cadence (the mods-missed-a-popup badger), and every ask is counted on the result |
+| join triggers | working | delay (default, n minutes after start), participants (n humans already inside from the pre-join page read), or room_open (the discord watcher's state: a voice channel with occupants is the call happening, the schedule was a guess) |
 | auth modes | working | anonymous by default; zoom signature (HMAC-SHA256) signed via /api/zoom/signature when the meeting wants a signed participant; registration-gated events follow register-then-source |
 | camera off | working | she joins silently: camera off by default, always. the face is opt-in and lives on the video branch |
 | mic off | working | mic off by default; it turns on only for the voice feature's speaking turns |
@@ -119,16 +168,16 @@ what happens between the join url and being in the room.
 
 what she does once she is in the room.
 
-| feature | status | notes |
-| --- | --- | --- |
-| attendance marking by chat message | working | "present!" style messages in the meeting chat, per the meeting's attendance_method; AttendanceMessage records what was sent, when, and why |
-| attendance by google form | working | pre-set attendance forms are filled (enterForm); the fill is recorded as the attendance receipt |
-| attendance forms found in chat | working | chat_form_attendance: a form link posted in-meeting that the host language marks as attendance is filled; a bare form link with no attendance context is NOT hers to touch |
-| transcript retrieval | working | assembly.ai transcription through the meeting transcript pipeline; Transcript stores the full text |
-| capture request answering | working | keywords watched in chat and transcript; screenshots on request; chat links captured; answers recorded per request |
-| term detection | working | term_detector picks up codes, access info, and other take-home terms from the live text |
-| host identification | working | the host name is read from the room and carried into the take-home |
-| relay back to owner | working (email + this chat) | the notifyOwner seam; the imessage / signal / whatsapp / telegram / dm list above is the honest not-built remainder |
+| feature | method | status | notes |
+| --- | --- | --- | --- |
+| attendance | via chat | working | "present!" style messages in the meeting chat, per the meeting's attendance_method; AttendanceMessage records what was sent, when, and why |
+|  | via form link | working | pre-set attendance forms are filled (enterForm); the fill is recorded as the attendance receipt |
+| attendance forms found in chat |  | working | chat_form_attendance: a form link posted in-meeting that the host language marks as attendance is filled; a bare form link with no attendance context is NOT hers to touch |
+| transcript retrieval |  | working | assembly.ai transcription through the meeting transcript pipeline; Transcript stores the full text |
+| capture request answering |  | working | keywords watched in chat and transcript; screenshots on request; chat links captured; answers recorded per request |
+| term detection |  | working | term_detector picks up codes, access info, and other take-home terms from the live text |
+| host identification |  | working | the host name is read from the room and carried into the take-home |
+| relay back to owner |  | working (email + this chat) | the notifyOwner seam; the imessage / signal / line / wechat / whatsapp / telegram / dm list above is the honest not-built remainder |
 
 ## interactive participation meeting features
 
@@ -157,4 +206,4 @@ what is waiting for the owner after the meeting ends.
 | attendance receipts | working | the message text, sent_at, sent_status, and trigger for every attendance mark, plus form fills |
 | codes and access info | working | term_detector's take-home terms (hackathon access codes, join info) relayed verbatim, never paraphrased |
 | screenshots | working | captured on request, stored, linked in the take-home |
-| summaries | working | meeting summaries stored with the transcript on main |
+| summaries | working (only when asked) | a summary is never sent unless the owner specifically asked for one: the default take-home is the transcript, the answers, and the receipts. no unrequested summaries |

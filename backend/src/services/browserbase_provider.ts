@@ -18,6 +18,9 @@ import {
   heartbeatSession,
   unmuteAndSpeakInSession,
   getParticipantsInSession,
+  findAndClickByText,
+  probeEntryState,
+  KNOCK_TEXTS,
 } from "./browserbase.ts";
 import { transcribeBrowserbaseSession } from "./browserbase_transcript.ts";
 import { readPreJoinParticipantCount } from "./browserbase_extended.ts";
@@ -40,6 +43,18 @@ export class BrowserbaseProvider implements BotProvider {
   ): Promise<{ id: string; status: ProviderBotStatus }> {
     const profileName = await resolveProfileName(meeting);
     const result = await joinMeeting(meeting.platform || "custom", meeting.join_url, profileName);
+
+    if (result.status === "waiting_room") {
+      // she asked (maybe several times) and nobody let her in yet. the
+      // session STAYS ALIVE: the knock loop keeps re-asking, and the
+      // manager polls getStatus until the page says she entered. this
+      // is joining, not success: success is the in-call UI (the owner, oct
+      // 22 2026).
+      console.log(
+        `prixie: waiting room for ${meeting.id}: ${result.error} (session ${result.session_id} stays up)`,
+      );
+      return { id: result.session_id, status: "joining" };
+    }
 
     if (result.status !== "joined") {
       if (result.session_id) await stopSession(result.session_id).catch(() => {});
@@ -68,7 +83,21 @@ export class BrowserbaseProvider implements BotProvider {
   async getStatus(botId: string): Promise<{ status: ProviderBotStatus; detail?: string }> {
     try {
       const s = await getSessionStatus(botId);
-      return { status: normalizeSessionStatus(s), detail: s?.status || s?.state };
+      const norm = normalizeSessionStatus(s);
+      // a running session is not presence. the page says whether she is
+      // actually in the call: in-call UI = in_meeting; a waiting room
+      // means she is still knocking, so knock once more per poll (the
+      // mods-missed-a-popup badger, bounded by the poll cadence).
+      if (norm === "in_meeting") {
+        const state = await probeEntryState(botId).catch(() => "unknown");
+        if (state === "entered") return { status: "in_meeting", detail: s?.status || s?.state };
+        if (state === "waiting") {
+          await findAndClickByText(botId, KNOCK_TEXTS, "button, div[role='button']", 3000).catch(() => false);
+          return { status: "joining", detail: "waiting room: knocked again" };
+        }
+        return { status: "joining", detail: "session up, entry state unknown" };
+      }
+      return { status: norm, detail: s?.status || s?.state };
     } catch {
       return { status: "error", detail: "session lookup failed" };
     }

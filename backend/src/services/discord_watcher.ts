@@ -170,6 +170,28 @@ export function openVoiceChannels(
   return open.sort((a, b) => a.channelId.localeCompare(b.channelId));
 }
 
+// a channel deep link -> {guildId, channelId}, pure. the dispatch
+// match key: a meeting's join_url is the deep link
+// (https://discord.com/channels/{guild}/{channel}), the watcher's open
+// rooms are {guildId, channelId} pairs, and these two halves meet here.
+export function discordChannelFromUrl(
+  url: string,
+): { guildId: string; channelId: string } | null {
+  const m = url.match(/discord(?:\.com)?\/channels\/(\d+)\/(\d+)/);
+  if (!m) return null;
+  return { guildId: m[1], channelId: m[2] };
+}
+
+// is the room this url points at open right now? pure: state + url ->
+// fact. occupants are the fact; a schedule is a guess.
+export function roomIsOpen(state: DiscordWatchState, url: string): boolean {
+  const target = discordChannelFromUrl(url);
+  if (!target) return false;
+  return openVoiceChannels(state).some(
+    (ch) => ch.guildId === target.guildId && ch.channelId === target.channelId && ch.occupants.length > 0,
+  );
+}
+
 // the events worth watching: scheduled and active only. completed and
 // canceled events are not watches anymore.
 export function watchableEvents(state: DiscordWatchState, guildId?: string): DiscordEvent[] {

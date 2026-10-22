@@ -1,10 +1,14 @@
 // the join gate, as one pure decision. deploy paths stay thin: they ask
 // this function "join now?" and act on the answer.
 //
-// two triggers, one per meeting:
+// three triggers, one per meeting:
 //   delay (default): join join_delay_minutes after start_time.
 //   participants: hold until join_after_participants humans are already
 //   inside. a scheduled time is a promise; a participant count is a fact.
+//   room_open (the owner, oct 22 2026): join when the watched room's call is
+//   actually open. a discord voice channel with occupants is a fact; the
+//   scheduled time was a guess. the watcher's state decides, and a state
+//   she cannot see is a hold, never a fake open.
 //
 // the participant count comes from the engine's pre-join read (the waiting
 // room or join page states how many are in). null means the engine could
@@ -22,13 +26,27 @@ export function shouldJoinNow(
   meeting: Pick<Meeting, "start_time" | "join_delay_minutes" | "join_trigger" | "join_after_participants">,
   now: Date,
   participantCount?: number | null,
+  // room_open's fact: is the call this meeting points at open right now?
+  // true/false from the watcher's state; undefined = she cannot see the
+  // room (no watcher, or the url is not a channel link).
+  roomOpen?: boolean | null,
 ): JoinDecision {
+  const trigger = meeting.join_trigger || "delay";
+
+  if (trigger === "room_open") {
+    if (roomOpen === true) {
+      return { join: true, reason: "the watched room's call is open: dispatching" };
+    }
+    if (roomOpen === false) {
+      return { join: false, reason: "holding: the room's call is not open yet" };
+    }
+    return { join: false, reason: "holding: the watcher cannot see this room yet" };
+  }
+
   const start = Date.parse(meeting.start_time);
   if (Number.isNaN(start)) {
     return { join: false, reason: "start_time is not parseable; holding" };
   }
-
-  const trigger = meeting.join_trigger || "delay";
 
   if (trigger === "participants") {
     const needed = meeting.join_after_participants;

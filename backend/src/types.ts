@@ -152,7 +152,12 @@ export interface LocalizationConfig {
 // behavior). "participants": she holds until N humans are already in the
 // room, which is the join-when-it-actually-started trigger: a scheduled
 // time is a promise, a participant count is a fact.
-export type JoinTrigger = "delay" | "participants";
+export type JoinTrigger =
+  | "delay"        // N minutes after start (default)
+  | "participants" // when N humans are already inside
+  | "room_open";   // when the watched room's call is actually open: a
+                   // discord voice channel with occupants is a fact, the
+                   // scheduled time was a guess (docket rule)
 
 export interface CaptureRequest {
   id: string;

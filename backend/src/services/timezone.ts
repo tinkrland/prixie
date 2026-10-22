@@ -218,7 +218,8 @@ function validZone(tz: string): string {
 
 // find the utc instant for a wall-clock datetime in zone: walk the
 // offset, using Intl to read the zone's offset at each candidate.
-function shiftWallClock(wallClock: string, zone: string): string {
+// exported for the ical parser: a wall-clock time in a named zone -> utc
+export function shiftWallClock(wallClock: string, zone: string): string {
   const wall = new Date(wallClock + "Z"); // treat as utc first
   if (isNaN(wall.getTime())) throw new Error(`unparseable: ${wallClock}`);
   // offset of zone at the wall time (treated as utc) in minutes

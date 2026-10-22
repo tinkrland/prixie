@@ -9,6 +9,7 @@
 // adding one function and one config key in syncAllCalendars, nothing else.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { shiftWallClock } from "./timezone.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -224,8 +225,12 @@ export async function syncAppleCalendar(serverUrl: string, username: string, pas
 
     for (const eventText of events) {
       const summary = eventText.match(/SUMMARY:(.*)/)?.[1] || "untitled";
-      const dtstart = eventText.match(/DTSTART[^:]*:(.*)/)?.[1];
-      const dtend = eventText.match(/DTEND[^:]*:(.*)/)?.[1];
+      // the params half matters as much as the value: DTSTART;TZID=...:...
+      // says the zone the wall clock lives in. dropping it (the old bug)
+      // read every local time as utc and shifted event times by the
+      // source's offset (the owner, oct 22 2026).
+      const dtstartM = eventText.match(/DTSTART([^:\r\n]*):(.*)/);
+      const dtendM = eventText.match(/DTEND([^:\r\n]*):(.*)/);
       const location = eventText.match(/LOCATION:(.*)/)?.[1] || "";
       const description = eventText.match(/DESCRIPTION:(.*)/)?.[1] || "";
 
@@ -233,8 +238,8 @@ export async function syncAppleCalendar(serverUrl: string, username: string, pas
 
       candidates.push({
         title: summary,
-        start_time: dtstart ? parseICalDate(dtstart) : "",
-        end_time: dtend ? parseICalDate(dtend) : undefined,
+        start_time: dtstartM ? parseICalDate(dtstartM[2], dtstartM[1]) : "",
+        end_time: dtendM ? parseICalDate(dtendM[2], dtendM[1]) : undefined,
         join_url: joinUrl,
         platform: detectPlatform(joinUrl || location),
         source: "apple",
@@ -249,15 +254,44 @@ export async function syncAppleCalendar(serverUrl: string, username: string, pas
   }
 }
 
-function parseICalDate(dateStr: string): string {
-  // basic iCal date parsing
-  const cleaned = dateStr.replace(/^[T]/, "");
-  if (cleaned.length === 8) {
-    // date only: YYYYMMDD
-    return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}T00:00:00Z`;
+// an ical datetime, honestly. the shape decides everything:
+//   ...Z        utc: absolute, verbatim.
+//   TZID=zone:  a wall clock in a named zone: shiftWallClock walks the
+//               zone's real offset (DST included), so the event sits at
+//               the moment the author meant, not the server's guess.
+//   floating:   no zone anywhere. the calendar's own zone (env) if set,
+//               else utc with a warn: never a silent server-zone shift.
+export function parseICalDate(dateStr: string, params = ""): string {
+  const value = dateStr.trim().replace(/\r$/, "");
+  // date only: YYYYMMDD, all-day. midnight utc is the convention; an
+  // all-day event has no wall-clock moment to shift.
+  if (/^\d{8}$/.test(value)) {
+    return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T00:00:00Z`;
   }
-  // datetime: YYYYMMDDTHHMMSSZ
-  return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}T${cleaned.slice(9, 11)}:${cleaned.slice(11, 13)}:${cleaned.slice(13, 15)}Z`;
+  const m = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z?)$/);
+  if (!m) return "";
+  const [, y, mo, d, h, mi, sec, zulu] = m;
+  if (zulu) return `${y}-${mo}-${d}T${h}:${mi}:${sec || "00"}Z`;
+  const wall = `${y}-${mo}-${d}T${h}:${mi}:${sec || "00"}`;
+  const tzid = params.match(/TZID="?([^";]+)"?/)?.[1];
+  if (tzid) {
+    try {
+      return shiftWallClock(wall, tzid);
+    } catch {
+      console.warn(`prixie: ical TZID "${tzid}" unresolvable; falling back to utc for ${wall}`);
+      return `${wall}Z`;
+    }
+  }
+  const calTz = Deno.env.get("APPLE_CALDAV_TZ") || "";
+  if (calTz) {
+    try {
+      return shiftWallClock(wall, calTz);
+    } catch {
+      // fall through to the utc fallback
+    }
+  }
+  console.warn(`prixie: ical floating time ${wall} with no TZID and no APPLE_CALDAV_TZ; read as utc, never as server-local`);
+  return `${wall}Z`;
 }
 
 // --- shared utilities ---

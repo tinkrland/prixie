@@ -12,8 +12,12 @@ export interface BrowserbaseSession {
 
 export interface JoinResult {
   session_id: string;
+  // joined means the in-call UI was SEEN (the owner, oct 22 2026), not that
+  // a join button was clicked. waiting_room means she asked, possibly
+  // more than once, and was not let in yet: never a success.
   status: "joined" | "failed" | "waiting_room";
   error?: string;
+  knocks?: number; // entry attempts, first ask included
   recording_id?: string;
 }
 
@@ -458,6 +462,115 @@ export async function findAndClickByText(sessionId: string, texts: string[], sel
   return false;
 }
 
+// --- honest entry: "asked" is not "in" (the owner, oct 22 2026) ---
+// a meeting used to be marked success the moment she clicked
+// "ask to join". that click is a knock, not entry. entry is the
+// in-call UI: the leave/end controls every platform renders once she
+// is actually inside. the probe reads the page and says one of
+// entered / waiting / unknown, and the knock loop re-asks while
+// nobody answers: mods miss popups, and a little badgering is
+// natural (her word), once per interval, bounded.
+
+export const IN_CALL_TEXTS = [
+  "leave call", "leave meeting", "leave the call", "end call", "end meeting",
+  "leave",
+];
+
+export const WAITING_ROOM_TEXTS = [
+  "ask to join", "asking to join", "request to join",
+  "waiting for the host", "waiting for someone", "let you in",
+  "waiting for the meeting to start", "hasn\'t approved",
+];
+
+// the texts that (re)request entry, wherever the page still offers it
+export const KNOCK_TEXTS = ["ask to join", "request to join", "knock to join"];
+
+export type EntryState = "entered" | "waiting" | "unknown";
+
+// one page read, classified. pure shape -> probe value -> state.
+export function classifyEntry(probe: string | undefined): EntryState {
+  if (probe === "entered" || probe === "waiting") return probe;
+  return "unknown";
+}
+
+export async function probeEntryState(sessionId: string): Promise<EntryState> {
+  const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        const visible = (el) => el.offsetParent !== null || el.getClientRects().length > 0;
+        const buttons = Array.from(document.querySelectorAll("button, div[role='button'], a"));
+        const label = (el) => ((el.textContent || "") + " " + (el.getAttribute("aria-label") || "")).trim().toLowerCase();
+        const has = (texts) => buttons.some((b) => visible(b) && texts.some((t) => label(b).includes(t)));
+        if (has(${JSON.stringify(IN_CALL_TEXTS)})) return "entered";
+        if (has(${JSON.stringify(WAITING_ROOM_TEXTS)})) return "waiting";
+        // body text is the fallback marker for the limbo pages
+        const body = (document.body?.innerText || "").toLowerCase();
+        if (${JSON.stringify(WAITING_ROOM_TEXTS)}.some((t) => body.includes(t))) return "waiting";
+        return "unknown";
+      })()
+    `,
+    returnByValue: true,
+  });
+  return classifyEntry(result?.result?.value);
+}
+
+export interface EntryOutcome {
+  state: EntryState;
+  knocks: number; // how many times she asked in total (first click included)
+}
+
+// await entry: the knock loop. entered returns fast. waiting re-asks
+// every reknockEveryMs until maxWaitMs, then reports waiting honestly:
+// asked N times, never admitted. unknown is unknown.
+export async function awaitEntry(
+  sessionId: string,
+  opts: { maxWaitMs?: number; reknockEveryMs?: number; pollMs?: number } = {},
+): Promise<EntryOutcome> {
+  const maxWaitMs = opts.maxWaitMs ?? 120_000;
+  const reknockEveryMs = opts.reknockEveryMs ?? 30_000;
+  const pollMs = opts.pollMs ?? 5_000;
+  const started = Date.now();
+  let knocks = 1; // the join/ask click that started this
+  let last: EntryState = "unknown";
+  for (;;) {
+    last = await probeEntryState(sessionId);
+    if (last === "entered") return { state: "entered", knocks };
+    const waited = Date.now() - started;
+    if (waited >= maxWaitMs) break;
+    if (last === "waiting" && waited >= knocks * reknockEveryMs) {
+      // nobody answered: knock again. false (button gone) is fine: the
+      // next probe sees whatever changed.
+      const asked = await findAndClickByText(sessionId, KNOCK_TEXTS, "button, div[role='button']", 3000);
+      if (asked) knocks++;
+    }
+    await new Promise((r) => setTimeout(r, pollMs));
+  }
+  return { state: last, knocks };
+}
+
+// the verdict: entered is joined (seen, not clicked). waiting is
+// waiting_room with the knock count on it. unknown is a failure with an
+// honest error, never a silent success.
+export function entryVerdict(sessionId: string, outcome: EntryOutcome): JoinResult {
+  if (outcome.state === "entered") {
+    return { session_id: sessionId, status: "joined", knocks: outcome.knocks };
+  }
+  if (outcome.state === "waiting") {
+    return {
+      session_id: sessionId,
+      status: "waiting_room",
+      knocks: outcome.knocks,
+      error: `asked ${outcome.knocks}x, not admitted yet`,
+    };
+  }
+  return {
+    session_id: sessionId,
+    status: "failed",
+    knocks: outcome.knocks,
+    error: "clicked join but never entered the room (entry state unknown)",
+  };
+}
+
 // --- mainline platforms (zoom, meet, teams) ---
 
 export async function joinZoom(sessionId: string, meetingUrl: string, profileName: string): Promise<JoinResult> {
@@ -479,7 +592,7 @@ export async function joinZoom(sessionId: string, meetingUrl: string, profileNam
   // post-join audio dialog
   await findAndClickByText(sessionId, ["join with computer audio", "join audio", "join with audio"], "button", 10000);
 
-  return { session_id: sessionId, status: "joined" };
+  return entryVerdict(sessionId, await awaitEntry(sessionId));
 }
 
 export async function joinGoogleMeet(sessionId: string, meetingUrl: string, profileName: string): Promise<JoinResult> {
@@ -498,7 +611,7 @@ export async function joinGoogleMeet(sessionId: string, meetingUrl: string, prof
   // dismiss mic/camera prompts if they appear
   await findAndClickByText(sessionId, ["join now"], "button, div[role='button']", 5000);
 
-  return { session_id: sessionId, status: "joined" };
+  return entryVerdict(sessionId, await awaitEntry(sessionId));
 }
 
 export async function joinTeams(sessionId: string, meetingUrl: string, profileName: string): Promise<JoinResult> {
@@ -517,7 +630,7 @@ export async function joinTeams(sessionId: string, meetingUrl: string, profileNa
   // post-join device settings dialog
   await findAndClickByText(sessionId, ["join now", "join"], "button, div[role='button']", 8000);
 
-  return { session_id: sessionId, status: "joined" };
+  return entryVerdict(sessionId, await awaitEntry(sessionId));
 }
 
 // --- chat send (prixie speaking into the meeting chat) ---

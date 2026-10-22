@@ -11,10 +11,12 @@ import {
   INTENTS,
   WATCH_INTENTS,
   applyDispatch,
+  discordChannelFromUrl,
   eventDeepLink,
   handleGatewayMessage,
   newWatchState,
   openVoiceChannels,
+  roomIsOpen,
   watchableEvents,
 } from "./discord_watcher.ts";
 
@@ -222,4 +224,31 @@ Deno.test("the REST seed: guild events land in the state with counts", async () 
   assertEquals(events[0].name, "office hours");
   // user_count is asked for explicitly: the schedule reads live interest
   assertEquals(requestedUrl.includes("with_user_count=true"), true);
+});
+
+// the dispatch match key (the owner, oct 22 2026): a meeting's join_url is a
+// channel deep link, the watcher's open rooms are {guild, channel}
+// pairs, and roomIsOpen is where the two halves meet. pure.
+Deno.test("discordChannelFromUrl reads the deep link shapes", () => {
+  assertEquals(discordChannelFromUrl("https://discord.com/channels/123/456"), { guildId: "123", channelId: "456" });
+  assertEquals(discordChannelFromUrl("https://discord.com/channels/123/456?foo=bar"), { guildId: "123", channelId: "456" });
+  // the in-app scheme carries the same pair
+  assertEquals(discordChannelFromUrl("discord://discord.com/channels/123/456"), { guildId: "123", channelId: "456" });
+  assertEquals(discordChannelFromUrl("https://zoom.us/j/987654321"), null);
+  assertEquals(discordChannelFromUrl("https://discord.gg/invite"), null);
+});
+
+Deno.test("roomIsOpen: occupants in that channel are the fact", () => {
+  const state = newWatchState();
+  // snowflake ids are numeric, and so is the deep link
+  applyDispatch(state, "VOICE_STATE_UPDATE", {
+    user_id: "u1", guild_id: "9012", channel_id: "5678", member: { user: { username: "the owner" } },
+  });
+  const url = "https://discord.com/channels/9012/5678";
+  assertEquals(roomIsOpen(state, url), true);
+  // a meeting pointing at a different, silent channel holds
+  assertEquals(roomIsOpen(state, "https://discord.com/channels/9012/9999"), false);
+  // everyone leaves: the room is closed again, fact flipped
+  applyDispatch(state, "VOICE_STATE_UPDATE", { user_id: "u1", guild_id: "9012", channel_id: null });
+  assertEquals(roomIsOpen(state, url), false);
 });
