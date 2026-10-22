@@ -60,6 +60,15 @@ export interface BotProvider {
   // optional: keep a long-running session from looking idle (no-op if not needed)
   heartbeat?(botId: string): Promise<void>;
 
+  // optional: install the in-page chat monitor on a live session.
+  // idempotent by contract: installing on an already-monitored session
+  // is a no-op, so the manager can call it on every entry transition
+  // without double-reporting. this is how a waiting-room admission
+  // gets monitored (the owner, oct 22 2026: the monitor rides entry, not
+  // deployment): the host letting her in minutes later is the moment
+  // it goes in, and a late join gets it the same way.
+  installMonitor?(botId: string, webhookUrl: string): Promise<boolean>;
+
   // tear the bot down
   destroy(botId: string): Promise<void>;
 }

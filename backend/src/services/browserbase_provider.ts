@@ -107,6 +107,13 @@ export class BrowserbaseProvider implements BotProvider {
     return sendChatInSession(botId, messageText);
   }
 
+  // entry-time monitor install. installChatMonitor carries its own
+  // window.__prixieChatMonitor guard, so this is safe to call on every
+  // entry transition (a session monitored at deploy stays "already").
+  async installMonitor(botId: string, webhookUrl: string): Promise<boolean> {
+    return installChatMonitor(botId, webhookUrl, Deno.env.get("REALTIME_WEBHOOK_SECRET")).catch(() => false);
+  }
+
   async unmuteAndSpeak(botId: string, question: string): Promise<boolean> {
     return unmuteAndSpeakInSession(botId, question);
   }

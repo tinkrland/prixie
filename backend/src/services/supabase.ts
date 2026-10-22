@@ -123,6 +123,50 @@ export async function listMeetings(status?: MeetingStatus): Promise<Meeting[]> {
   return (data || []) as Meeting[];
 }
 
+// the pre-deploy claim (the owner, oct 22 2026: check for duplicate
+// deployment). atomic on purpose: the update only lands while the row
+// is still scheduled, so two overlapping cycles or two isolates
+// racing to deploy the same meeting cannot both win. empty return =
+// somebody else claimed it first, skip.
+export async function claimForDeploy(meetingId: string): Promise<Meeting | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("meetings")
+    .update({ status: "bot_deploying", updated_at: new Date().toISOString() })
+    .eq("id", meetingId)
+    .eq("status", "scheduled")
+    .select()
+    .single();
+
+  if (error) {
+    // not a crash: an unreadable row is not deployed, and the next
+    // cycle will try again
+    console.error(`prixie: deploy claim failed for meeting ${meetingId}`, error.message);
+    return null;
+  }
+  return (data as Meeting) ?? null;
+}
+
+// a deploy that died mid-join leaves its claim on the row. the sweep
+// hands the meeting back: scheduled again, no silent duplicate, no
+// meeting lost to a stale claim.
+export async function resetStaleDeployClaims(staleMinutes = 15): Promise<number> {
+  const supabase = getSupabase();
+  const cutoff = new Date(Date.now() - staleMinutes * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("meetings")
+    .update({ status: "scheduled", updated_at: new Date().toISOString() })
+    .eq("status", "bot_deploying")
+    .lt("updated_at", cutoff)
+    .select();
+
+  if (error) {
+    console.error("prixie: stale deploy claim sweep failed", error.message);
+    return 0;
+  }
+  return (data || []).length;
+}
+
 export async function updateMeeting(id: string, updates: UpdateMeetingInput): Promise<Meeting | null> {
   const supabase = getSupabase();
   const { data, error } = await supabase

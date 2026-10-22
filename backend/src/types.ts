@@ -1,5 +1,8 @@
 export type PlatformType = 'zoom' | 'google_meet' | 'teams' | 'custom';
-export type MeetingStatus = 'scheduled' | 'bot_joining' | 'bot_in_meeting' | 'completed' | 'failed';
+// bot_deploying is the pre-deploy claim (the owner, oct 22 2026: check for
+// duplicate deployment): the row says it BEFORE the slow join runs, so
+// an overlapping cycle or a second isolate can never deploy twice.
+export type MeetingStatus = 'scheduled' | 'bot_deploying' | 'bot_joining' | 'bot_in_meeting' | 'completed' | 'failed';
 export type AttendanceMethod = 'chat_message' | 'google_form' | 'custom' | 'none';
 export type CaptureType = 'capture' | 'ask';
 export type CaptureStatus = 'pending' | 'captured' | 'answered' | 'not_found' | 'meeting_skipped';

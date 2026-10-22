@@ -1,5 +1,7 @@
 import {
   getScheduledUpcomingMeetings,
+  claimForDeploy,
+  resetStaleDeployClaims,
   getActiveMeetings,
   getCompletedMeetingsWithoutTranscript,
   updateMeeting,
@@ -27,6 +29,11 @@ const END_GRACE_MINUTES = 10;
 
 export class MeetingManager {
   private isRunning = false;
+  // a cycle that overlaps the previous one is the classic double-deploy
+  // race: createBot can run minutes (a waiting room), while the meeting
+  // row still says scheduled. an overlapping cycle skips; the db claim
+  // (bot_deploying) covers the two-isolate case.
+  private cycleBusy = false;
 
   public startScheduler(intervalMs = 60000) {
     if (this.isRunning) {
@@ -42,6 +49,11 @@ export class MeetingManager {
   }
 
   public async runCycle() {
+    if (this.cycleBusy) {
+      console.log("prixie: previous scheduler cycle still running, skipping this tick (no duplicate deploys)");
+      return;
+    }
+    this.cycleBusy = true;
     try {
       // the pull calendars (outlook, apple) have no push webhook like
       // google's, so the cycle re-reads them: candidates -> meetings ->
@@ -52,6 +64,8 @@ export class MeetingManager {
       await this.processCompletedTranscripts();
     } catch (err: any) {
       console.error("prixie: error during meeting manager scheduler cycle:", err);
+    } finally {
+      this.cycleBusy = false;
     }
   }
 
@@ -61,6 +75,11 @@ export class MeetingManager {
   }
 
   private async deployUpcomingBots() {
+    // a deploy that died mid-join leaves a bot_deploying claim; hand
+    // the meeting back before anything new deploys
+    const revived = await resetStaleDeployClaims(15);
+    if (revived > 0) console.log(`prixie: ${revived} stale deploy claim(s) swept back to scheduled`);
+
     const upcoming = await getScheduledUpcomingMeetings(5);
     if (upcoming.length === 0) return;
 
@@ -100,6 +119,17 @@ export class MeetingManager {
         }
 
         console.log(`prixie scheduler: deploying ${provider.name} bot for "${meeting.title}" (${meeting.platform})`);
+
+        // the claim BEFORE the join: while createBot runs (a waiting
+        // room can hold it for minutes), the row says bot_deploying,
+        // so this cycle, the next cycle, or another isolate sees nothing
+        // scheduled to deploy again (the owner, oct 22 2026: check for
+        // duplicate deployment).
+        const claimed = await claimForDeploy(meeting.id);
+        if (!claimed) {
+          console.log(`prixie scheduler: meeting ${meeting.id} claimed by another deploy, skipping`);
+          continue;
+        }
 
         const bot = await provider.createBot(meeting, {
           realtimeWebhookUrl: this.realtimeWebhookUrl(),
@@ -143,6 +173,20 @@ export class MeetingManager {
         }
 
         if (status === "in_meeting") {
+          // entry just happened (or was detected late): the chat monitor
+          // rides THIS moment, not deployment. a host who admitted her
+          // from a waiting room ten minutes in used to leave the room
+          // unmonitored; an idempotent install closes that, and a late
+          // join gets it the same way (the owner, oct 22 2026).
+          if (provider.installMonitor && meeting.status !== "bot_in_meeting") {
+            const ok = await provider.installMonitor(meeting.bot_id, this.realtimeWebhookUrl());
+            if (ok) {
+              console.log(`prixie: chat monitor installed on entry for meeting ${meeting.id}`);
+            } else {
+              console.warn(`prixie: chat monitor failed on entry for meeting ${meeting.id}`);
+            }
+          }
+
           // keep the session from looking idle + send attendance once
           if (provider.heartbeat) await provider.heartbeat(meeting.bot_id);
 

@@ -16,16 +16,17 @@ lowercase always. the docket does not judge a gap.
 
 the platforms she can join, and how she gets in the room.
 
-| platform | status | how she joins | notes |
-| --- | --- | --- | --- |
-| zoom | working | zoom web sdk as a real participant (browserbase loads a hosted page, join url parsed, signature signed via /api/zoom/signature); browserbase join as the fallback path | chat, reactions, raise hand all work as a participant. the q&a panel is webinar-scoped: she tries, no promises. waiting room: she joins and waits, status waiting_room |
-| google meet | working | browserbase join engine, anonymous by default | the default auth mode for meet |
-| microsoft teams | working | browserbase join engine | anonymous guest path |
-| discord | working (watch), planned (join) | the room watch is live (backend/src/services/discord_watcher.ts): one gateway connection per server reads voice states + scheduled events, so a call being open is a fact she sees, not a guess. joining the call is the planned api path: webrtc audio in through the voice gateway | limits, verified oct 22 2026: dm calls and group dm calls are invisible to bots; she would arrive with a bot tag; the bot api does not let her view screenshares |
-| slack | partial (channel scan), planned (huddle join) | live_links scans slack channels for links posted in real time. joining a huddle is planned: slack's api does not surface huddle links to apps, so the path is a pre-authenticated browserbase context watching the channel | huddle join is browser, not api |
-| ringcentral | planned | browserbase fallback: open the link, automate the join, capture audio, transcribe | no recall.ai support ever; the browser is the engine |
-| bluejeans | planned | browserbase fallback, same shape as ringcentral | same browser path |
-| webex / gather.town / others | planned | generic browserbase join (joinGeneric) covers any web meeting page today, with per-platform automation as the polish step | gather.town: space url plus a pre-authenticated profile |
+| platform | surface | status | how she joins | notes |
+| --- | --- | --- | --- | --- |
+| zoom |  | working | zoom web sdk as a real participant (browserbase loads a hosted page, join url parsed, signature signed via /api/zoom/signature); browserbase join as the fallback path | chat, reactions, raise hand all work as a participant. the q&a panel is webinar-scoped: she tries, no promises. waiting room: she joins and waits, status waiting_room |
+| google meet |  | working | browserbase join engine, anonymous by default | the default auth mode for meet |
+| microsoft teams |  | working | browserbase join engine | anonymous guest path |
+| discord | watching | working | the room watch is live (backend/src/services/discord_watcher.ts): one gateway connection per server reads voice states + scheduled events, so a call being open is a fact she sees, not a guess | limits, verified oct 22 2026: dm calls and group dm calls are invisible to bots |
+|  | joining | planned | the api path: webrtc audio in through the voice gateway | she would arrive with a bot tag; the bot api does not let her view screenshares |
+| slack |  | partial (channel scan), planned (huddle join) | live_links scans slack channels for links posted in real time. joining a huddle is planned: slack's api does not surface huddle links to apps, so the path is a pre-authenticated browserbase context watching the channel | huddle join is browser, not api |
+| ringcentral |  | planned | browserbase fallback: open the link, automate the join, capture audio, transcribe | no recall.ai support ever; the browser is the engine |
+| bluejeans |  | planned | browserbase fallback, same shape as ringcentral | same browser path |
+| webex / gather.town / others |  | planned | generic browserbase join (joinGeneric) covers any web meeting page today, with per-platform automation as the polish step | gather.town: space url plus a pre-authenticated profile |
 
 ## calendar sync
 
@@ -175,6 +176,7 @@ what happens between the join url and being in the room.
 | mic off | working | mic off by default; it turns on only for the voice feature's speaking turns |
 | late join | working | she joins ongoing meetings gracefully; the docket does not judge it |
 | join url safety | working | link_safety checks a url before she follows it |
+| one bot per meeting | working | the deploy claims the row (bot_deploying) before the join runs: overlapping cycles and a second isolate never deploy twice, and a deploy that dies mid-join has its claim swept back to scheduled after 15 minutes. the cycle also skips while the previous one is still running |
 
 ## post joining checklist features
 
@@ -185,6 +187,7 @@ what she does once she is in the room.
 | attendance | via chat | working | "present!" style messages in the meeting chat, per the meeting's attendance_method; AttendanceMessage records what was sent, when, and why |
 |  | via form link | working | pre-set attendance forms are filled (enterForm); the fill is recorded as the attendance receipt |
 | attendance forms found in chat |  | working | chat_form_attendance: a form link posted in-meeting that the host language marks as attendance is filled; a bare form link with no attendance context is NOT hers to touch |
+| chat monitor | at entry, not at deploy | working | the in-page monitor installs the moment the page says she is in the room: immediate joins at deploy, waiting-room admissions at the entry transition (a host letting her in late can no longer leave the room unmonitored), and late joins the same way. idempotent, so no double-reporting |
 | transcript retrieval |  | working | assembly.ai transcription through the meeting transcript pipeline; Transcript stores the full text |
 | capture request answering |  | working | keywords watched in chat and transcript; screenshots on request; chat links captured; answers recorded per request |
 | term detection |  | working | term_detector picks up codes, access info, and other take-home terms from the live text |
@@ -229,7 +232,7 @@ receipt says exactly what happened.
 | situation | status | what she does | notes |
 | --- | --- | --- | --- |
 | the waiting room never answers | working | she asks again on a bounded cadence (the mods-missed-a-popup badger), every ask counted on the result; still ignored is waiting_room, not failed | awaitEntry in browserbase.ts |
-| the join attempt fails | partial | the failure is recorded honestly (status failed, the reason kept); the waiting-room ask is the built re-request, a retry ladder for failed joins is planned | one deploy attempt per meeting today; nothing retried silently |
+| the join attempt fails | partial | the failure is recorded honestly (status failed, the reason kept); the waiting-room ask is the built re-request, a retry ladder for failed joins is planned | one deploy attempt per meeting today, and duplicate deployment is closed (pre-deploy claim + stale-claim sweep); a retry ladder for failed joins is planned |
 | a shared file she cannot open | working | doc_access: she reads the access state in a side session, tries the request-access flow, and asks the host in the chat by name; one attempt per link per meeting | never assumed open, never assumed requested |
 | a promo code with no straightforward place to apply it, when she has been told it is time-bound / limited keys | planned | she asks in the chat: "wait can someone confirm if i need my card on file for this? i dont have it on me at the moment lol" | the honest hedge: sometimes a promo works without a card, and asking beats a blind checkout. the redeem flow today extracts codes (capture-gated) and applies them only outside cc flows; this ask is the next branch of it |
 
