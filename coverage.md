@@ -293,4 +293,17 @@ not promises, direction (the owner, oct 22 2026). entries wait until they are bu
 | multilingual coverage | speech-to-speech and transcript coverage beyond english (hinglish transliteration already keeps latin script) |
 | book a meeting with her | people can book time with prixie herself |
 | she hosts meetings | from attendee to host: her room, her invite, her rules |
-| an oss join engine | a self-hosted alternative to the browserbase subscription, for people who want no dependency on it (the owner, oct 22 2026): playwright + chromium, or camoufox for stealth, running on her own vm and speaking the same cdp seams. the swap is an engine, not a rewrite, because everything above browserbase.ts talks cdpExecute and findAndType, not browserbase. the honest trade: she keeps the join flows, the flow loop, the tell, and loses browserbase's captcha solving and stealth fingerprints, so the harder sites get harder. discussion, nothing built |
+
+the four candidates the owner named (oct 22 2026), each judged against
+the one thing that matters for the swap, the cdp seam:
+
+- **browserstation** (github.com/reinforcenow/browserstation, mit, ~160 stars): says it outright, "an open-source alternative to browserbase". ray + kubernetes under it (helm, kind, worker pods with a chrome sidecar), and a fastapi websocket proxy that streams raw cdp. seam fit: native, cdp is its tongue. honest cost: the k8s weight of the whole cluster, and session persistence and stealth are still on its roadmap, so it is infra more than it is stealth.
+- **steel.dev** (steel-browser, self-hosting guide published): a browser api over chromium, sessions with stealth flags, cdp included. seam fit: good, cdp sessions are first class. one docker to run, lighter than a cluster.
+- **browserless.io** (self-hosted docker): the veteran. v2 is the maintained line (v1 gets security fixes only), puppeteer / playwright / cdp endpoints, concurrency and queue limits set by env var. honest limits: chrome and edge images are amd64 only (arm64 ships chromium), and it is the least bot-aware of the four.
+- **camofox-browser** (github.com/jo-inc/camofox-browser, over camoufox): the stealth pick. anti-detect firefox with c++-level fingerprint spoofing, drop-in puppeteer/playwright replacement, built for the sites that block the others. honest limit: firefox is not cdp, so cdpExecute needs an adapter there, not a url swap.
+
+the trade that stays true across all four: she keeps the join flows,
+the flow loop, and the tell; browserbase's captcha solving and
+verified fingerprints go, so the harder sites get harder. camofox is
+the hedge built for exactly that. discussion, nothing built.
+| an oss join engine | a self-hosted alternative to the browserbase subscription, for people who want no dependency on it (the owner, oct 22 2026). the swap is an engine, not a rewrite: everything above browserbase.ts talks cdpExecute and findAndType, not browserbase. the candidates below were read from their repos and docs oct 22 2026, none built |
