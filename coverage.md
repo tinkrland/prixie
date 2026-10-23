@@ -294,6 +294,8 @@ not promises, direction (the owner, oct 22 2026). entries wait until they are bu
 | book a meeting with her | people can book time with prixie herself |
 | she hosts meetings | from attendee to host: her room, her invite, her rules |
 
+| an oss join engine | a self-hosted alternative to the browserbase subscription, for people who want no dependency on it (the owner, oct 22 2026). the swap is an engine, not a rewrite: everything above browserbase.ts talks cdpExecute and findAndType, not browserbase. the candidates below were read from their repos and docs oct 22 2026, none built. decided oct 23 2026: browserbase stays for now; the row keeps for the people who will want the swap |
+
 the four candidates the owner named (oct 22 2026), each judged against
 the one thing that matters for the swap, the cdp seam:
 
@@ -306,4 +308,3 @@ the trade that stays true across all four: she keeps the join flows,
 the flow loop, and the tell; browserbase's captcha solving and
 verified fingerprints go, so the harder sites get harder. camofox is
 the hedge built for exactly that. discussion, nothing built.
-| an oss join engine | a self-hosted alternative to the browserbase subscription, for people who want no dependency on it (the owner, oct 22 2026). the swap is an engine, not a rewrite: everything above browserbase.ts talks cdpExecute and findAndType, not browserbase. the candidates below were read from their repos and docs oct 22 2026, none built |
