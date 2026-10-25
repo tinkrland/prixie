@@ -6,13 +6,15 @@ import { convertToUTC } from "./timezone.ts";
 // parsed in the server's zone, silently scheduling meetings hours off.
 // these pin the fixed behavior, including the dst edge.
 Deno.test("convertToUTC honors the source zone, not the server's", () => {
-  // 3pm edt = 19:00 utc (before the nov 1 dst flip)
-  assertEquals(convertToUTC("3:00 PM", "America/New_York").startsWith("T19:00:00.000Z") || convertToUTC("3:00 PM", "America/New_York").endsWith("19:00:00.000Z"), true);
-  // 10:30 ist = 05:00 utc
-  const ist = convertToUTC("10:30 am", "Asia/Kolkata");
-  assertEquals(ist.endsWith("05:00:00.000Z"), true);
-  // 9am london in bst = 08:00 utc
-  assertEquals(convertToUTC("9:00", "Europe/London").endsWith("08:00:00.000Z"), true);
+  // dates are PINNED, not "today": london fell back to gmt on oct 25
+  // 2026 and an unpinned "today" version went stale that same morning.
+  // 3pm edt on oct 21 = 19:00 utc (before the nov 1 dst flip)
+  assertEquals(convertToUTC("2026-10-21 3:00 PM", "America/New_York"), "2026-10-21T19:00:00.000Z");
+  // 10:30 ist on oct 21 = 05:00 utc (india has no dst, but pin anyway)
+  assertEquals(convertToUTC("2026-10-21 10:30 am", "Asia/Kolkata"), "2026-10-21T05:00:00.000Z");
+  // 9am london in bst (oct 21) = 08:00 utc; after the oct 25 flip = 09:00
+  assertEquals(convertToUTC("2026-10-21 9:00", "Europe/London"), "2026-10-21T08:00:00.000Z");
+  assertEquals(convertToUTC("2026-10-26 9:00", "Europe/London"), "2026-10-26T09:00:00.000Z");
 });
 
 Deno.test("dst is honored: the same clock time is a different instant either side of the flip", () => {

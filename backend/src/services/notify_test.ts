@@ -49,7 +49,7 @@ Deno.test("with creds: one post to agentmail outbound, bearer auth", async () =>
   try {
     const sent = await notifyOwner({ subject: "prixie: code", body: "now" });
     assertEquals(sent, true);
-    assertEquals(captured!.url, "https://api.agentmail.to/inboxes/inbox_123/messages/send");
+    assertEquals(captured!.url, "https://api.agentmail.to/v0/inboxes/inbox_123/messages/send");
     assertEquals(
       (captured!.init.headers as Record<string, string>)["Authorization"],
       "Bearer test_key",
@@ -57,6 +57,9 @@ Deno.test("with creds: one post to agentmail outbound, bearer auth", async () =>
     const body = JSON.parse(String(captured!.init.body));
     assertEquals(body.to, "priya@example.com");
     assertEquals(body.subject, "prixie: code");
+    // text, not body: "body" sends a blank email (verified live oct 25 2026)
+    assertEquals(body.text, "now");
+    assertEquals(body.body, undefined);
   } finally {
     globalThis.fetch = originalFetch;
     Deno.env.delete("AGENTMAIL_API_KEY");

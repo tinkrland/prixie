@@ -16,7 +16,7 @@ export interface NotifyEmail {
   body: string;
 }
 
-const AGENTMAIL_API = "https://api.agentmail.to";
+const AGENTMAIL_API = "https://api.agentmail.to/v0";
 
 export function buildCaptureEmail(
   opts: {
@@ -68,7 +68,10 @@ export async function notifyOwner(email: NotifyEmail): Promise<boolean> {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({ to, subject: email.subject, body: email.body }),
+        // text, not body: agentmail silently accepts "body" and sends an
+        // empty message (verified live oct 25 2026), so the field name is
+        // the difference between an email and a blank one
+        body: JSON.stringify({ to, subject: email.subject, text: email.body }),
       },
     );
     if (!res.ok) {

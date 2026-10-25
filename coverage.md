@@ -294,7 +294,7 @@ not promises, direction (the owner, oct 22 2026). entries wait until they are bu
 | book a meeting with her | people can book time with prixie herself |
 | she hosts meetings | from attendee to host: her room, her invite, her rules |
 
-| an oss join engine | a self-hosted alternative to the browserbase subscription, for people who want no dependency on it (the owner, oct 22 2026). the swap is an engine, not a rewrite: everything above browserbase.ts talks cdpExecute and findAndType, not browserbase. the candidates below were read from their repos and docs oct 22 2026, none built. decided oct 23 2026: browserbase stays for now; the row keeps for the people who will want the swap |
+| an oss join engine | a self-hosted alternative to the browserbase subscription, for people who want no dependency on it (the owner, oct 22 2026). the swap is an engine, not a rewrite: everything above browserbase.ts talks cdpExecute and findAndType, not browserbase. the candidates below were read from their repos and docs oct 22 2026, none built. decided oct 23 2026: browserbase stays for now; the row keeps for the people who will want the swap. kernel.sh (oct 25 2026) is the one to keep compatible at the seam: same cdp wire, captcha solving on the other end |
 
 the four candidates the owner named (oct 22 2026), each judged against
 the one thing that matters for the swap, the cdp seam:
@@ -303,6 +303,7 @@ the one thing that matters for the swap, the cdp seam:
 - **steel.dev** (steel-browser, self-hosting guide published): a browser api over chromium, sessions with stealth flags, cdp included. seam fit: good, cdp sessions are first class. one docker to run, lighter than a cluster.
 - **browserless.io** (self-hosted docker): the veteran. v2 is the maintained line (v1 gets security fixes only), puppeteer / playwright / cdp endpoints, concurrency and queue limits set by env var. honest limits: chrome and edge images are amd64 only (arm64 ships chromium), and it is the least bot-aware of the four.
 - **camofox-browser** (github.com/jo-inc/camofox-browser, over camoufox): the stealth pick. anti-detect firefox with c++-level fingerprint spoofing, drop-in puppeteer/playwright replacement, built for the sites that block the others. honest limit: firefox is not cdp, so cdpExecute needs an adapter there, not a url swap.
+- **kernel.sh** (onkernel.com, oss core = kernel/kernel-images, apache 2.0, go, ~1.1k stars, over the hypeman microvm runtime): the compatibility alternative the owner asked to keep (oct 25 2026). the browser object carries cdp_ws_url natively (read from their openapi spec, and an api key verified live oct 25 2026: browser list 200), so the seam is the same three moves: create browser, connect the cdp websocket, talk. unlike the four above it also solves captchas and manages proxies (stealth mode), which makes it the feature-parity pick. the honest limit: hosted at onkernel.com it is still a subscription; the self-host escape hatch is kernel-images itself, a go service over microvms, heavier than steel's one docker.
 
 the trade that stays true across all four: she keeps the join flows,
 the flow loop, and the tell; browserbase's captcha solving and
