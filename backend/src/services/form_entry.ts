@@ -65,6 +65,7 @@ export function buildRedeemEmail(
     meetingTitle: string;
     captureTitle: string;
     scarce?: string;
+    expiry?: string;
     formEmail?: string;
     promoCode?: string | null;
   },
@@ -76,6 +77,9 @@ export function buildRedeemEmail(
   ];
   if (context.scarce) {
     lines.push(`scarcity heard mid-meeting: ${context.scarce}`, "");
+  }
+  if (context.expiry) {
+    lines.push(context.expiry, "");
   }
   if (context.promoCode) {
     lines.push(receipt.promo_applied
@@ -339,6 +343,7 @@ export async function redeemAndNotify(
     meetingTitle: string;
     captureTitle: string;
     scarce?: string;
+    expiry?: string;
     promoCode?: string | null;
     emailMode?: import("./form_email.ts").FormEmailMode | null;
   },

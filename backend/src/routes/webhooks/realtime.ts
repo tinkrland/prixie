@@ -9,6 +9,8 @@ import { registerDefaultScreenshotEngines } from "../../services/screenshot_engi
 import { detectTerms } from "../../services/term_detector.ts";
 import { notifyCaptureMatch } from "../../services/notify.ts";
 import { detectScarcity } from "../../services/scarcity.ts";
+import { extractExpiryWindow } from "../../services/expiry_window.ts";
+import { expiryReceiptLine } from "../../services/notify.ts";
 import { redeemAndNotify } from "../../services/form_entry.ts";
 import { extractPromoCode } from "../../services/promo.ts";
 import {
@@ -61,6 +63,12 @@ realtimeWebhook.use("*", async (c, next) => {
 // the link by minutes). in-memory by design: it is live-call urgency,
 // not durable truth. supabase keeps the capture.
 const scarcityHeard = new Map<string, string>();
+
+// expiry windows she has heard per meeting, same design: "the code only
+// lasts 10 minutes" is usually said a moment BEFORE the code, so the
+// window is remembered and applied when the capture lands. the capture
+// row in supabase is the durable record; this map is live-call memory.
+const expiryHeard = new Map<string, string>();
 
 // the q&a ask flow state, per meeting (the owner, oct 21 2026). in-memory by
 // the same design: live-call urgency, not durable truth. the capture
@@ -410,6 +418,13 @@ realtimeWebhook.post("/", async (c) => {
       // chat reply.
       await advanceQna(meeting, botId, "transcript", text, pendingCaptures);
 
+      // the words being said are the only expiry source: "this code
+      // expires in 10 minutes" spoken before the code is remembered,
+      // and the capture that lands next inherits the urgency
+      if (extractExpiryWindow(text)) {
+        expiryHeard.set(meeting.id, `${speaker}: ${text}`);
+      }
+
       for (const req of pendingCaptures) {
         let matched = false;
 
@@ -469,6 +484,19 @@ realtimeWebhook.post("/", async (c) => {
             if (st && st.pendingQuestionId === req.id) qnaStates.delete(meeting.id);
           }
 
+          // the urgency of the capture is the words around it: the
+          // matching utterance first ("use code X, expires in 10
+          // minutes"), else the last expiry-shaped sentence she heard
+          // in this call. never a guess, always a quote.
+          const expiry = extractExpiryWindow(text, {
+              meetingEndsAt: meeting.end_time,
+            }) ??
+            (expiryHeard.has(meeting.id)
+              ? extractExpiryWindow(expiryHeard.get(meeting.id)!, {
+                  meetingEndsAt: meeting.end_time,
+                })
+              : null);
+
           await updateCaptureRequest(req.id, {
             status: req.type === "ask" ? "answered" : "captured",
             captured_content: req.captured_content
@@ -476,17 +504,23 @@ realtimeWebhook.post("/", async (c) => {
               : captureSnippet,
             captured_screenshot_url: screenshotUrl || req.captured_screenshot_url || undefined,
             answer: req.type === "ask" ? text : req.answer,
+            expiry_kind: expiry?.kind ?? null,
+            expiry_minutes: expiry?.minutes ?? null,
+            expires_at: expiry?.expiresAt ?? null,
+            expiry_quote: expiry?.quote ?? null,
           });
 
           // redemption-window case: a code that only works during the
           // meeting is useless in a post-meeting recap, so the owner
-          // hears about it the moment she does.
+          // hears about it the moment she does. a heard window lands in
+          // the subject line: the inbox IS the push.
           await notifyCaptureMatch({
             meetingTitle: meeting.title,
             captureTitle: req.title,
             snippet: captureSnippet,
             link: screenshotUrl,
             capturedAt: new Date(),
+            expiry,
           }).catch(() => false);
         }
       }
@@ -509,6 +543,12 @@ realtimeWebhook.post("/", async (c) => {
       // asks in the chat, without ever leaving the call.
       await maybeHandleSharedDocAccess(meeting, botId, text);
 
+      // expiry words land in chat too: "link expires in 10 mins" is
+      // the same window, typed instead of spoken
+      if (extractExpiryWindow(text)) {
+        expiryHeard.set(meeting.id, `[chat] ${speaker}: ${text}`);
+      }
+
       console.log(`prixie: chat message from ${speaker}: "${text}"`);
 
       for (const req of pendingCaptures) {
@@ -526,12 +566,27 @@ realtimeWebhook.post("/", async (c) => {
 
           const chatSnippet = `[chat] ${speaker}: ${text}`;
 
+          // the chat carries the same urgency: the message itself
+          // first, else the last window she heard in this call
+          const expiry = extractExpiryWindow(text, {
+              meetingEndsAt: meeting.end_time,
+            }) ??
+            (expiryHeard.has(meeting.id)
+              ? extractExpiryWindow(expiryHeard.get(meeting.id)!, {
+                  meetingEndsAt: meeting.end_time,
+                })
+              : null);
+
           await updateCaptureRequest(req.id, {
             status: "captured",
             captured_chat_links: newLinks,
             captured_content: req.captured_content
               ? `${req.captured_content}\n${chatSnippet}`
               : chatSnippet,
+            expiry_kind: expiry?.kind ?? null,
+            expiry_minutes: expiry?.minutes ?? null,
+            expires_at: expiry?.expiresAt ?? null,
+            expiry_quote: expiry?.quote ?? null,
           });
 
           // a redeem-enabled request is the fcfs case: she enters the
@@ -543,6 +598,7 @@ realtimeWebhook.post("/", async (c) => {
               meetingTitle: meeting.title,
               captureTitle: req.title,
               scarce: scarcityHeard.get(meeting.id),
+              expiry: expiry ? expiryReceiptLine(expiry) : undefined,
               promoCode: extractPromoCode(chatSnippet),
               emailMode: (req.form_email_mode as any) ?? null,
             }).catch((err: any) =>
@@ -557,6 +613,7 @@ realtimeWebhook.post("/", async (c) => {
               snippet: chatSnippet,
               link: links[0],
               capturedAt: new Date(),
+              expiry,
             }).catch(() => false);
           }
         }

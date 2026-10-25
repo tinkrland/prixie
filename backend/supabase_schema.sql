@@ -100,6 +100,12 @@ CREATE TABLE IF NOT EXISTS public.capture_requests (
     captured_at TIMESTAMPTZ,
     -- who said it (for transcript-based captures)
     captured_speaker TEXT,
+    -- expiry heard in the words being said (the owner, oct 25 2026): never a
+    -- guess, always a quote. minutes/expires_at only when computable.
+    expiry_kind TEXT,      -- minutes | clock | meeting_end | today | hurry
+    expiry_minutes INT,
+    expires_at TIMESTAMPTZ,
+    expiry_quote TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

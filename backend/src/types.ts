@@ -178,6 +178,10 @@ export interface CaptureRequest {
   check_chat: boolean;
   redeem?: boolean | null;
   form_email_mode?: string | null;
+  expiry_kind?: string | null;
+  expiry_minutes?: number | null;
+  expires_at?: string | null;
+  expiry_quote?: string | null;
   status: CaptureStatus;
   created_at?: string;
   updated_at?: string;
@@ -208,6 +212,10 @@ export interface UpdateCaptureRequestInput {
   captured_screenshot_url?: string;
   screenshot_enabled?: boolean;
   check_chat?: boolean;
+  expiry_kind?: string | null;
+  expiry_minutes?: number | null;
+  expires_at?: string | null;
+  expiry_quote?: string | null;
   status?: CaptureStatus;
 }
 

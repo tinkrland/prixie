@@ -21,6 +21,44 @@ Deno.test("capture email carries the essentials and the redeem-now warning", () 
   assertEquals(email.body.includes("2026-10-21 17:40 UTC"), true);
 });
 
+Deno.test("a heard expiry escalates the subject and the body", () => {
+  const email = buildCaptureEmail({
+    meetingTitle: "cs 370",
+    captureTitle: "the access code",
+    snippet: "prof: PRIXIE10",
+    capturedAt: new Date("2026-10-21T17:40:00Z"),
+    expiry: {
+      kind: "minutes",
+      minutes: 10,
+      expiresAt: "2026-10-21T17:50:00.000Z",
+      quote: "it expires in 10 minutes",
+      urgent: true,
+    },
+  });
+  assertEquals(
+    email.subject,
+    'prixie: captured "the access code" in cs 370 (expires in ~10 min)',
+  );
+  assertEquals(email.body.includes('"it expires in 10 minutes"'), true);
+  assertEquals(email.body.includes("about 10 minutes"), true);
+  assertEquals(email.body.includes("does not wait for the recap"), true);
+  // the generic guess line is replaced, not added on top
+  assertEquals(email.body.includes("if this code expires when the meeting ends"), false);
+});
+
+Deno.test("a window with no computable length carries the kind, not a guess", () => {
+  const email = buildCaptureEmail({
+    meetingTitle: "m",
+    captureTitle: "c",
+    snippet: "s",
+    capturedAt: new Date("2026-10-21T17:40:00Z"),
+    expiry: { kind: "meeting_end", quote: "only works during the meeting", urgent: false },
+  });
+  assertEquals(email.subject, 'prixie: captured "c" in m (time limited)');
+  assertEquals(email.body.includes("when the meeting ends"), true);
+  assertEquals(email.body.includes("redeem it soon"), true);
+});
+
 Deno.test("no creds: honest no-op, no throw", async () => {
   // no AGENTMAIL_* / PRIXIE_OWNER_EMAIL in this test env
   const sent = await notifyOwner({ subject: "x", body: "y" });

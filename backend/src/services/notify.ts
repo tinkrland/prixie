@@ -16,6 +16,16 @@ export interface NotifyEmail {
   body: string;
 }
 
+// the window from the words being said (services/expiry_window.ts): the
+// email escalates only when the speaker actually said when it dies
+export interface ExpiryInfo {
+  kind: string;
+  minutes?: number;
+  expiresAt?: string;
+  quote: string;
+  urgent: boolean;
+}
+
 const AGENTMAIL_API = "https://api.agentmail.to/v0";
 
 export function buildCaptureEmail(
@@ -25,6 +35,7 @@ export function buildCaptureEmail(
     snippet: string;
     link?: string;
     capturedAt: Date;
+    expiry?: ExpiryInfo | null;
   },
 ): NotifyEmail {
   const when = opts.capturedAt.toISOString().replace("T", " ").slice(0, 16) + " UTC";
@@ -39,10 +50,38 @@ export function buildCaptureEmail(
     lines.push(`link from chat: ${opts.link}`, "");
   }
   lines.push(`captured at ${when}, while the meeting is still running.`);
-  lines.push("if this code expires when the meeting ends, redeem it now.");
 
+  // the urgency is only ever what the words said: "expires in 10
+  // minutes" gets the clock; silence keeps the honest generic line
+  const e = opts.expiry;
+  if (e) {
+    lines.push(`expiry heard in the meeting: "${e.quote}"`);
+    if (e.minutes !== undefined && e.expiresAt) {
+      const at = e.expiresAt.replace("T", " ").slice(0, 16) + " UTC";
+      lines.push(`window: about ${e.minutes} minutes, roughly ${at}.`);
+    } else if (e.kind === "meeting_end") {
+      lines.push("window: it closes when the meeting ends.");
+    } else if (e.kind === "today") {
+      lines.push("window: it closes today.");
+    }
+    if (e.urgent) {
+      lines.push("redeem it now, this one does not wait for the recap.");
+    } else {
+      lines.push("redeem it soon, before the window closes.");
+    }
+  } else {
+    lines.push("if this code expires when the meeting ends, redeem it now.");
+  }
+
+  // the subject escalates on a heard window: the inbox subject line is
+  // the push, "~10 min" in it beats any body text for speed
+  const suffix = opts.expiry?.minutes !== undefined
+    ? ` (expires in ~${opts.expiry.minutes} min)`
+    : opts.expiry
+    ? " (time limited)"
+    : "";
   return {
-    subject: `prixie: captured "${opts.captureTitle}" in ${opts.meetingTitle}`,
+    subject: `prixie: captured "${opts.captureTitle}" in ${opts.meetingTitle}${suffix}`,
     body: lines.join("\n"),
   };
 }
@@ -91,4 +130,13 @@ export async function notifyCaptureMatch(
   opts: Parameters<typeof buildCaptureEmail>[0],
 ): Promise<boolean> {
   return await notifyOwner(buildCaptureEmail(opts));
+}
+
+// the redeem receipt line for a heard expiry, so the owner reading the
+// receipt knows the same urgency she heard
+export function expiryReceiptLine(e: ExpiryInfo): string {
+  if (e.minutes !== undefined) {
+    return `expiry heard mid-meeting: "${e.quote}" (~${e.minutes} min)`;
+  }
+  return `expiry heard mid-meeting: "${e.quote}"`;
 }
