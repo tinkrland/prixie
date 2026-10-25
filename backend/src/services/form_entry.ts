@@ -27,6 +27,12 @@ import { registerDefaultScreenshotEngines } from "./screenshot_engines.ts";
 import { CODE_SELECTORS, REDEEM_TEXTS } from "./promo.ts";
 import { assertLinkSafe } from "./link_safety.ts";
 import { theUrlTell } from "./theurltell/mod.ts";
+import {
+  type VaultCheckoutReceipt,
+  vaultCheckout,
+  vaultHandoffWanted,
+} from "./vault_checkout.ts";
+import { kernelConfigured } from "./kernel.ts";
 
 // engines are idempotent to register; this keeps form_entry honest even
 // if it runs before the realtime webhook module ever loads
@@ -68,6 +74,7 @@ export function buildRedeemEmail(
     expiry?: string;
     formEmail?: string;
     promoCode?: string | null;
+    vault?: VaultCheckoutReceipt;
   },
 ): { subject: string; body: string } {
   const lines = [
@@ -87,9 +94,35 @@ export function buildRedeemEmail(
       : `promo code ${context.promoCode}: she looked for a redeem button but ${receipt.promo_attempted ? "could not enter it" : "did not find one"}`);
   }
   if (receipt.cc_detected) {
-    lines.push("she stopped at the checkout: the form asks for payment/card details.");
-    lines.push("no-cc only by design, she does not spend money on your behalf.");
-    lines.push("if you want it anyway, do it now: " + receipt.url);
+    if (context.vault?.attempted) {
+      // the kernel handoff story (the owner, oct 25 2026): the card portion
+      // was kernel's vault, the rest was her. the receipt is the proof.
+      lines.push("", "the card portion went through kernel's vault (the owner, oct 25 2026).");
+      lines.push(
+        "she never saw or typed a card number: kernel's vault fill put the buffer card in, and the kernel browser was deleted the moment the payment portion was managed.",
+      );
+      lines.push(
+        `promo code: ${context.vault.promo_applied ? "applied on the page" : "no code field on the page (a gateway-level promo applies inside the checkout itself)"}`,
+      );
+      if (context.vault.completed) {
+        lines.push("the checkout completed at a $0 total: nothing was spent.");
+      } else {
+        lines.push("she did NOT complete it: " + (context.vault.stopped_reason || "unknown reason"));
+      }
+      if (context.vault.card_masked) {
+        lines.push(`vault card (masked by kernel, digits never read): **** ${context.vault.card_masked}`);
+      }
+      if (context.vault.total_read) {
+        lines.push("the page showed: " + context.vault.total_read.replace(/\n/g, " | ").slice(0, 200));
+      }
+    } else {
+      lines.push("she stopped at the checkout: the form asks for payment/card details.");
+      lines.push("no-cc only by design, she does not spend money on your behalf.");
+      if (context.vault && !context.vault.attempted && context.vault.stopped_reason) {
+        lines.push("vault handoff not attempted: " + context.vault.stopped_reason);
+      }
+      lines.push("if you want it anyway, do it now: " + receipt.url);
+    }
   } else if (receipt.submitted) {
     lines.push(`she entered ${context.formEmail || "her form email"} and submitted.`);
     lines.push("check that inbox if the form sends a confirmation or code.");
@@ -104,7 +137,11 @@ export function buildRedeemEmail(
   }
   return {
     subject: receipt.cc_detected
-      ? `prixie: payment form, did NOT redeem "${context.captureTitle}" (${context.meetingTitle})`
+      ? context.vault?.completed
+        ? `prixie: redeemed "${context.captureTitle}" via kernel vault (${context.meetingTitle})`
+        : context.vault?.attempted
+        ? `prixie: vault checkout stopped, act now (${context.meetingTitle})`
+        : `prixie: payment form, did NOT redeem "${context.captureTitle}" (${context.meetingTitle})`
       : receipt.submitted
       ? `prixie: redeemed "${context.captureTitle}" (${context.meetingTitle})`
       : `prixie: could NOT redeem "${context.captureTitle}", act now (${context.meetingTitle})`,
@@ -360,10 +397,30 @@ export async function redeemAndNotify(
     { email: formEmail.address, name: Deno.env.get("PRIXIE_FORM_NAME") || "prixie" },
     { promo_code: context.promoCode },
   );
+
+  // the gateway-promo case (the owner, oct 25 2026): a checkout that demands
+  // a card just to APPLY the code hands the card portion to kernel's
+  // vault. she still never touches a card; the money rule holds: only
+  // a $0 total completes.
+  let vault: VaultCheckoutReceipt | undefined;
+  if (
+    vaultHandoffWanted({
+      cc_detected: receipt.cc_detected,
+      promoCode: context.promoCode,
+      kernelConfigured: kernelConfigured(),
+    })
+  ) {
+    vault = await vaultCheckout(url, context.promoCode!, {
+      email: formEmail.address,
+      name: Deno.env.get("PRIXIE_FORM_NAME") || "prixie",
+    });
+  }
+
   const email = buildRedeemEmail(receipt, {
     ...context,
     formEmail: formEmail.address,
     promoCode: context.promoCode,
+    vault,
   });
   return await notifyOwner(email);
 }
