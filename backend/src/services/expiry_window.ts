@@ -47,7 +47,7 @@ const TODAY =
 // hurry words: urgency without a number. "hurry, use it now" is an
 // expiry window of unknown length and maximal urgency.
 const HURRY =
-  /\b(hurry|quick(?:ly)?|asap|right\s+now|don'?t\s+wait|use\s+it\s+now|grab\s+it\s+(?:now|fast)|first\s+come\b)/i;
+  /\b(hurry|quick(?:ly)?|asap|right\s+now|don'?t\s+wait|use\s+it\s+now|grab\s+it\s+(?:now|fast)|first\s+come\b|get\s+yours?\s+(?:quick(?:ly)?|fast|now)|act\s+(?:fast|now))/i;
 
 // minutes from a duration match, honest rounding: seconds round up to 1
 function durationToMinutes(n: number | undefined, unit: string, half: boolean): number | undefined {

@@ -105,3 +105,32 @@ Deno.test("with creds: one post to agentmail outbound, bearer auth", async () =>
     Deno.env.delete("PRIXIE_OWNER_EMAIL");
   }
 });
+
+Deno.test("supply scarcity rides the capture email when there is no clock", () => {
+  const email = buildCaptureEmail({
+    meetingTitle: "cs 370",
+    captureTitle: "the swag code",
+    snippet: "prof: the code is OUT20",
+    capturedAt: new Date("2026-10-25T18:00:00Z"),
+    scarcity: "prof: these are limited so get yours quickly",
+  });
+  assertEquals(email.subject, 'prixie: captured "the swag code" in cs 370 (limited supply)');
+  assertEquals(email.body.includes('"prof: these are limited so get yours quickly"'), true);
+  assertEquals(email.body.includes("the supply will not wait for the recap"), true);
+  // the generic expiry guess line steps aside for the heard scarcity
+  assertEquals(email.body.includes("if this code expires when the meeting ends"), false);
+});
+
+Deno.test("a heard clock outranks the supply quote in the subject", () => {
+  const email = buildCaptureEmail({
+    meetingTitle: "m",
+    captureTitle: "c",
+    snippet: "s",
+    capturedAt: new Date("2026-10-25T18:00:00Z"),
+    expiry: { kind: "minutes", minutes: 10, expiresAt: "2026-10-25T18:10:00.000Z", quote: "expires in 10 minutes", urgent: true },
+    scarcity: "once they're out they're out",
+  });
+  assertEquals(email.subject, 'prixie: captured "c" in m (expires in ~10 min)');
+  assertEquals(email.body.includes('"once they\'re out they\'re out"'), true);
+  assertEquals(email.body.includes('"expires in 10 minutes"'), true);
+});

@@ -18,6 +18,17 @@ const PATTERNS: { re: RegExp; label: string }[] = [
   { re: /while (?:supplies|spots|codes|seats|stock) last/, label: "while supplies last" },
   { re: /limited (?:quantity|supply|spots|seats|codes|availability)/, label: "limited quantity" },
   { re: /expires (?:at|when|in|after)|only valid (?:until|during)|until the end of (?:the|this) (?:meeting|call|stream|class|event)/, label: "time limited" },
+  // the owner's supply phrases (oct 25 2026): scarcity with no number in it.
+  // the words say the supply is short even when nobody says how short.
+  // bare "limited" is gated so the counted/noun forms above keep their
+  // own labels and caps, and "limited time" stays the expiry side's
+  // word, not a supply claim.
+  { re: /\blimited\b(?!\s*(?:quantity|supply|spots|seats|tickets|codes|slots|openings|availability|time))/, label: "limited" },
+  { re: /(?:once|when)\s+(?:they|these|it)\s*['’]?(?:re|s|are|is)?\s+(?:out|gone)\b/, label: "once they're out" },
+  { re: /\b(?:may|might|will|would|don'?t)?\s*not\s+(?:be\s+|have\s+)?enough\b/, label: "may not have enough" },
+  { re: /\brun(?:s|ning)?\s+out\b(?!\s+(?:the|time)\b)/, label: "may run out" },
+  { re: /\bget\s+(?:yours|them|one|it)\s+(?:quick(?:ly)?|fast|now)\b|\bwhile\s+you\s+(?:still\s+)?can\b|\bact\s+(?:fast|now)\b/, label: "get yours quickly" },
+  { re: /\bbefore\s+(?:they|these|it)\s*['’]?\s*(?:re|s|are|is)?\s*(?:all\s+)?(?:gone|out)\b/, label: "before they're gone" },
 ];
 
 export function detectScarcity(text: string): ScarcityResult {
@@ -42,10 +53,16 @@ export function detectScarcity(text: string): ScarcityResult {
 // does the utterance contain an action instruction bound to scarcity?
 // "the first 50 people to enter this form get it" -> she should know the
 // window is people-counted, not just time-counted.
-export function scarcityKind(result: ScarcityResult): "none" | "time" | "people" {
+export function scarcityKind(result: ScarcityResult): "none" | "time" | "people" | "supply" {
   if (!result.scarce) return "none";
   const people = ["first N people", "first N to act", "limited spots"].some((l) =>
     result.matched.includes(l)
   );
-  return people ? "people" : "time";
+  if (people) return "people";
+  // the uncounted phrases (the owner's, oct 25 2026) are a supply question:
+  // not people-counted, not clock-counted, just short
+  const supply = ["limited", "once they're out", "may not have enough", "may run out", "get yours quickly", "before they're gone", "while supplies last", "limited quantity"].some((l) =>
+    result.matched.includes(l)
+  );
+  return supply ? "supply" : "time";
 }

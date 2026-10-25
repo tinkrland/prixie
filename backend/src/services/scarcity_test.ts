@@ -40,3 +40,50 @@ Deno.test("while supplies last and fcfs shorthand", () => {
   assertEquals(detectScarcity("codes available while supplies last").scarce, true);
   assertEquals(detectScarcity("it's fcfs so be quick").scarce, true);
 });
+
+// the owner's phrases (oct 25 2026): scarcity with no number in it. the
+// words say the supply is short without saying how short, and she
+// must hear that as urgency all the same.
+Deno.test("limited so get yours quickly", () => {
+  const r = detectScarcity("these are limited so get yours quickly");
+  assertEquals(r.scarce, true);
+  assertEquals(r.matched.includes("limited"), true);
+  assertEquals(scarcityKind(r), "supply");
+});
+
+Deno.test("once they're out they're out", () => {
+  const r = detectScarcity("once they're out they're out, no restock");
+  assertEquals(r.scarce, true);
+  assertEquals(r.matched.includes("once they're out"), true);
+  assertEquals(scarcityKind(r), "supply");
+});
+
+Deno.test("we may not have enough", () => {
+  const r = detectScarcity("heads up, we may not have enough for everyone today");
+  assertEquals(r.scarce, true);
+  assertEquals(r.matched.includes("may not have enough"), true);
+  assertEquals(scarcityKind(r), "supply");
+});
+
+Deno.test("the close kin: run out, not enough to go around, before they're gone, while you can", () => {
+  assertEquals(detectScarcity("these will run out fast").matched.includes("may run out"), true);
+  assertEquals(detectScarcity("there might not be enough to go around").scarce, true);
+  assertEquals(detectScarcity("grab one before they're all gone").scarce, true);
+  assertEquals(detectScarcity("get them while you can").scarce, true);
+});
+
+Deno.test("limited time is the expiry side's word, not a supply claim", () => {
+  // "limited time" is a clock question, and the bare-limited pattern
+  // leaves it alone; the counted/noun forms keep their own labels
+  const r = detectScarcity("this is a limited time offer");
+  assertEquals(r.matched.includes("limited"), false);
+  // but the counted form still reads the cap when the words give one
+  const capped = detectScarcity("limited quantity, only 20 codes left");
+  assertEquals(capped.matched.includes("limited quantity"), true);
+  assertEquals(capped.cap, 20);
+});
+
+Deno.test("ordinary speech still is not scarce", () => {
+  assertEquals(detectScarcity("the deadline for the essay is friday").scarce, false);
+  assertEquals(detectScarcity("let me run out the door real quick, brb").scarce, false);
+});

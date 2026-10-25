@@ -425,6 +425,17 @@ realtimeWebhook.post("/", async (c) => {
         expiryHeard.set(meeting.id, `${speaker}: ${text}`);
       }
 
+      // scarcity with no number in it is the same urgency: "once
+      // they're out they're out" said before the link is remembered
+      // the same way, for every capture, not just redeem ones
+      const scarce = detectScarcity(text);
+      if (scarce.scarce) {
+        scarcityHeard.set(meeting.id, `${speaker}: ${text}`);
+        console.log(
+          `prixie: scarcity heard in ${meeting.id}: ${scarce.matched.join(", ")}`,
+        );
+      }
+
       for (const req of pendingCaptures) {
         let matched = false;
 
@@ -447,18 +458,6 @@ realtimeWebhook.post("/", async (c) => {
           const matches = questionWords.filter((qw) => lowerText.includes(qw));
           if (matches.length >= Math.min(2, questionWords.length)) {
             matched = true;
-          }
-        }
-
-        // "this code is first come first serve" spoken in the call is the
-        // trigger to escalate from notify to act
-        if (req.redeem) {
-          const scarcity = detectScarcity(text);
-          if (scarcity.scarce) {
-            scarcityHeard.set(meeting.id, `${speaker}: ${text}`);
-            console.log(
-              `prixie: scarcity heard in ${meeting.id}: ${scarcity.matched.join(", ")}`,
-            );
           }
         }
 
@@ -521,6 +520,7 @@ realtimeWebhook.post("/", async (c) => {
             link: screenshotUrl,
             capturedAt: new Date(),
             expiry,
+            scarcity: scarcityHeard.get(meeting.id) ?? null,
           }).catch(() => false);
         }
       }
@@ -547,6 +547,11 @@ realtimeWebhook.post("/", async (c) => {
       // the same window, typed instead of spoken
       if (extractExpiryWindow(text)) {
         expiryHeard.set(meeting.id, `[chat] ${speaker}: ${text}`);
+      }
+
+      // and so does supply scarcity: "limited so get yours quickly"
+      if (detectScarcity(text).scarce) {
+        scarcityHeard.set(meeting.id, `[chat] ${speaker}: ${text}`);
       }
 
       console.log(`prixie: chat message from ${speaker}: "${text}"`);
@@ -614,6 +619,7 @@ realtimeWebhook.post("/", async (c) => {
               link: links[0],
               capturedAt: new Date(),
               expiry,
+              scarcity: scarcityHeard.get(meeting.id) ?? null,
             }).catch(() => false);
           }
         }

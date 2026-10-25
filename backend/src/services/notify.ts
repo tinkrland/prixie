@@ -36,6 +36,7 @@ export function buildCaptureEmail(
     link?: string;
     capturedAt: Date;
     expiry?: ExpiryInfo | null;
+    scarcity?: string | null;
   },
 ): NotifyEmail {
   const when = opts.capturedAt.toISOString().replace("T", " ").slice(0, 16) + " UTC";
@@ -50,6 +51,12 @@ export function buildCaptureEmail(
     lines.push(`link from chat: ${opts.link}`, "");
   }
   lines.push(`captured at ${when}, while the meeting is still running.`);
+
+  // the supply side of urgency: "once they're out they're out" has no
+  // clock in it, so it rides as the quote it is, never a fake window
+  if (opts.scarcity) {
+    lines.push(`scarcity heard in the meeting: "${opts.scarcity}"`);
+  }
 
   // the urgency is only ever what the words said: "expires in 10
   // minutes" gets the clock; silence keeps the honest generic line
@@ -69,6 +76,8 @@ export function buildCaptureEmail(
     } else {
       lines.push("redeem it soon, before the window closes.");
     }
+  } else if (opts.scarcity) {
+    lines.push("get it now: the supply will not wait for the recap.");
   } else {
     lines.push("if this code expires when the meeting ends, redeem it now.");
   }
@@ -79,6 +88,8 @@ export function buildCaptureEmail(
     ? ` (expires in ~${opts.expiry.minutes} min)`
     : opts.expiry
     ? " (time limited)"
+    : opts.scarcity
+    ? " (limited supply)"
     : "";
   return {
     subject: `prixie: captured "${opts.captureTitle}" in ${opts.meetingTitle}${suffix}`,
