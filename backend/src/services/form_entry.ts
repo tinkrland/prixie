@@ -110,7 +110,9 @@ export function buildRedeemEmail(
         lines.push("she did NOT complete it: " + (context.vault.stopped_reason || "unknown reason"));
       }
       if (context.vault.card_masked) {
-        lines.push(`vault card (masked by kernel, digits never read): **** ${context.vault.card_masked}`);
+        lines.push(context.vault.rail === "agentcard"
+          ? `one-time card from the agentcard cli (digits typed once, never stored): **** ${context.vault.card_masked}`
+          : `vault card (masked by kernel, digits never read): **** ${context.vault.card_masked}`);
       }
       if (context.vault.total_read) {
         lines.push("the page showed: " + context.vault.total_read.replace(/\n/g, " | ").slice(0, 200));
@@ -138,7 +140,7 @@ export function buildRedeemEmail(
   return {
     subject: receipt.cc_detected
       ? context.vault?.completed
-        ? `prixie: redeemed "${context.captureTitle}" via kernel vault (${context.meetingTitle})`
+        ? `prixie: redeemed "${context.captureTitle}" via ${context.vault.rail === "agentcard" ? "agentcard one-time card" : "kernel vault"} (${context.meetingTitle})`
         : context.vault?.attempted
         ? `prixie: vault checkout stopped, act now (${context.meetingTitle})`
         : `prixie: payment form, did NOT redeem "${context.captureTitle}" (${context.meetingTitle})`

@@ -11,9 +11,9 @@
 // exposes a verified automation kit (js / pageInfo / fillInput / click /
 // waitForElement / accessibilitySnapshot), probed live oct 25 2026.
 
-const KERNEL_BASE = Deno.env.get("KERNEL_BASE") || "https://api.onkernel.com";
+export const KERNEL_BASE = Deno.env.get("KERNEL_BASE") || "https://api.onkernel.com";
 
-function kernelAuth(): string {
+export function kernelAuth(): string {
   const key = Deno.env.get("KERNEL_API_KEY");
   return key ? `Bearer ${key}` : "";
 }
