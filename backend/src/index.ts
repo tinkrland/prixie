@@ -91,6 +91,11 @@ app.route("/webhooks/google-calendar", googleCalendarWebhook);
 // her inbox: forward a meeting invite to her agentmail address and she joins
 app.route("/webhooks/agentmail", agentMailRouter);
 
+// her imessage: text her a link and she joins (photon/spectrum, hmac
+// signed, whitelisted senders only, same contract as the inbox door)
+import { photonRouter } from "./routes/photon.ts";
+app.route("/webhooks/photon", photonRouter);
+
 // scheduler
 const enableScheduler = Deno.env.get("ENABLE_SCHEDULER") !== "false";
 if (enableScheduler) {

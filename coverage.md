@@ -73,6 +73,7 @@ every way a meeting link can reach her, monitored live.
 | source | status | notes |
 | --- | --- | --- |
 | email | working | agentmail inbox is link sourcing's first citizen: forward the invite to her dedicated address, the webhook (x-agentmail-secret) parses it, extractMeetingUrl finds the link. no time in the email means she joins in 5 minutes |
+| imessage (photon.codes) | built, never live-run (the owner, oct 25 2026) | the mac blocker is gone: photon hosts the apple hardware, free tier carries up to 10 users (a whitelist by billing), rcs/sms fallback included, and email-addressed imessage works (docs verified oct 25 2026: docs.photon.codes webhooks + providers/imessage + deliverability). flow: spectrum POSTs /webhooks/photon, hmac-signed v0 with 5-minute freshness, verified against the raw body before parsing; whitelist PRIXIE_PHOTON_WHITELIST (e.164 or email, the owner's only, unset = closed door); extractMeetingUrl -> createMeeting, same as the inbox door, colloquial time in the message text is the schedule. the relay back rides the same conversation (services/photon.ts photonReply via the spectrum-ts sdk, no public http send exists) and refuses non-whitelisted recipients structurally; it needs PHOTON_PROJECT_ID + PHOTON_PROJECT_SECRET. unverified: the shared-pool free line's number stability (one recipient should see one number; the docs say numbers may differ ACROSS recipients), grpc-in-deno for the sdk sender, and the whole path needs the owner's photon project + webhook registration to go live. honest limits: shared pool = no group chats on free; green-bubble (rcs/sms) traffic is carrier-filtered, a different deliverability surface than imessage; apple suppresses links in first messages from unknown numbers, but the owner is the first message by design (inbound-first) |
 | slack channels | working | live_links scans slack channels for links posted in real time |
 | discord channels | working | live_links scans discord channels the same way; the room watch (above) covers the calls themselves |
 | forums | working | forum_links scans subreddits, discourse forums, mlh events (devpost-shaped community sources) |
@@ -194,7 +195,7 @@ what she does once she is in the room.
 | capture request answering |  | working | keywords watched in chat and transcript; screenshots on request; chat links captured; answers recorded per request |
 | term detection |  | working | term_detector picks up codes, access info, and other take-home terms from the live text |
 | host identification |  | working | the host name is read from the room and carried into the take-home |
-| relay back to owner |  | working (email) | the notifyOwner seam; the imessage / signal / line / wechat / whatsapp / telegram / dm list above is the honest not-built remainder |
+| relay back to owner |  | working (email), built-never-live-run (imessage) | the notifyOwner seam. imessage relay (photon, oct 25 2026) is built and structurally whitelist-gated, awaiting the owner's photon project creds for a live run; the signal / line / wechat / whatsapp / telegram / dm list above is the honest not-built remainder |
 
 ## interactive participation meeting features
 
