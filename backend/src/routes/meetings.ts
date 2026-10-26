@@ -150,8 +150,8 @@ meetingsRouter.put("/:id", handleUpdate);
 meetingsRouter.post("/:id/share-link", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const action = body?.action;
-  if (!["start", "stop", "navigate", "click"].includes(action)) {
-    return c.json({ error: "action must be 'start', 'stop', 'navigate' or 'click'" }, 400);
+  if (!["start", "stop", "navigate", "click", "narrate", "next"].includes(action)) {
+    return c.json({ error: "action must be 'start', 'stop', 'navigate', 'click', 'narrate' or 'next'" }, 400);
   }
   const meeting = await getMeetingById(c.req.param("id"));
   if (!meeting) return c.json({ error: "meeting not found" }, 404);
@@ -180,6 +180,21 @@ meetingsRouter.post("/:id/share-link", async (c) => {
     if (!fn) return c.json({ error: "provider cannot manage the link share" }, 501);
     if (!body?.selector && !body?.text) return c.json({ error: "click needs a selector or text" }, 400);
     const ok = await fn.call(botProvider, meeting.bot_id, body.selector, body.text).catch(() => false);
+    return c.json({ ok, action, meeting_id: meeting.id });
+  }
+  if (action === "narrate") {
+    // speak the current slide: presenter notes first, persona memory
+    // as the floor (the voice rail: presenting never takes her voice)
+    const fn = botProvider.narrateLinkSlide;
+    if (!fn) return c.json({ error: "provider cannot manage the link share" }, 501);
+    const ok = await fn.call(botProvider, meeting.bot_id).catch(() => false);
+    return c.json({ ok, action, meeting_id: meeting.id });
+  }
+  if (action === "next") {
+    // one slide forward: the audience arrows drive both views
+    const fn = botProvider.advanceLinkSlide;
+    if (!fn) return c.json({ error: "provider cannot manage the link share" }, 501);
+    const ok = await fn.call(botProvider, meeting.bot_id).catch(() => false);
     return c.json({ ok, action, meeting_id: meeting.id });
   }
   const fn = botProvider.stopLinkShare;

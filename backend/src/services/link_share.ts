@@ -41,7 +41,10 @@ import {
   cdpExecuteInTarget,
   createTabInSession,
   closeTabInSession,
+  keyPressInTarget,
+  listTabsInSession,
   setScreenshareInSession,
+  unmuteAndSpeakInSession,
 } from "./browserbase.ts";
 import { assertLinkSafe } from "./link_safety.ts";
 
@@ -119,6 +122,104 @@ export function paintFrameJs(dataUrl: string): string {
       return "painted";
     })()
   `;
+}
+
+// --- presenter mode (slides: notes she reads, the room never sees) ---
+//
+// a deck is not a page: the point of presenting one is the split —
+// the audience view (what the share tab shows: /present, full-screen
+// slides, nothing else) and the presenter view (the popup with the
+// speaker notes, the timer, the slide counter: hers, never shared).
+// google slides opens that popup with the s key on the presenting
+// tab (verified live oct 26 against a public deck: the popup is a
+// new tab target, the notes land in
+// .punch-viewer-speakernotes-text-body, and arrow keys on the
+// audience tab advance both views together). so: the share tab opens
+// the deck's /present url, the s keypress opens the notes tab, and
+// she can read the notes and speak them while the room sees only
+// the slides. published /e/ decks have no present view at all
+// (verified: no controls, no popup) — those stay frames-only, no
+// notes, honestly.
+
+export type DeckKind = "google-slides";
+
+export function detectDeckKind(url: string): DeckKind | null {
+  // docs.google.com/presentation/d/{id}... (edit or share link).
+  // /presentation/d/e/... is published-to-web: no present mode (the
+  // negative lookahead keeps /d/e/2PACX-... out, verified live).
+  const m = url?.match(/^https:\/\/docs\.google\.com\/presentation\/d\/(?!e\/)([a-zA-Z0-9_-]+)/);
+  return m ? "google-slides" : null;
+}
+
+export function googleSlidesPresentUrl(url: string): string {
+  const m = url?.match(/^https:\/\/docs\.google\.com\/presentation\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? `https://docs.google.com/presentation/d/${m[1]}/present` : url;
+}
+
+// the notes text of the current slide, read from the presenter view.
+// the class is google's own (live-verified); the aria-label is the
+// fallback; an honest empty string when neither is there.
+export function readSlideNotesJs(): string {
+  return `
+    (() => {
+      const el = document.querySelector(".punch-viewer-speakernotes-text-body")
+        || document.querySelector('[aria-label*="Speaker Notes" i]');
+      const text = el ? el.innerText : "";
+      return JSON.stringify({ notes: (text || "").trim() });
+    })()
+  `;
+}
+
+export function readSlideCounterJs(): string {
+  return `
+    (() => {
+      const m = document.body.innerText.match(/Slide (\d+) of (\d+)/);
+      return JSON.stringify(m ? { slide: Number(m[1]), of: Number(m[2]) } : { slide: null, of: null });
+    })()
+  `;
+}
+
+// --- narration: the voice rail while presenting ---
+//
+// she speaks while she presents: the notes are the deck's own words
+// (what the presenter wrote to be said), persona memory (retelldb)
+// is what she knows beyond the deck. the composition is honest:
+// notes verbatim when they exist, persona memory as the floor when
+// a slide has none, silence when she knows nothing about it. the
+// voice itself rides the existing speak seam (obs mode: her real
+// voice through the virtual mic; else the page's synthesis) on the
+// MEETING tab — presenting never touches that tab, so nothing here
+// can take her voice away.
+
+export interface PersonaMemory {
+  key: string | null;
+  value: string | null;
+}
+export type PersonaContext = (query: string) => Promise<PersonaMemory[]>;
+
+// retelldb via memorium (the persona memory system on main). the
+// perspective comes from the environment; without it the context is
+// honestly empty, never invented.
+export async function defaultPersonaContext(query: string): Promise<PersonaMemory[]> {
+  const q = (query || "").trim();
+  if (!q) return [];
+  const perspectiveId = Deno.env.get("PRIXIE_PERSPECTIVE_ID");
+  if (!perspectiveId) return [];
+  try {
+    const { retrieve } = await import("./memorium.ts");
+    const results = await retrieve({ perspectiveId, query: q, limit: 3 });
+    return (results || []).map((r: any) => ({ key: r?.memory?.key ?? null, value: r?.memory?.value ?? null }));
+  } catch {
+    return [];
+  }
+}
+
+export function composeNarration(notes: string, memories: PersonaMemory[]): string {
+  const spoken = (notes || "").replace(/\s+/g, " ").trim();
+  if (spoken) return spoken;
+  // blank slide notes: what she knows is the floor, never a guess
+  const known = (memories || []).map((m) => (m.value || m.key || "").trim()).filter(Boolean);
+  return known.length ? `from what i know: ${known[0]}` : "";
 }
 
 // --- the media lane (share tab side): the page's own video ---
@@ -246,6 +347,8 @@ interface LinkShareState {
   timer: ReturnType<typeof setInterval>;
   startedAt: number;
   url: string;
+  deckKind: DeckKind | null;
+  presenterTargetId?: string; // the notes tab (never shared)
 }
 
 const linkShares = new Map<string, LinkShareState>();
@@ -254,6 +357,7 @@ export interface LinkShareResult {
   ok: boolean;
   reason?: string;
   lane?: ShareLane;
+  presenter?: boolean;
 }
 
 // start: open the url in a share tab, pick the lane, point the
@@ -277,9 +381,28 @@ export async function shareLinkInSession(
     return { ok: false, reason: verdict?.reason ? `link refused: ${verdict.reason}` : "link refused (unsafe)" };
   }
 
-  const targetId = await createTabInSession(sessionId, url);
+  // a deck presents its audience view, not its edit page
+  const deckKind = detectDeckKind(url);
+  const audienceUrl = deckKind === "google-slides" ? googleSlidesPresentUrl(url) : url;
+  const targetId = await createTabInSession(sessionId, audienceUrl);
   if (!targetId) {
     return { ok: false, reason: "the share tab could not be opened" };
+  }
+
+  // presenter mode: the s keypress on the presenting tab opens the
+  // notes popup; we find it by diffing the tab list around the press
+  let presenterTargetId: string | undefined;
+  if (deckKind === "google-slides") {
+    await new Promise((r) => setTimeout(r, 5000)); // let the deck load
+    const before = await listTabsInSession(sessionId);
+    await keyPressInTarget(sessionId, targetId, "s", "KeyS", 83);
+    await new Promise((r) => setTimeout(r, 4000));
+    const after = await listTabsInSession(sessionId);
+    const knownIds = new Set(before.map((t: any) => t.targetId).concat([targetId]));
+    const popup = after.find((t: any) => !knownIds.has(t.targetId));
+    presenterTargetId = popup?.targetId;
+    // honest: without the notes tab she can still present, she just
+    // cannot read the deck's notes
   }
 
   // lane pick: probe for a playing video for a few seconds
@@ -383,8 +506,16 @@ export async function shareLinkInSession(
     }
   }, shareFrameIntervalMs());
 
-  linkShares.set(sessionId, { targetId, lane, timer, startedAt: Date.now(), url });
-  return { ok: true, lane };
+  linkShares.set(sessionId, {
+    targetId,
+    lane,
+    timer,
+    startedAt: Date.now(),
+    url,
+    deckKind,
+    ...(presenterTargetId ? { presenterTargetId } : {}),
+  });
+  return { ok: true, lane, ...(deckKind ? { presenter: !!presenterTargetId } : {}) };
 }
 
 // stop: end the share, stop the paint loop, close the share tab.
@@ -395,6 +526,7 @@ export async function stopLinkShare(sessionId: string): Promise<LinkShareResult>
   linkShares.delete(sessionId);
   await setScreenshareInSession(sessionId, "stop");
   await closeTabInSession(sessionId, state.targetId);
+  if (state.presenterTargetId) await closeTabInSession(sessionId, state.presenterTargetId);
   return { ok: true, reason: "stopped" };
 }
 
@@ -433,4 +565,56 @@ export async function clickSharedLink(
     return { ok: false, reason: "the element was not found on the shared page" };
   }
   return { ok: true };
+}
+
+// narrate the current slide: read the notes (presenter view), floor
+// with persona memory when the slide is bare, and speak on the
+// meeting tab. presenting never touches that tab, so the voice rail
+// is intact while she shows.
+export async function narrateSlide(
+  sessionId: string,
+  persona: PersonaContext = defaultPersonaContext,
+): Promise<LinkShareResult> {
+  const state = linkShares.get(sessionId);
+  if (!state) return { ok: false, reason: "no link share is running for this session" };
+  if (!state.presenterTargetId) {
+    return { ok: false, reason: "no presenter view for this share (not a deck, or the popup did not open)" };
+  }
+  const read = await cdpExecuteInTarget(sessionId, state.presenterTargetId, "Runtime.evaluate", {
+    expression: readSlideNotesJs(),
+    returnByValue: true,
+  });
+  let notes = "";
+  try {
+    notes = JSON.parse(read?.result?.result?.value || "{}")?.notes || "";
+  } catch { /* notes stay empty, the persona floor decides */ }
+  const memories = notes ? [] : await persona(state.url);
+  const narration = composeNarration(notes, memories);
+  if (!narration) return { ok: false, reason: "nothing to narrate for this slide" };
+  const spoken = await unmuteAndSpeakInSession(sessionId, narration);
+  return spoken
+    ? { ok: true, reason: "narrating" }
+    : { ok: false, reason: "the voice seam could not speak (no unmute helper or mic button on the join page)" };
+}
+
+// advance the deck one step: arrow keys on the audience tab drive
+// both views (verified live: the presenter view follows).
+export async function advanceSlide(sessionId: string): Promise<LinkShareResult> {
+  const state = linkShares.get(sessionId);
+  if (!state) return { ok: false, reason: "no link share is running for this session" };
+  if (!state.deckKind) return { ok: false, reason: "not a deck: nothing to advance" };
+  const ok = await keyPressInTarget(sessionId, state.targetId, "ArrowRight", "ArrowRight", 39);
+  if (!ok) return { ok: false, reason: "the slide could not be advanced" };
+  let counter: string | null = null;
+  if (state.presenterTargetId) {
+    const read = await cdpExecuteInTarget(sessionId, state.presenterTargetId, "Runtime.evaluate", {
+      expression: readSlideCounterJs(),
+      returnByValue: true,
+    });
+    try {
+      const c = JSON.parse(read?.result?.result?.value || "{}");
+      if (c?.slide) counter = `${c.slide} of ${c.of}`;
+    } catch { /* the counter is a nicety, not a gate */ }
+  }
+  return { ok: true, ...(counter ? { reason: `now on slide ${counter}` } : {}) };
 }

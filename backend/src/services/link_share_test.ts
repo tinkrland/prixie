@@ -10,7 +10,11 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import {
   SHARE_CANVAS_ID,
+  advanceSlide,
   clickSharedLink,
+  composeNarration,
+  detectDeckKind,
+  googleSlidesPresentUrl,
   mediaConsumerJs,
   mediaProducerJs,
   videoProbeJs,
@@ -20,6 +24,8 @@ import {
   shareCanvasSize,
   shareExpired,
   shareFrameIntervalMs,
+  narrateSlide,
+  readSlideNotesJs,
   shareLinkInSession,
   stopLinkShare,
 } from "./link_share.ts";
@@ -120,4 +126,48 @@ Deno.test("the page target is picked from the target list, never a guess", () =>
   assertEquals(pickPageTarget(infos)?.targetId, "t2");
   assertEquals(pickPageTarget([]), null);
   assertEquals(pickPageTarget(undefined as any), null);
+});
+
+Deno.test("deck detection: shared slides decks, not published or foreign urls", () => {
+  assertEquals(detectDeckKind("https://docs.google.com/presentation/d/1Abc_def123/edit#slide=id.p"), "google-slides");
+  assertEquals(detectDeckKind("https://docs.google.com/presentation/d/1Abc_def123"), "google-slides");
+  // published-to-web has no present view (verified live: no controls)
+  assertEquals(detectDeckKind("https://docs.google.com/presentation/d/e/2PACX-xyz/pub"), null);
+  assertEquals(detectDeckKind("https://example.com/deck"), null);
+});
+
+Deno.test("the audience url is the present view, never the edit page", () => {
+  assertEquals(
+    googleSlidesPresentUrl("https://docs.google.com/presentation/d/1Abc_def123/edit?usp=sharing"),
+    "https://docs.google.com/presentation/d/1Abc_def123/present",
+  );
+  assertEquals(
+    googleSlidesPresentUrl("https://docs.google.com/presentation/d/1Abc_def123"),
+    "https://docs.google.com/presentation/d/1Abc_def123/present",
+  );
+});
+
+Deno.test("the notes read targets google's own notes element, honest when absent", () => {
+  const js = readSlideNotesJs();
+  assertEquals(js.includes(".punch-viewer-speakernotes-text-body"), true);
+  assertEquals(js.includes('JSON.stringify({ notes: (text || "").trim() })'), true);
+});
+
+Deno.test("narration: the deck's notes verbatim, persona memory as the floor, silence otherwise", () => {
+  // notes exist: those are the deck's own words, untouched
+  assertEquals(composeNarration("keep it simple\n  and short", []), "keep it simple and short");
+  // blank slide: what she knows speaks, never a guess
+  const floor = composeNarration("", [{ key: null, value: "fhir resources version history" }]);
+  assertEquals(floor, "from what i know: fhir resources version history");
+  assertEquals(composeNarration("", [{ key: "only-a-key", value: null }]), "from what i know: only-a-key");
+  // nothing to say: honest silence
+  assertEquals(composeNarration("", []), "");
+});
+
+Deno.test("narrate and advance refuse without a running share", async () => {
+  const narrate = await narrateSlide("unknown-session");
+  assertEquals(narrate.ok, false);
+  assertEquals(narrate.reason, "no link share is running for this session");
+  const next = await advanceSlide("unknown-session");
+  assertEquals(next.ok, false);
 });

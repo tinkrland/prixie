@@ -24,7 +24,7 @@ import {
   probeEntryState,
   KNOCK_TEXTS,
 } from "./browserbase.ts";
-import { shareLinkInSession, stopLinkShare, navigateSharedLink, clickSharedLink } from "./link_share.ts";
+import { shareLinkInSession, stopLinkShare, navigateSharedLink, clickSharedLink, narrateSlide, advanceSlide } from "./link_share.ts";
 import { transcribeBrowserbaseSession } from "./browserbase_transcript.ts";
 import {
   isZoomRegisterUrl,
@@ -182,6 +182,20 @@ export class BrowserbaseProvider implements BotProvider {
   async clickLinkShare(botId: string, selector?: string, text?: string): Promise<boolean> {
     const r = await clickSharedLink(botId, selector, text);
     if (!r.ok) console.error("link share click:", r.reason);
+    return r.ok;
+  }
+
+  // presenter mode: speak the current slide (notes first, persona
+  // memory as the floor), advance the deck one step
+  async narrateLinkSlide(botId: string): Promise<boolean> {
+    const r = await narrateSlide(botId);
+    if (!r.ok) console.error("link share narrate:", r.reason);
+    return r.ok;
+  }
+
+  async advanceLinkSlide(botId: string): Promise<boolean> {
+    const r = await advanceSlide(botId);
+    if (!r.ok) console.error("link share advance:", r.reason);
     return r.ok;
   }
 

@@ -59,6 +59,8 @@ export interface BotProvider {
   stopLinkShare?(botId: string): Promise<boolean>;
   navigateLinkShare?(botId: string, url: string): Promise<boolean>;
   clickLinkShare?(botId: string, selector?: string, text?: string): Promise<boolean>;
+  narrateLinkSlide?(botId: string): Promise<boolean>;
+  advanceLinkSlide?(botId: string): Promise<boolean>;
 
   // optional: the q&a flow's prompted out-loud ask. unmute and speak a
   // question, only ever after a human prompted her to. engines whose

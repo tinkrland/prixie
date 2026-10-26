@@ -308,6 +308,29 @@ export async function cdpExecuteInTarget(
   }
 }
 
+// list the session's page tabs (target id + url): the share flow diffs
+// this before and after opening presenter view to find the popup
+export async function listTabsInSession(sessionId: string): Promise<any[]> {
+  const conn = await cdpConn(sessionId);
+  const targets = await cdpRaw(conn, "Target.getTargets");
+  return (targets?.result?.targetInfos || []).filter((t: any) => t?.type === "page");
+}
+
+// a keyboard press on a chosen tab (slide advance, the presenter-view
+// s key). Input events ride the target's cdp session like any command.
+export async function keyPressInTarget(
+  sessionId: string,
+  targetId: string,
+  key: string,
+  code?: string,
+  virtualKeyCode?: number,
+): Promise<boolean> {
+  const base = { key, code: code || key, ...(virtualKeyCode ? { windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode } : {}) };
+  const down = await cdpExecuteInTarget(sessionId, targetId, "Input.dispatchKeyEvent", { type: "keyDown", ...base });
+  const up = await cdpExecuteInTarget(sessionId, targetId, "Input.dispatchKeyEvent", { type: "keyUp", ...base });
+  return !!down && !!up;
+}
+
 async function cdpConn(sessionId: string): Promise<CdpConnection> {
   let conn = cdpConnections.get(sessionId);
   if (!conn || conn.closed) {
