@@ -286,7 +286,28 @@ export async function joinDiscord(sessionId: string, meetingUrl: string, profile
     });
 
     if (hasLogin?.result?.value) {
-      return { session_id: sessionId, status: "failed", error: "discord requires authentication. provide a pre-authenticated browser context." };
+      // the wall: discord wants a login the engine cannot walk past.
+      // the kernel handoff owns exactly this moment: kernel logs in on
+      // prixie's own account (bitwarden copy or the owner once), the
+      // discord-domain cookies cross to this session, and she reloads
+      // signed in. back on browserbase, one retry, no more.
+      const handoff = await handoffLoginToKernel("discord.com,discordapp.com", sessionId);
+      if (handoff.status === "authenticated") {
+        await navigateTo(sessionId, meetingUrl);
+        await new Promise(r => setTimeout(r, 5000));
+        const retried = await findAndClick(sessionId, '[data-list-item-id*="voice"]', 15000) ||
+                        await findAndClick(sessionId, 'button[aria-label*="Voice"]', 10000);
+        if (retried) {
+          return { session_id: sessionId, status: "joined" };
+        }
+        return { session_id: sessionId, status: "failed", error: "kernel handoff logged her in but the voice channel still was not found" };
+      }
+      const why = handoff.status === "disabled"
+        ? "discord requires authentication and the kernel login handoff is not configured (KERNEL_API_KEY unset)"
+        : handoff.status === "needs-user"
+          ? `discord login needs the owner once: ${handoff.hostedUrl}`
+          : `kernel login handoff failed: ${handoff.reason}`;
+      return { session_id: sessionId, status: "failed", error: why };
     }
 
     return { session_id: sessionId, status: "failed", error: "could not find voice channel to join" };
@@ -1042,4 +1063,5 @@ export async function heartbeatSession(sessionId: string): Promise<void> {
   });
 }
 import { dismissConsentBanners } from "./consent.ts";
+import { handoffLoginToKernel } from "./kernel_auth.ts";
 import { resolveAudioMode } from "./assemblyai.ts";
