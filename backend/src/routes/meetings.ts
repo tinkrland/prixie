@@ -140,6 +140,54 @@ meetingsRouter.put("/:id", handleUpdate);
  * meeting. The microvm flow (or the owner, manually) drives it; she does
  * not share a screen in general, so nothing calls this on its own.
  */
+/**
+ * POST /api/meetings/:id/share-link
+ * The show-and-tell with a url: start a link share (a deployed page,
+ * a pitch deck, a site with nav), navigate or click inside the shared
+ * page, or stop it. localhost / undeployed things stay the parked
+ * microvm's job; nothing here shares a local screen.
+ */
+meetingsRouter.post("/:id/share-link", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const action = body?.action;
+  if (!["start", "stop", "navigate", "click"].includes(action)) {
+    return c.json({ error: "action must be 'start', 'stop', 'navigate' or 'click'" }, 400);
+  }
+  const meeting = await getMeetingById(c.req.param("id"));
+  if (!meeting) return c.json({ error: "meeting not found" }, 404);
+  if (!meeting.bot_id) return c.json({ error: "no live session for meeting" }, 409);
+
+  const { botProvider } = await import("../services/browserbase_provider.ts");
+  if (action === "start") {
+    const fn = botProvider.startLinkShare;
+    if (!fn) return c.json({ error: "provider cannot manage the link share" }, 501);
+    if (!body?.url) return c.json({ error: "start needs a url" }, 400);
+    // audio rides along when the page plays a video; audio: false is
+    // the without-sound toggle
+    const audio = body?.audio !== false;
+    const ok = await fn.call(botProvider, meeting.bot_id, String(body.url), audio).catch(() => false);
+    return c.json({ ok, action, meeting_id: meeting.id });
+  }
+  if (action === "navigate") {
+    const fn = botProvider.navigateLinkShare;
+    if (!fn) return c.json({ error: "provider cannot manage the link share" }, 501);
+    if (!body?.url) return c.json({ error: "navigate needs a url" }, 400);
+    const ok = await fn.call(botProvider, meeting.bot_id, String(body.url)).catch(() => false);
+    return c.json({ ok, action, meeting_id: meeting.id });
+  }
+  if (action === "click") {
+    const fn = botProvider.clickLinkShare;
+    if (!fn) return c.json({ error: "provider cannot manage the link share" }, 501);
+    if (!body?.selector && !body?.text) return c.json({ error: "click needs a selector or text" }, 400);
+    const ok = await fn.call(botProvider, meeting.bot_id, body.selector, body.text).catch(() => false);
+    return c.json({ ok, action, meeting_id: meeting.id });
+  }
+  const fn = botProvider.stopLinkShare;
+  if (!fn) return c.json({ error: "provider cannot manage the link share" }, 501);
+  const ok = await fn.call(botProvider, meeting.bot_id).catch(() => false);
+  return c.json({ ok, action, meeting_id: meeting.id });
+});
+
 meetingsRouter.post("/:id/screenshare", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const action = body?.action;

@@ -55,6 +55,10 @@ export interface BotProvider {
   // session (page seam first, dom buttons as the fallback)
   startScreenshare?(botId: string): Promise<boolean>;
   stopScreenshare?(botId: string): Promise<boolean>;
+  startLinkShare?(botId: string, url: string, audio?: boolean): Promise<boolean>;
+  stopLinkShare?(botId: string): Promise<boolean>;
+  navigateLinkShare?(botId: string, url: string): Promise<boolean>;
+  clickLinkShare?(botId: string, selector?: string, text?: string): Promise<boolean>;
 
   // optional: the q&a flow's prompted out-loud ask. unmute and speak a
   // question, only ever after a human prompted her to. engines whose

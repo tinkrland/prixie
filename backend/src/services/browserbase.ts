@@ -26,6 +26,8 @@ export interface JoinResult {
 export async function createSession(options?: {
   projectId?: string;
   keepalive?: boolean;
+  viewport?: { width: number; height: number };
+  timeoutSeconds?: number;
 }): Promise<BrowserbaseSession> {
   const res = await fetch(`${BROWSERBASE_BASE}/sessions`, {
     method: "POST",
@@ -36,8 +38,9 @@ export async function createSession(options?: {
     body: JSON.stringify({
       projectId: options?.projectId || Deno.env.get("BROWSERBASE_PROJECT_ID") || undefined,
       keepalive: options?.keepalive ?? true,
+      ...(options?.timeoutSeconds ? { timeout: options.timeoutSeconds } : {}),
       browserSettings: {
-        viewport: { width: 1280, height: 800 },
+        viewport: options?.viewport || { width: 1280, height: 800 },
       },
     }),
   });
@@ -116,24 +119,202 @@ export async function getSessionStatus(sessionId: string): Promise<any> {
 }
 
 // --- CDP (Chrome DevTools Protocol) actions ---
+//
+// the transport rewrite (oct 26 2026): the http relay
+// (POST /v1/sessions/{id}/cdp) is gone from the live api, it 404s.
+// the documented way is the session's signed connect url, a websocket
+// carrying raw cdp. browser-level domains (Target.*) answer there
+// directly; page domains need a target attach first (flatten: true)
+// and then ride the same socket with the sessionId field. connections
+// are cached per session and dropped on close; a call on a dead
+// connection reconnects once. the return shape is the cdp message
+// ({id, result} or {id, error}), same as the relay used to return,
+// so every existing caller is unchanged.
+
+interface CdpConnection {
+  ws: WebSocket;
+  msgId: number;
+  pending: Map<number, (msg: any) => void>;
+  targetSessionId?: string; // the main (meeting) page target
+  targetSessions: Map<string, string>; // extra targets (the share tab): targetId -> cdp sessionId
+  closed: boolean;
+}
+
+const cdpConnections = new Map<string, CdpConnection>();
+
+// the transport seam: the expressions and commands are what is under
+// test, the websocket is live-verified against the real api (oct 26:
+// navigate, captureScreenshot, evaluate, multi-tab). tests inject a
+// fake sender here; production leaves it unset and rides the socket.
+export type CdpSend = (sessionId: string, method: string, params: any) => Promise<any>;
+let injectedCdpSend: CdpSend | null = null;
+export function injectCdpSend(fn: CdpSend): void {
+  injectedCdpSend = fn;
+}
+export function resetCdpSend(): void {
+  injectedCdpSend = null;
+}
+
+export function buildCdpMessage(
+  msgId: number,
+  method: string,
+  params: any,
+  targetSessionId?: string,
+): Record<string, unknown> {
+  const message: Record<string, unknown> = { id: msgId, method, params };
+  if (targetSessionId) message.sessionId = targetSessionId;
+  return message;
+}
+
+export function pickPageTarget(targetInfos: any[]): any | null {
+  return (targetInfos || []).find((t) => t?.type === "page") ?? null;
+}
+
+async function openCdpConnection(sessionId: string): Promise<CdpConnection> {
+  const sres = await fetch(`${BROWSERBASE_BASE}/sessions/${sessionId}`, {
+    headers: { "Authorization": `Bearer ${BROWSERBASE_API_KEY}` },
+  });
+  if (!sres.ok) throw new Error(`session fetch failed: ${sres.status}`);
+  const session = await sres.json();
+  if (!session?.connectUrl) throw new Error("session has no connect url (already ended?)");
+
+  const ws = new WebSocket(session.connectUrl);
+  const conn: CdpConnection = { ws, msgId: 0, pending: new Map(), targetSessions: new Map(), closed: false };
+  const opened = new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("cdp connect timeout")), 15_000);
+    ws.addEventListener("open", () => { clearTimeout(timer); resolve(); });
+    ws.addEventListener("error", () => { clearTimeout(timer); reject(new Error("cdp connect failed")); });
+  });
+  ws.addEventListener("message", (ev) => {
+    try {
+      const msg = JSON.parse(String(ev.data));
+      if (msg?.id && conn.pending.has(msg.id)) {
+        conn.pending.get(msg.id)!(msg);
+        conn.pending.delete(msg.id);
+      }
+    } catch { /* a malformed frame never kills the connection */ }
+  });
+  ws.addEventListener("close", () => {
+    conn.closed = true;
+    if (cdpConnections.get(sessionId) === conn) cdpConnections.delete(sessionId);
+    // anything still waiting gets an honest null, not a hang
+    for (const resolve of conn.pending.values()) resolve(null);
+    conn.pending.clear();
+  });
+  await opened;
+  return conn;
+}
+
+async function cdpRaw(conn: CdpConnection, method: string, params: any = {}): Promise<any> {
+  const id = ++conn.msgId;
+  return new Promise<any>((resolve) => {
+    conn.pending.set(id, resolve);
+    conn.ws.send(JSON.stringify(buildCdpMessage(id, method, params)));
+  });
+}
+
+async function ensureCdpTarget(conn: CdpConnection): Promise<void> {
+  if (conn.targetSessionId) return;
+  const targets = await cdpRaw(conn, "Target.getTargets");
+  const page = pickPageTarget(targets?.result?.targetInfos);
+  if (!page?.targetId) throw new Error("no page target in the session");
+  const attach = await cdpRaw(conn, "Target.attachToTarget", { targetId: page.targetId, flatten: true });
+  conn.targetSessionId = attach?.result?.sessionId;
+  if (!conn.targetSessionId) throw new Error("target attach failed");
+}
 
 export async function cdpExecute(sessionId: string, method: string, params: any): Promise<any> {
-  const res = await fetch(`${BROWSERBASE_BASE}/sessions/${sessionId}/cdp`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${BROWSERBASE_API_KEY}`,
-    },
-    body: JSON.stringify({ method, params }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    console.error(`cdp ${method} failed:`, err);
+  if (injectedCdpSend) return injectedCdpSend(sessionId, method, params);
+  try {
+    let conn = cdpConnections.get(sessionId);
+    if (!conn || conn.closed) {
+      conn = await openCdpConnection(sessionId);
+      cdpConnections.set(sessionId, conn);
+    }
+    await ensureCdpTarget(conn);
+    const id = ++conn.msgId;
+    return await new Promise<any>((resolve) => {
+      conn!.pending.set(id, resolve);
+      try {
+        conn!.ws.send(JSON.stringify(buildCdpMessage(id, method, params, conn!.targetSessionId)));
+      } catch {
+        conn!.pending.delete(id);
+        resolve(null);
+      }
+    });
+  } catch (e) {
+    console.error(`cdp ${method} failed:`, (e as Error)?.message || e);
     return null;
   }
+}
 
-  return res.json();
+// --- the share tab: a second tab in the SAME session ---
+//
+// the link share opens the presented url as a new tab beside the
+// meeting tab (not a second session): same browser, so the meeting
+// tab and the share tab can speak localhost webrtc to each other
+// and one connection carries both. the meeting tab stays the main
+// target for every existing helper; these run against a chosen tab.
+
+export async function createTabInSession(sessionId: string, url: string): Promise<string | null> {
+  const conn = await cdpConn(sessionId);
+  const created = await cdpRaw(conn, "Target.createTarget", { url });
+  const targetId = created?.result?.targetId;
+  if (!targetId) return null;
+  const attach = await cdpRaw(conn, "Target.attachToTarget", { targetId, flatten: true });
+  const cdpSession = attach?.result?.sessionId;
+  if (!cdpSession) return null;
+  conn.targetSessions.set(targetId, cdpSession);
+  return targetId;
+}
+
+export async function closeTabInSession(sessionId: string, targetId: string): Promise<void> {
+  try {
+    const conn = await cdpConn(sessionId);
+    await cdpRaw(conn, "Target.closeTarget", { targetId });
+    conn.targetSessions.delete(targetId);
+  } catch { /* the tab dies with the session anyway */ }
+}
+
+// execute a cdp command against a specific tab of the session
+export async function cdpExecuteInTarget(
+  sessionId: string,
+  targetId: string,
+  method: string,
+  params: any,
+): Promise<any> {
+  if (injectedCdpSend) return injectedCdpSend(sessionId, method, params);
+  try {
+    const conn = await cdpConn(sessionId);
+    let cdpSession = conn.targetSessions.get(targetId);
+    if (!cdpSession) {
+      const attach = await cdpRaw(conn, "Target.attachToTarget", { targetId, flatten: true });
+      cdpSession = attach?.result?.sessionId;
+      if (!cdpSession) return null;
+      conn.targetSessions.set(targetId, cdpSession);
+    }
+    const id = ++conn.msgId;
+    return await new Promise<any>((resolve) => {
+      conn.pending.set(id, resolve);
+      try {
+        conn.ws.send(JSON.stringify(buildCdpMessage(id, method, params, cdpSession)));
+      } catch {
+        resolve(null);
+      }
+    });
+  } catch (e) {
+    console.error(`cdp ${method} (target) failed:`, (e as Error)?.message || e);
+    return null;
+  }
+}
+
+async function cdpConn(sessionId: string): Promise<CdpConnection> {
+  let conn = cdpConnections.get(sessionId);
+  if (!conn || conn.closed) {
+    conn = await openCdpConnection(sessionId);
+    cdpConnections.set(sessionId, conn);
+  }
+  return conn!;
 }
 
 // the out-loud ask (the owner's q&a flow): unmute and speak, from inside

@@ -24,6 +24,7 @@ import {
   probeEntryState,
   KNOCK_TEXTS,
 } from "./browserbase.ts";
+import { shareLinkInSession, stopLinkShare, navigateSharedLink, clickSharedLink } from "./link_share.ts";
 import { transcribeBrowserbaseSession } from "./browserbase_transcript.ts";
 import {
   isZoomRegisterUrl,
@@ -157,6 +158,31 @@ export class BrowserbaseProvider implements BotProvider {
 
   async stopScreenshare(botId: string): Promise<boolean> {
     return setScreenshareInSession(botId, "stop");
+  }
+
+  // the show-and-tell with a url: share a deployed page (deck, site,
+  // doc) from a second session, pixel-true, no vm (see link_share.ts)
+  async startLinkShare(botId: string, url: string, audio?: boolean): Promise<boolean> {
+    const r = await shareLinkInSession(botId, url, audio);
+    if (!r.ok) console.error("link share start:", r.reason);
+    return r.ok;
+  }
+
+  async stopLinkShare(botId: string): Promise<boolean> {
+    const r = await stopLinkShare(botId);
+    return r.ok;
+  }
+
+  async navigateLinkShare(botId: string, url: string): Promise<boolean> {
+    const r = await navigateSharedLink(botId, url);
+    if (!r.ok) console.error("link share navigate:", r.reason);
+    return r.ok;
+  }
+
+  async clickLinkShare(botId: string, selector?: string, text?: string): Promise<boolean> {
+    const r = await clickSharedLink(botId, selector, text);
+    if (!r.ok) console.error("link share click:", r.reason);
+    return r.ok;
   }
 
   // entry-time monitor install. installChatMonitor carries its own

@@ -5,16 +5,17 @@
 // payloads: the payload must land as data and never execute as code.
 
 import { assertEquals } from "jsr:@std/assert@1";
-import { findAndClick, findAndType, sendChatInSession, setScreenshareInSession } from "./browserbase.ts";
+import { findAndClick, findAndType, sendChatInSession, setScreenshareInSession, injectCdpSend, resetCdpSend } from "./browserbase.ts";
 
 // capture the last Runtime.evaluate expression sent over cdp
 let lastExpression = "";
 function stubCdpFetch(evaluate = false): () => void {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
-    const body = JSON.parse(String(init?.body));
-    if (body.method === "Runtime.evaluate") {
-      lastExpression = body.params.expression;
+  // the transport seam (injectCdpSend): the expressions are under
+  // test here, the websocket itself is live-verified against the real
+  // api, so the tests ride the seam, not fetch
+  injectCdpSend(async (_sid: string, method: string, params: any) => {
+    if (method === "Runtime.evaluate") {
+      lastExpression = params.expression;
     }
     // genuine mode runs the captured expression for real (against the
     // installed fake dom / page seams), awaiting promises like cdp's
@@ -23,20 +24,18 @@ function stubCdpFetch(evaluate = false): () => void {
     if (evaluate) {
       try {
         let value = evalCaptured();
-        if (value instanceof Promise && body.params?.awaitPromise) {
+        if (value instanceof Promise && params?.awaitPromise) {
           value = await value;
         }
-        return new Response(JSON.stringify({ result: { value: value ?? null } }), { status: 200 });
+        return { result: { value: value ?? null } };
       } catch {
-        return new Response(JSON.stringify({ result: {} }), { status: 200 });
+        return { result: {} };
       }
     }
-    return new Response(JSON.stringify({ result: { value: "clicked" } }), {
-      status: 200,
-    });
-  }) as typeof fetch;
+    return { result: { value: "clicked" } };
+  });
   return () => {
-    globalThis.fetch = originalFetch;
+    resetCdpSend();
   };
 }
 
@@ -205,45 +204,41 @@ Deno.test("awaitEntry: a missed popup gets knocked again, entry is seen", async 
   // the probe says waiting first; the re-knock click lands; then she
   // is let in. the loop must report the extra knock.
   const fakeDoc = installFakeDocument();
-  const originalFetch = globalThis.fetch;
   // probe says waiting; she re-knocks; the next probe sees her let in
   const probes = ["waiting", "waiting", "entered"];
-  globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
-    const body = JSON.parse(String(init?.body));
-    const expr = String(body.params?.expression || "");
+  injectCdpSend(async (_sid: string, method: string, params: any) => {
+    const expr = String(method === "Runtime.evaluate" ? params?.expression || "" : "");
     const value = expr.includes("el.click()") // the knock click, not the probe
       ? "clicked"
       : probes.shift() ?? "entered";
-    return new Response(JSON.stringify({ result: { value } }), { status: 200 });
-  }) as typeof fetch;
+    return { result: { value } };
+  });
 
   try {
     const outcome = await awaitEntry("s1", { pollMs: 10, reknockEveryMs: 10, maxWaitMs: 5000 });
     assertEquals(outcome.state, "entered");
     assertEquals(outcome.knocks, 2); // the ask, then the re-knock
   } finally {
-    globalThis.fetch = originalFetch;
+    resetCdpSend();
     fakeDoc.restore();
   }
 });
 
 Deno.test("awaitEntry: ignored forever is waiting, with every knock counted", async () => {
   const fakeDoc = installFakeDocument();
-  const originalFetch = globalThis.fetch;
   let knocks = 0;
-  globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
-    const body = JSON.parse(String(init?.body));
-    const expr = String(body.params?.expression || "");
+  injectCdpSend(async (_sid: string, method: string, params: any) => {
+    const expr = String(method === "Runtime.evaluate" ? params?.expression || "" : "");
     const value = expr.includes("el.click()") ? (knocks++, "clicked") : "waiting";
-    return new Response(JSON.stringify({ result: { value } }), { status: 200 });
-  }) as typeof fetch;
+    return { result: { value } };
+  });
 
   try {
     const outcome = await awaitEntry("s1", { pollMs: 5, reknockEveryMs: 10, maxWaitMs: 80 });
     assertEquals(outcome.state, "waiting");
     assertEquals(outcome.knocks >= 5, true); // the ask plus every re-knock, not one and done
   } finally {
-    globalThis.fetch = originalFetch;
+    resetCdpSend();
     fakeDoc.restore();
   }
 });
