@@ -141,19 +141,106 @@ export function paintFrameJs(dataUrl: string): string {
 // (verified: no controls, no popup) — those stay frames-only, no
 // notes, honestly.
 
-export type DeckKind = "google-slides";
+export type DeckKind = "google-slides" | "powerpoint";
 
 export function detectDeckKind(url: string): DeckKind | null {
   // docs.google.com/presentation/d/{id}... (edit or share link).
   // /presentation/d/e/... is published-to-web: no present mode (the
   // negative lookahead keeps /d/e/2PACX-... out, verified live).
   const m = url?.match(/^https:\/\/docs\.google\.com\/presentation\/d\/(?!e\/)([a-zA-Z0-9_-]+)/);
-  return m ? "google-slides" : null;
+  if (m) return "google-slides";
+  // microsoft powerpoint: 1drv.ms/p/ shortlinks, onedrive personal
+  // (/:p:/ or the old Doc.aspx shell), sharepoint document links
+  // (verified live oct 26: the anonymous viewer renders inside a
+  // powerpoint.officeapps.live.com wopi iframe)
+  if (/^https:\/\/1drv\.ms\/p\//.test(url || "")) return "powerpoint";
+  if (/^https:\/\/onedrive\.live\.com\//.test(url || "") && (/ithint=file%2cpptx/i.test(url) || /\/:p:\/|\/personal\/|_layouts\/15\/Doc\.aspx/.test(url))) return "powerpoint";
+  if (/^https:\/\/[a-z0-9-]+\.sharepoint\.com\//.test(url || "") && (/\.pptx/i.test(url) || /\/:p:\//.test(url))) return "powerpoint";
+  return null;
 }
 
 export function googleSlidesPresentUrl(url: string): string {
   const m = url?.match(/^https:\/\/docs\.google\.com\/presentation\/d\/([a-zA-Z0-9_-]+)/);
   return m ? `https://docs.google.com/presentation/d/${m[1]}/present` : url;
+}
+
+// powerpoint's audience url is the link as-is: the onedrive shell
+// redirects (both the /:p:/g/personal and Doc.aspx forms land in the
+// same wopi iframe, verified live); anonymous "anyone with the link"
+// access works without a microsoft account
+export function powerpointAudienceUrl(url: string): string {
+  return url;
+}
+
+// the wopi iframe lives on powerpoint.officeapps.live.com and carries
+// the real deck ui; the shell page around it has no controls at all
+export function isPptFrameTarget(target: any): boolean {
+  return String(target?.url || "").includes("PowerPointFrame.aspx");
+}
+
+async function waitForPptFrame(
+  sessionId: string,
+  knownFrameIds: Set<string>,
+  timeoutMs = 35000,
+): Promise<string | null> {
+  // the wopi iframe mounts late (the onedrive shell is heavy; up to
+  // ~25s observed), so poll for it rather than guessing once
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const infos = (await cdpExecute(sessionId, "Target.getTargets", {}))?.result?.targetInfos || [];
+    const fresh = infos.find((t: any) => t?.type === "iframe" && isPptFrameTarget(t) && !knownFrameIds.has(t.targetId));
+    if (fresh) return fresh.targetId;
+    await new Promise((r) => setTimeout(r, 2500));
+  }
+  return null;
+}
+
+export function pptStartSlideshowJs(): string {
+  return `
+    (() => {
+      const b = [...document.querySelectorAll('button, [role="button"], [aria-label]')]
+        .find((el) => /start slide show/i.test((el.getAttribute('aria-label') || el.textContent || '').trim()));
+      if (b) { b.click(); return JSON.stringify({ started: true }); }
+      return JSON.stringify({ started: false });
+    })()
+  `;
+}
+
+// the notes panel: the presenter's own view of the speaker notes
+// (toggle on the notes tab only; the share tab never turns it on, so
+// the room cannot see the notes). "This slide has no notes." is
+// microsoft's own empty state and reads as an honest empty.
+export function pptToggleNotesJs(): string {
+  return `
+    (() => {
+      const b = [...document.querySelectorAll('button, [role="button"], [aria-label]')]
+        .find((el) => /^notes$/i.test((el.getAttribute('aria-label') || el.textContent || '').trim()));
+      if (b) { b.click(); return JSON.stringify({ toggled: true }); }
+      return JSON.stringify({ toggled: false });
+    })()
+  `;
+}
+
+export function pptNotesJs(): string {
+  return `
+    (() => {
+      const panel = document.querySelector('[class*="ReadingNotesPanel"]');
+      const text = panel ? panel.innerText : "";
+      const empty = /no notes/i.test(text || "");
+      return JSON.stringify({ notes: empty ? "" : (text || "").trim() });
+    })()
+  `;
+}
+
+export function pptCounterJs(): string {
+  // microsoft renders the counter in caps ("SLIDE 1 OF 18"); the match
+  // is case-insensitive on purpose (verified live)
+  return `
+    (() => {
+      const m = document.body.innerText.match(/slide (\d+) of (\d+)/i);
+      return JSON.stringify(m ? { slide: Number(m[1]), of: Number(m[2]) } : { slide: null, of: null });
+    })()
+  `;
 }
 
 // the notes text of the current slide, read from the presenter view.
@@ -349,6 +436,8 @@ interface LinkShareState {
   url: string;
   deckKind: DeckKind | null;
   presenterTargetId?: string; // the notes tab (never shared)
+  presenterFrameTargetId?: string; // powerpoint: the notes tab's wopi iframe
+  shareFrameTargetId?: string; // powerpoint: the share tab's wopi iframe
 }
 
 const linkShares = new Map<string, LinkShareState>();
@@ -383,15 +472,26 @@ export async function shareLinkInSession(
 
   // a deck presents its audience view, not its edit page
   const deckKind = detectDeckKind(url);
-  const audienceUrl = deckKind === "google-slides" ? googleSlidesPresentUrl(url) : url;
+  const audienceUrl = deckKind === "google-slides"
+    ? googleSlidesPresentUrl(url)
+    : deckKind === "powerpoint"
+    ? powerpointAudienceUrl(url)
+    : url;
   const targetId = await createTabInSession(sessionId, audienceUrl);
   if (!targetId) {
     return { ok: false, reason: "the share tab could not be opened" };
   }
 
-  // presenter mode: the s keypress on the presenting tab opens the
-  // notes popup; we find it by diffing the tab list around the press
+  // presenter mode. google slides: the s keypress on the presenting
+  // tab opens the notes popup; we find it by diffing the tab list
+  // around the press. powerpoint: anonymous viewers get NO presenter
+  // view (verified live), so the notes are her own second tab — the
+  // same deck in slideshow with its notes panel on — advanced in
+  // lockstep with the share tab; the room sees only the share tab's
+  // clean slideshow.
   let presenterTargetId: string | undefined;
+  let presenterFrameTargetId: string | undefined;
+  let shareFrameTargetId: string | undefined;
   if (deckKind === "google-slides") {
     await new Promise((r) => setTimeout(r, 5000)); // let the deck load
     const before = await listTabsInSession(sessionId);
@@ -403,6 +503,42 @@ export async function shareLinkInSession(
     presenterTargetId = popup?.targetId;
     // honest: without the notes tab she can still present, she just
     // cannot read the deck's notes
+  } else if (deckKind === "powerpoint") {
+    // the share tab's wopi iframe carries the deck; the shell page
+    // around it has no controls (verified live)
+    const seen = (await cdpExecute(sessionId, "Target.getTargets", {}))?.result?.targetInfos || [];
+    const knownFrameIds = new Set<string>(seen.filter(isPptFrameTarget).map((t: any) => String(t.targetId)));
+    const found = await waitForPptFrame(sessionId, knownFrameIds);
+    shareFrameTargetId = found ?? undefined;
+    if (shareFrameTargetId) {
+      // clean slideshow for the room: start the show, never the notes
+      await cdpExecuteInTarget(sessionId, shareFrameTargetId, "Runtime.evaluate", {
+        expression: pptStartSlideshowJs(),
+        returnByValue: true,
+      });
+      // her notes tab: same deck, slideshow + notes panel on
+      const notesTab = await createTabInSession(sessionId, audienceUrl);
+      if (notesTab) {
+        const infos2 = (await cdpExecute(sessionId, "Target.getTargets", {}))?.result?.targetInfos || [];
+        const knownFrames2 = new Set<string>(infos2.filter(isPptFrameTarget).map((t: any) => String(t.targetId)));
+        const notesFrame = await waitForPptFrame(sessionId, knownFrames2);
+        if (notesFrame) {
+          await cdpExecuteInTarget(sessionId, notesFrame, "Runtime.evaluate", {
+            expression: pptStartSlideshowJs(),
+            returnByValue: true,
+          });
+          await new Promise((r) => setTimeout(r, 4000));
+          await cdpExecuteInTarget(sessionId, notesFrame, "Runtime.evaluate", {
+            expression: pptToggleNotesJs(),
+            returnByValue: true,
+          });
+          presenterTargetId = String(notesTab);
+          presenterFrameTargetId = notesFrame;
+        }
+      }
+    }
+    // honest: without the notes tab she can still present; narrate
+    // says so instead of guessing
   }
 
   // lane pick: probe for a playing video for a few seconds
@@ -514,6 +650,8 @@ export async function shareLinkInSession(
     url,
     deckKind,
     ...(presenterTargetId ? { presenterTargetId } : {}),
+    ...(presenterFrameTargetId ? { presenterFrameTargetId } : {}),
+    ...(shareFrameTargetId ? { shareFrameTargetId } : {}),
   });
   return { ok: true, lane, ...(deckKind ? { presenter: !!presenterTargetId } : {}) };
 }
@@ -580,8 +718,14 @@ export async function narrateSlide(
   if (!state.presenterTargetId) {
     return { ok: false, reason: "no presenter view for this share (not a deck, or the popup did not open)" };
   }
-  const read = await cdpExecuteInTarget(sessionId, state.presenterTargetId, "Runtime.evaluate", {
-    expression: readSlideNotesJs(),
+  // where the notes live depends on the deck: google's presenter
+  // popup is a page target, powerpoint's notes panel lives in the
+  // notes tab's wopi iframe
+  const notesTarget = state.deckKind === "powerpoint" ? state.presenterFrameTargetId : state.presenterTargetId;
+  const notesExpression = state.deckKind === "powerpoint" ? pptNotesJs() : readSlideNotesJs();
+  if (!notesTarget) return { ok: false, reason: "the notes view is missing (narrate refuses rather than guess)" };
+  const read = await cdpExecuteInTarget(sessionId, notesTarget, "Runtime.evaluate", {
+    expression: notesExpression,
     returnByValue: true,
   });
   let notes = "";
@@ -603,6 +747,41 @@ export async function advanceSlide(sessionId: string): Promise<LinkShareResult> 
   const state = linkShares.get(sessionId);
   if (!state) return { ok: false, reason: "no link share is running for this session" };
   if (!state.deckKind) return { ok: false, reason: "not a deck: nothing to advance" };
+
+  if (state.deckKind === "powerpoint") {
+    // the room's view is the share tab's wopi iframe; her notes tab
+    // is a separate anonymous session, so the two advance in
+    // lockstep: share first, then the notes tab catches up (bounded,
+    // honest drift correction, never a silent mismatch)
+    if (!state.shareFrameTargetId) return { ok: false, reason: "the deck view is missing (the wopi iframe never mounted)" };
+    await keyPressInTarget(sessionId, state.shareFrameTargetId, "ArrowRight", "ArrowRight", 39);
+    let counter: string | null = null;
+    if (state.presenterFrameTargetId) {
+      await new Promise((r) => setTimeout(r, 700));
+      await keyPressInTarget(sessionId, state.presenterFrameTargetId, "ArrowRight", "ArrowRight", 39);
+      const readCounter = async (target: string) => {
+        const r = await cdpExecuteInTarget(sessionId, target, "Runtime.evaluate", {
+          expression: pptCounterJs(),
+          returnByValue: true,
+        });
+        try {
+          return JSON.parse(r?.result?.result?.value || "{}");
+        } catch { return { slide: null, of: null }; }
+      };
+      const shareC = await readCounter(state.shareFrameTargetId);
+      if (shareC?.slide) counter = `${shareC.slide} of ${shareC.of}`;
+      // realign: if the notes tab is behind the share tab, catch it up
+      let notesC = await readCounter(state.presenterFrameTargetId);
+      for (let i = 0; i < 3 && notesC?.slide && shareC?.slide && notesC.slide < shareC.slide; i++) {
+        await keyPressInTarget(sessionId, state.presenterFrameTargetId, "ArrowRight", "ArrowRight", 39);
+        await new Promise((r) => setTimeout(r, 700));
+        notesC = await readCounter(state.presenterFrameTargetId);
+      }
+    }
+    return { ok: true, ...(counter ? { reason: `now on slide ${counter}` } : {}) };
+  }
+
+  // google slides: arrows on the audience tab drive both views
   const ok = await keyPressInTarget(sessionId, state.targetId, "ArrowRight", "ArrowRight", 39);
   if (!ok) return { ok: false, reason: "the slide could not be advanced" };
   let counter: string | null = null;

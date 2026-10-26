@@ -11,9 +11,14 @@ import { assertEquals } from "jsr:@std/assert@1";
 import {
   SHARE_CANVAS_ID,
   advanceSlide,
+  isPptFrameTarget,
+  pptNotesJs,
+  pptStartSlideshowJs,
+  pptToggleNotesJs,
   clickSharedLink,
   composeNarration,
   detectDeckKind,
+  powerpointAudienceUrl,
   googleSlidesPresentUrl,
   mediaConsumerJs,
   mediaProducerJs,
@@ -170,4 +175,41 @@ Deno.test("narrate and advance refuse without a running share", async () => {
   assertEquals(narrate.reason, "no link share is running for this session");
   const next = await advanceSlide("unknown-session");
   assertEquals(next.ok, false);
+});
+
+Deno.test("deck detection: powerpoint links across their url forms", () => {
+  // the 1drv short form (/p/ = presentation)
+  assertEquals(detectDeckKind("https://1drv.ms/p/s!Av-OegfFZFc-j4EciB2KB45HMB6S2g?e=Jpehgf"), "powerpoint");
+  // onedrive personal, modern form
+  assertEquals(
+    detectDeckKind("https://onedrive.live.com/:p:/g/personal/3E5764C5077A8EFF/s!Av-OegfFZFc-j4EciB2KB45HMB6S2g?resid=3E5764C5077A8EFF!245916&ithint=file%2cpptx&e=Jpehgf"),
+    "powerpoint",
+  );
+  // sharepoint document links
+  assertEquals(detectDeckKind("https://contoso.sharepoint.com/:p:/r/sites/Docs/Deck.pptx?e=xyz"), "powerpoint");
+  // a word doc link is not a deck
+  assertEquals(detectDeckKind("https://1drv.ms/w/s!Av-OegfFZFc-j4EciB2KB45HMB6S2g"), null);
+});
+
+Deno.test("the powerpoint audience url is the link itself (the shell redirects)", () => {
+  const u = "https://1drv.ms/p/s!Av-OegfFZFc-j4EciB2KB45HMB6S2g?e=Jpehgf";
+  assertEquals(powerpointAudienceUrl(u), u);
+});
+
+Deno.test("the wopi iframe is recognized, the shell page is not", () => {
+  assertEquals(isPptFrameTarget({ url: "https://powerpoint.officeapps.live.com/p/PowerPointFrame.aspx?PowerPointView=Reading" }), true);
+  assertEquals(isPptFrameTarget({ url: "https://onedrive.live.com/personal/abc/_layouts/15/Doc.aspx?sourcedoc=x" }), false);
+  assertEquals(isPptFrameTarget({}), false);
+});
+
+Deno.test("slideshow and notes toggles click the real control labels", () => {
+  assertEquals(pptStartSlideshowJs().includes("/start slide show/i"), true);
+  assertEquals(pptToggleNotesJs().includes("/^notes$/i"), true);
+});
+
+Deno.test("ppt notes read the reading notes panel, microsoft's empty state reads as empty", () => {
+  const js = pptNotesJs();
+  assertEquals(js.includes('querySelector(\'[class*="ReadingNotesPanel"]\')'), true);
+  // "This slide has no notes." (microsoft's own empty state) must land as "", never spoken
+  assertEquals(js.includes("/no notes/i.test(text || \"\")"), true);
 });
