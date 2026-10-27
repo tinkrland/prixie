@@ -34,7 +34,7 @@ Deno.test("twitch vods, direct media, and honest refusals", () => {
   const direct = buildFetchPlan("https://cdn.example.com/session.mp4", "recap_media");
   assertEquals(direct.command[0], "curl");
 
-  const refused = buildFetchPlan("https://drive.google.com/file/d/xyz/view", "recap_media");
+  const refused = buildFetchPlan("https://vimeo.com/123456", "recap_media");
   assertEquals(refused.source, "unreachable");
   assertEquals(refused.command, []);
   assert(refused.refusal, "a login-gated source is refused with a reason, not fumbled");
@@ -134,7 +134,26 @@ Deno.test("a refused source never reaches the transports", async () => {
         throw new Error("should not be called");
       },
     },
-    { url: "https://drive.google.com/file/d/xyz/view", title: "gated", personaId: "the owner" },
+    { url: "https://vimeo.com/123456", title: "gated", personaId: "the owner" },
   );
   await assertRejects(() => session.ingest(), Error, "recap:");
+});
+
+Deno.test("drive links ride the yt-dlp rail too (the owner, oct 27 2026)", () => {
+  for (const url of [
+    "https://drive.google.com/file/d/1AbCdEfGh123/view",
+    "https://drive.google.com/open?id=1AbCdEfGh123",
+    "https://drive.google.com/uc?id=1AbCdEfGh123&export=download",
+    "https://docs.google.com/file/d/1AbCdEfGh123/edit",
+  ]) {
+    assertEquals(classifySource(url), "google_drive", url);
+    const plan = buildFetchPlan(url, "recap_media");
+    assertEquals(plan.source, "google_drive", url);
+    assertEquals(plan.command[0], "yt-dlp", url);
+    assertEquals(plan.refusal, undefined, url);
+    assert(plan.command.includes(url), "the drive url is the token: it rides the command");
+  }
+
+  // a docs link that is not a file is honest: sheets and docs are not media
+  assertEquals(classifySource("https://docs.google.com/document/d/xyz/edit"), "unreachable");
 });

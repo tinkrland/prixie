@@ -13,7 +13,10 @@ the pipeline, end to end:
 1. **intake.** `classifySource(url)` + `buildFetchPlan(url)` (server/recap.ts).
    an unlisted youtube link is exactly the shape this branch exists for:
    unlisted means the link itself is the access, no login, no api
-   privilege. yt-dlp handles youtube (listed or unlisted) and twitch vods;
+   privilege. yt-dlp handles youtube (listed or unlisted), twitch vods, and
+   google drive videos (file/d, open?id, uc?id forms; a restricted file
+   403s without cookies, a quota-exceeded file fails like it fails for a
+   human, honest in both cases);
    direct media urls download plainly.
 2. **transcribe.** the same transcription the proxy already trusts:
    assembly.ai, speaker labels, with timestamps. the recording becomes a

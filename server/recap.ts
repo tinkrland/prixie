@@ -7,7 +7,7 @@
 // are transports and throw, as everywhere else in prixie; the functions
 // that pick and shape are pure and tested.
 
-export type RecordingSource = "youtube" | "twitch_vod" | "direct_media" | "unreachable";
+export type RecordingSource = "youtube" | "twitch_vod" | "google_drive" | "direct_media" | "unreachable";
 
 export interface FetchPlan {
   source: RecordingSource;
@@ -48,6 +48,12 @@ export function classifySource(url: string): RecordingSource {
   const u = url.toLowerCase();
   if (/^https?:\/\/(www\.|m\.|music\.)?(youtube\.com|youtu\.be)\//.test(u)) return "youtube";
   if (/^https?:\/\/(www\.|m\.)?twitch\.tv\/videos\//.test(u)) return "twitch_vod";
+  // drive videos ride the same yt-dlp rail (GoogleDriveIE): file/d,
+  // open?id, uc?id forms. honest limits: a restricted file 403s without
+  // cookies (prixie has none; that stays the browserbase route), and a
+  // quota-exceeded file fails like it fails for a human.
+  if (/^https?:\/\/(www\.)?drive\.google\.com\/(file\/d\/|open\?|uc\?|drive\/folders\/)/.test(u) ||
+      /^https?:\/\/(www\.)?docs\.google\.com\/file\/d\//.test(u)) return "google_drive";
   if (/\.(mp4|m4a|wav|mp3|mkv|webm|mov|aac|ogg|flac)(\?.*)?$/.test(u)) return "direct_media";
   return "unreachable";
 }
@@ -58,7 +64,7 @@ export function classifySource(url: string): RecordingSource {
 export function buildFetchPlan(url: string, output: string): FetchPlan {
   const source = classifySource(url);
 
-  if (source === "youtube" || source === "twitch_vod") {
+  if (source === "youtube" || source === "twitch_vod" || source === "google_drive") {
     return {
       source,
       url,
