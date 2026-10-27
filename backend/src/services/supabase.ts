@@ -399,6 +399,7 @@ export async function createTranscript(input: {
   summary?: string;
   action_items?: string[];
   captured_items?: Record<string, unknown>;
+  chat_log?: string;
 }): Promise<Transcript> {
   const supabase = getSupabase();
   const { data, error } = await supabase
@@ -410,6 +411,7 @@ export async function createTranscript(input: {
         summary: input.summary || null,
         action_items: input.action_items || [],
         captured_items: input.captured_items || {},
+        chat_log: input.chat_log || null,
       },
     ])
     .select()

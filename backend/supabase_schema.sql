@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS public.transcripts (
     )) DEFAULT 'recall_ai',
     -- speaker count for diarization tracking
     speaker_count INTEGER,
+    -- the typed conversation, taken home with the spoken one
+    chat_log TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -135,6 +137,23 @@ ALTER TABLE public.meetings
     ADD CONSTRAINT fk_meetings_transcript
     FOREIGN KEY (transcript_id) REFERENCES public.transcripts(id)
     ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+
+-- -----------------------------------------------------------------------------
+-- 3a. meeting_chat_lines (the chat as a take-home artifact)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.meeting_chat_lines (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    meeting_id UUID NOT NULL REFERENCES public.meetings(id) ON DELETE CASCADE,
+    speaker TEXT NOT NULL,
+    message TEXT NOT NULL,
+    -- 'chat' = someone typed it; 'chat_sent' = her own send
+    source TEXT NOT NULL DEFAULT 'chat',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_meeting_chat_lines_meeting
+    ON public.meeting_chat_lines(meeting_id, created_at);
 
 -- -----------------------------------------------------------------------------
 -- 4. attendance_messages

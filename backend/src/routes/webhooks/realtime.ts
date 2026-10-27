@@ -28,6 +28,7 @@ import {
   alreadyAttempted,
   markAttempted,
 } from "../../services/chat_form_attendance.ts";
+import { recordChatLine } from "../../services/chat_takehome.ts";
 import {
   type DocAccessReceipt,
   extractSharedDocLink,
@@ -528,6 +529,11 @@ realtimeWebhook.post("/", async (c) => {
 
     if (kind === "chat") {
       const speaker = payload.speaker || "participant";
+
+      // the chat is a take-home artifact too: every line is kept,
+      // triggers run on it and the transcript carries it home (the owner,
+      // oct 27 2026).
+      await recordChatLine({ meeting_id: meeting.id, speaker, message: text, source: "chat" });
       const urlRegex = /(https?:\/\/[^\s"'<>]+)/gi;
       const links = text.match(urlRegex) || [];
 

@@ -193,6 +193,7 @@ what she does once she is in the room.
 | attendance forms found in chat |  | working | chat_form_attendance: a form link posted in-meeting that the host language marks as attendance is filled; a bare form link with no attendance context is NOT hers to touch |
 | chat monitor | at entry, not at deploy | working | the in-page monitor installs the moment the page says she is in the room: immediate joins at deploy, waiting-room admissions at the entry transition (a host letting her in late can no longer leave the room unmonitored), and late joins the same way. idempotent, so no double-reporting |
 | transcript retrieval |  | working | assembly.ai transcription through the meeting transcript pipeline; Transcript stores the full text |
+| the chat itself |  | built, never live-run (the owner, oct 27 2026) | the typed conversation is a take-home artifact: every chat line persisted as it arrives (meeting_chat_lines, migration 20261027a_meeting_chat.sql), her OWN sends recorded at the provider seams (source chat_sent), and the take-home transcript carries the serialized log in transcripts.chat_log. best-effort: a db hiccup never breaks the live triggers |
 | capture request answering |  | working | keywords watched in chat and transcript; screenshots on request; chat links captured; answers recorded per request |
 | term detection |  | working | term_detector picks up codes, access info, and other take-home terms from the live text |
 | host identification |  | working | the host name is read from the room and carried into the take-home |

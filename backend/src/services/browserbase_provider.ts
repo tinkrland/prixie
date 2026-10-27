@@ -26,6 +26,7 @@ import {
 } from "./browserbase.ts";
 import { shareLinkInSession, stopLinkShare, navigateSharedLink, clickSharedLink, narrateSlide, advanceSlide } from "./link_share.ts";
 import { transcribeBrowserbaseSession } from "./browserbase_transcript.ts";
+import { recordOwnChatLine } from "./chat_takehome.ts";
 import {
   isZoomRegisterUrl,
   registerZoom,
@@ -141,6 +142,7 @@ export class BrowserbaseProvider implements BotProvider {
 
   async sendChatMessage(botId: string, messageText: string): Promise<boolean> {
     const r = await sendChatInSession(botId, messageText);
+    if (r.sent) await recordOwnChatLine(botId, messageText);
     return r.sent;
   }
 
@@ -148,6 +150,7 @@ export class BrowserbaseProvider implements BotProvider {
   // when the dm cannot be made: the caller decides the fallback.
   async sendDirectChatMessage(botId: string, messageText: string, toName: string): Promise<boolean> {
     const r = await sendChatInSession(botId, messageText, toName);
+    if (r.sent && r.to === "dm") await recordOwnChatLine(botId, messageText);
     return r.sent && r.to === "dm";
   }
 

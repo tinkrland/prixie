@@ -11,6 +11,7 @@ import {
   getPendingCaptureRequestsByMeeting,
   updateCaptureRequest,
 } from "../services/supabase.ts";
+import { getChatLines, serializeChatLog } from "../services/chat_takehome.ts";
 import { botProvider } from "../services/browserbase_provider.ts";
 import { searchForKeywords } from "../services/browserbase_transcript.ts";
 import { processTranscript, containsDevanagari, hinglishStats } from "../services/hinglish.ts";
@@ -407,6 +408,9 @@ export class MeetingManager {
           full_transcript: processedTranscript,
           summary: transcript.summary || `meeting summary for ${meeting.title}. recorded ${rawTranscript.split("\n").length} transcript lines.`,
           action_items: actionItems,
+          // the typed conversation goes home with the spoken one (the owner,
+          // oct 27 2026): chat lines recorded as they arrived.
+          chat_log: serializeChatLog(await getChatLines(meeting.id)),
         });
 
         await provider.destroy(meeting.bot_id).catch(() => {});
