@@ -42,6 +42,16 @@ const FILLER_COOLDOWN_MS = 5000;          // if filler heard recently, wait 5s m
 const MIN_SENTENCE_LENGTH = 10;           // don't speak for very short utterances
 const RATE_DROP_THRESHOLD = 0.4;          // 40%+ rate drop might indicate end
 
+// screensharing awareness (the owner, oct 27 2026): the signal's
+// isScreenSharing means "the CURRENT SPEAKER is the one presenting".
+// the reader (getActiveScreensharerInSession) knows who is
+// presenting; this maps that onto the signal so a presenter's setup
+// pauses are paced as setup, not mistaken for end of turn.
+export function sharerToSignal(sharer: string | null, currentSpeaker: string | null): boolean {
+  if (!sharer || !currentSpeaker) return false;
+  return sharer.trim().toLowerCase() === currentSpeaker.trim().toLowerCase();
+}
+
 export function detectEndOfTurn(signal: TurnSignal): TurnDecision {
   // rule 1: if screen sharing and there's cursor activity, the pause is likely setup
   if (signal.isScreenSharing && signal.cursorActivity) {

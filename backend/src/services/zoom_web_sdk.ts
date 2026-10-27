@@ -41,6 +41,15 @@
 //     quietly fall back to the whole room is a leak, never a feature.
 //   window.prixieShareScreen("start" | "stop")
 //     -> Promise<"started" | "stopped" | "failed">
+//   window.prixieRaiseHand() -> Promise<boolean> (the sdk raises the
+//     same hand everyone else in the meeting sees)
+//   window.prixieReact(reaction) -> Promise<boolean> (the sdk's own
+//     reaction call; the name is normalized by the caller)
+//   window.prixieScreensharer() -> string | null (who is presenting,
+//     tracked from the sdk's onShareContentChange / onUserUpdate
+//     bShareScreen events; null = nobody. note from the sdk docs: a
+//     REMOTE share reports sharingType "unknown", so the page tracks
+//     the sharer's NAME from the events, never the surface)
 //     ZoomMtg.shareScreen underneath; what she shares from the cloud
 //     browser is the page's own view (canvas renders), per the
 //     screenshare design: no standing vm, the show-and-tell moment is

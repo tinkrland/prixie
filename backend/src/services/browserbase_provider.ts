@@ -25,6 +25,7 @@ import {
   KNOCK_TEXTS,
 } from "./browserbase.ts";
 import { shareLinkInSession, stopLinkShare, navigateSharedLink, clickSharedLink, narrateSlide, advanceSlide } from "./link_share.ts";
+import { reactInSession, raiseHandInSession, getActiveScreensharerInSession } from "./browserbase.ts";
 import { transcribeBrowserbaseSession } from "./browserbase_transcript.ts";
 import { recordOwnChatLine } from "./chat_takehome.ts";
 import {
@@ -200,6 +201,24 @@ export class BrowserbaseProvider implements BotProvider {
     const r = await advanceSlide(botId);
     if (!r.ok) console.error("link share advance:", r.reason);
     return r.ok;
+  }
+
+  // reactions + raise hand (meet's dom or the sdk's page seam), and
+  // screensharing awareness: who is presenting, from inside the room
+  async react(botId: string, emoji: string): Promise<boolean> {
+    const ok = await reactInSession(botId, emoji);
+    if (!ok) console.log(`prixie: reaction ${emoji} could not be sent (host restriction or no tray)`);
+    return ok;
+  }
+
+  async raiseHand(botId: string): Promise<boolean> {
+    const ok = await raiseHandInSession(botId);
+    if (!ok) console.log("prixie: raise hand could not be made (host restriction or no control)");
+    return ok;
+  }
+
+  async getActiveScreensharer(botId: string): Promise<string | null> {
+    return await getActiveScreensharerInSession(botId);
   }
 
   // entry-time monitor install. installChatMonitor carries its own

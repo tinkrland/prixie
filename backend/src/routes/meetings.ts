@@ -220,6 +220,49 @@ meetingsRouter.post("/:id/screenshare", async (c) => {
   return c.json({ ok, action, meeting_id: meeting.id });
 });
 
+// the reaction + hand routes (the owner, oct 27 2026: "google meet
+// reactions and stuff"). both are provider seams over the page: a
+// host who disabled them makes the honest false, never a workaround.
+meetingsRouter.post("/:id/react", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const meeting = await getMeetingById(c.req.param("id"));
+  if (!meeting) return c.json({ error: "meeting not found" }, 404);
+  if (!meeting.bot_id) return c.json({ error: "no live session for meeting" }, 409);
+  if (!body?.emoji) return c.json({ error: "react needs an emoji name (e.g. 'thumbs up')" }, 400);
+
+  const { botProvider } = await import("../services/browserbase_provider.ts");
+  const fn = botProvider.react;
+  if (!fn) return c.json({ error: "provider cannot send reactions" }, 501);
+  const ok = await fn.call(botProvider, meeting.bot_id, String(body.emoji)).catch(() => false);
+  return c.json({ ok, emoji: String(body.emoji), meeting_id: meeting.id });
+});
+
+meetingsRouter.post("/:id/hand", async (c) => {
+  const meeting = await getMeetingById(c.req.param("id"));
+  if (!meeting) return c.json({ error: "meeting not found" }, 404);
+  if (!meeting.bot_id) return c.json({ error: "no live session for meeting" }, 409);
+
+  const { botProvider } = await import("../services/browserbase_provider.ts");
+  const fn = botProvider.raiseHand;
+  if (!fn) return c.json({ error: "provider cannot raise hands" }, 501);
+  const ok = await fn.call(botProvider, meeting.bot_id).catch(() => false);
+  return c.json({ ok, meeting_id: meeting.id });
+});
+
+// screensharing awareness (the owner, oct 27 2026): who is presenting,
+// read live from inside the room. null = nobody.
+meetingsRouter.get("/:id/screensharer", async (c) => {
+  const meeting = await getMeetingById(c.req.param("id"));
+  if (!meeting) return c.json({ error: "meeting not found" }, 404);
+  if (!meeting.bot_id) return c.json({ error: "no live session for meeting" }, 409);
+
+  const { botProvider } = await import("../services/browserbase_provider.ts");
+  const fn = botProvider.getActiveScreensharer;
+  if (!fn) return c.json({ error: "provider cannot read the screensharer" }, 501);
+  const name = await fn.call(botProvider, meeting.bot_id).catch(() => null);
+  return c.json({ sharing: !!name, ...(name ? { name } : {}), meeting_id: meeting.id });
+});
+
 meetingsRouter.delete("/:id", async (c) => {
   try {
     const id = c.req.param("id");

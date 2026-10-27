@@ -61,6 +61,9 @@ export interface BotProvider {
   clickLinkShare?(botId: string, selector?: string, text?: string): Promise<boolean>;
   narrateLinkSlide?(botId: string): Promise<boolean>;
   advanceLinkSlide?(botId: string): Promise<boolean>;
+  react?(botId: string, emoji: string): Promise<boolean>;
+  raiseHand?(botId: string): Promise<boolean>;
+  getActiveScreensharer?(botId: string): Promise<string | null>;
 
   // optional: the q&a flow's prompted out-loud ask. unmute and speak a
   // question, only ever after a human prompted her to. engines whose

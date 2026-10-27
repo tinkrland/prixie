@@ -395,6 +395,140 @@ export async function unmuteAndSpeakInSession(sessionId: string, question: strin
   return value === "speaking" || value === "speech_failed";
 }
 
+// --- reactions + raise hand (the owner, oct 27 2026: "google meet
+// reactions and stuff") ---
+//
+// meet exposes both as plain dom (aria-labelled, per google's meet
+// docs): "Send a reaction" opens the tray on CLICK, the emoji buttons
+// carry their own names (Thumbs up, Heart, Clapping hands, Joy,
+// Surprised, Thinking, Cry, Disappointed, Party popper), and the hand
+// is a toggle ("Raise hand" / "Lower hand"). a host who turns
+// reactions off disables the button (aria-disabled) and this answers
+// false, honestly, never a guess. zoom rides the hosted page's seam
+// instead (the web sdk raises the same hand everyone else sees); the
+// seam contract lives in zoom_web_sdk.ts.
+
+// the names the meet tray gives its emoji buttons (verified against
+// google's docs; anything else is refused, not approximated)
+export const MEET_REACTIONS = [
+  "thumbs up",
+  "heart",
+  "clapping hands",
+  "joy",
+  "surprised",
+  "thinking",
+  "cry",
+  "disappointed",
+  "party popper",
+];
+
+export function normalizeReaction(emoji: string): string | null {
+  const e = (emoji || "").trim().toLowerCase();
+  return MEET_REACTIONS.includes(e) ? e : null;
+}
+
+export async function reactInSession(sessionId: string, emoji: string): Promise<boolean> {
+  const reaction = normalizeReaction(emoji);
+  if (!reaction) return false;
+
+  // the page seam first: the hosted zoom sdk page implements it on
+  // top of the sdk's own reaction call
+  const seam = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        if (typeof window.prixieReact === "function") {
+          return window.prixieReact(${JSON.stringify(reaction)}) ? "seam" : "seam-refused";
+        }
+        // meet's dom: the tray button, then the emoji by its own name.
+        // a host-disabled button (aria-disabled or disabled) is an
+        // honest no, never a forced click.
+        const trayBtn = [...document.querySelectorAll('[aria-label*="Send a reaction" i]')].find((b) => !b.disabled && b.getAttribute("aria-disabled") !== "true");
+        if (!trayBtn) return "no-reactions";
+        trayBtn.click();
+        const emojiBtns = [...document.querySelectorAll('[aria-label]')].filter((b) => {
+          const label = (b.getAttribute("aria-label") || "").trim().toLowerCase();
+          return label === ${JSON.stringify(reaction)} || label.includes(${JSON.stringify(reaction)});
+        });
+        if (!emojiBtns.length) return "no-emoji";
+        emojiBtns[0].click();
+        return "reacted";
+      })()
+    `,
+    returnByValue: true,
+  });
+  const value = seam?.result?.result?.value;
+  if (value === "seam-refused") return false;
+  return value === "seam" || value === "reacted";
+}
+
+export async function raiseHandInSession(sessionId: string): Promise<boolean> {
+  // the page seam first: the sdk hand is the same hand the room sees
+  const seam = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        if (typeof window.prixieRaiseHand === "function") {
+          return window.prixieRaiseHand() ? "seam" : "seam-refused";
+        }
+        // meet's dom: a toggle ("Raise hand" / "Lower hand"). the goal
+        // state is hand up: an already-raised hand is a success, and
+        // the lower button is NEVER clicked, so she cannot put her own
+        // hand down by asking for it up.
+        const cands = [...document.querySelectorAll('[aria-label]')];
+        const lower = cands.find((b) => /lower hand/i.test(b.getAttribute("aria-label") || ""));
+        if (lower) return "already-raised";
+        const raise = cands.find((b) => /raise hand/i.test(b.getAttribute("aria-label") || "") && !b.disabled && b.getAttribute("aria-disabled") !== "true");
+        if (!raise) return "no-hand";
+        raise.click();
+        return "raised";
+      })()
+    `,
+    returnByValue: true,
+  });
+  const value = seam?.result?.result?.value;
+  if (value === "seam-refused") return false;
+  return value === "seam" || value === "raised" || value === "already-raised";
+}
+
+// --- screensharing awareness (the owner, oct 27 2026: "when someone else
+// is screensharing") ---
+//
+// she knows who is presenting, read from inside the room. the hosted
+// sdk page owns the exact event (the sdk's onShareContentChange /
+// onUserUpdate with bShareScreen); the page seam is the contract. the
+// dom fallbacks are the viewer indicators both platforms actually
+// render (zoom's web client banner "You are viewing X's screen",
+// meet's tile header "X is presenting"), so the generic path works
+// without any page cooperation. null = nobody is presenting; never a
+// guess.
+export async function getActiveScreensharerInSession(sessionId: string): Promise<string | null> {
+  const result = await cdpExecute(sessionId, "Runtime.evaluate", {
+    expression: `
+      (() => {
+        // the page seam: the hosted zoom sdk page tracks the sharer
+        if (typeof window.prixieScreensharer === "function") {
+          const name = window.prixieScreensharer();
+          if (name && typeof name === "string") return JSON.stringify({ name: name.trim() });
+          return JSON.stringify({ name: null });
+        }
+        // dom fallbacks: the viewer indicators
+        const text = document.body.innerText;
+        let m = text.match(/You are viewing ([^'\u2019]+)['\u2019]s screen/i);
+        if (m) return JSON.stringify({ name: m[1].trim() });
+        m = text.match(/([A-Za-z0-9 ._'\u2019-]+) is presenting/i);
+        if (m) return JSON.stringify({ name: m[1].trim() });
+        return JSON.stringify({ name: null });
+      })()
+    `,
+    returnByValue: true,
+  });
+  try {
+    const parsed = JSON.parse(result?.result?.result?.value || "{}");
+    return parsed?.name || null;
+  } catch {
+    return null;
+  }
+}
+
 // --- element interaction (via CDP) ---
 
 export async function findAndClick(sessionId: string, selector: string, timeoutMs = 10000): Promise<boolean> {
