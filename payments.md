@@ -182,3 +182,30 @@ the agentcard step-4 test.
 `PAYMENT_RAIL` forces (`kernel` | `agentcard`); else kernel first
 (digits never through prixie beats instant); else agentcard; else an
 honest stop with the reason in the receipt.
+
+### the $0 autonomy case (anne's correction, oct 28 2026)
+
+the walk exists for 0-funding redemptions: promo code applied, cc
+gate still wants a card, total parsed at $0, nothing ever charged. for
+that case the autonomy question is `whose card is it`, because a rail
+that ISSUES the card owns its cvv and never needs the owner at the
+checkout:
+
+- agentcard.ai: issues one-time cards, so digits AND cvv are the
+  rail's own, instant, approval-free = THE autonomous $0 rail. this is
+  exactly why the digits-once carve-out exists. pending anne's kyc.
+- kernel: issues ephemeral cards too, so the cvv is never a problem,
+  but every purchase parks for the owner's approval even at $0.
+  autonomous on cvv, gated on approval.
+- agentvault.io: uses the OWNER'S cards, so the cvv is hers, so a live
+  prompt per cvv-demanding checkout is inherent to its design, not a
+  bug. verified oct 28 2026: `get_token_catalog` returns identity,
+  addresses, cards, logins and NEVER a cvv; there is no api parameter
+  that accepts one, and infisical's proxy cannot hand one across (its
+  swap happens on http requests the agent makes; the enclave types
+  inside its own boundary). so agentvault.io belongs to the real-money
+  case where the owner is in the loop, NOT to unattended $0 autonomy.
+  one honest nuance: a merchant that does not ask for the cvv on a $0
+  card-on-file checkout can complete on agentvault.io with no prompt,
+  but that depends on the merchant form, while kernel and agentcard do
+  not.
