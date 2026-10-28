@@ -124,9 +124,35 @@ verified shape (docs.agentvault.io, oct 28 2026):
   and silent blocks hand the live page back to the owner
   (request_challenge_handoff), and an outcome is confirmed from the
   live page + run report + receipt before claiming success.
-- CVV is never stored (live-cvv guide): a checkout that needs one
-  needs the owner in the loop, or their handoff path. friction to
-  verify before promising autonomy on cvv-demanding merchants.
+- CVV is THE settled path now (live-cvv guide, oct 28 2026): never
+  stored, because PCI DSS 3.3.1 forbids storing it at all, and their
+  guide forbids the agent sourcing it from ANYWHERE ("a code typed into
+  a chat ends up in the model provider's records"). the actual
+  mechanism: fill the number and the code in ONE fill_checkout call
+  (number first); the code fill pauses up to 3 minutes while the OWNER
+  types it into the vault's own prompt; their enclave puts it in the
+  merchant field; the agent never sees it. a fill that cannot complete
+  returns cvv_entry_required and the honest move is to report it, not
+  to retry with a sourced code. so cvv-demanding merchants cost exactly
+  one owner prompt, and that prompt IS the design, not a gap to fill
+  with a vault: a stored CVV (infisical agent vault or any other) would
+  break the rule the rail is built around, so the combination is out by
+  policy, not by effort.
+- infisical's agent-vault (github.com/Infisical/agent-vault, MIT, docs
+  agent-vault.mintlify.app) is a DIFFERENT animal and not a cvv answer:
+  an HTTP credential PROXY for agents (29-ish services model: access
+  bundles, variables, oauth creds; the agent holds dummy credentials
+  and the proxy swaps real ones at the request layer). it never fills a
+  browser form, so it cannot reach a checkout at all. where it DOES
+  fit prixie is the other custody domain: HER OWN http credentials
+  (llm keys, github, slack, mcp servers, her own signups behind oauth)
+  instead of env vars, self-hosted and per-service revocable. that is
+  the password-manager horizon row's natural home and a separate lane
+  from the payment rail. custody rule from kernel applies here too:
+  each provider swaps only inside its own boundary (kernel fills only
+  its browsers, agentvault.io types only in its enclave, infisical
+  swaps only proxied HTTP), so a credential lives with whichever
+  provider does the swap, never centralized.
 - logins too: one credential per site swapped at submit, TOTP without
   the secret leaving the backend, agent-signup with approval, and url
   locking per token. covers the kernel-managed-auth job as well.
