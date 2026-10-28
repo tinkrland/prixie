@@ -94,6 +94,63 @@ not built: the kernel integration of agentcard.sh already carries the
 alias mechanics, and the auto-approval setting would need the owner's
 account setup first.
 
+## the agentvault.io candidate (verified from their docs, oct 28 2026, not built)
+
+agentvault.io (agent cards + saved logins for agents) is the first
+candidate that closes the prompt-injection hole structurally: the
+agent's context only ever holds hollow tokens (av_card_1_number_xxx)
+that charge nothing anywhere, and the real values are typed by a
+hardware-attested enclave when the checkout submits. a compromised or
+injected agent leaks nothing. that is a different claim from both
+built rails: kernel fills from its vault but still needs the owner's
+approval on every purchase, and agentcard.ai issues real (one-time,
+capped) digits that pass through her memory once.
+
+verified shape (docs.agentvault.io, oct 28 2026):
+- the MCP server (mcp.agentvault.io/mcp, oauth only, no api key) is a
+  FULL browser lane, not just token fills: open_page, click, press,
+  wait_for_selector, observe_page, snapshot_page, detect_challenge,
+  fill_checkout, fill_login, request_challenge_handoff,
+  get_session_outcome, get_run_report, close_session (29 tools). the
+  checkout page lives in THEIR proxy browser; the enclave types the
+  card into it. so the integration shape is the kernel rail's: hand
+  the payment gate to the vault's browser during the checkout moment,
+  browserbase keeps the meeting.
+- policy-based approval instead of per-purchase: per-card daily /
+  weekly / monthly / per-txn caps, optional merchant allowlists,
+  confirmation threshold at/above an amount, kill switch, auto-pause
+  on a limit. what both built rails lack.
+- challenges are handled honestly: 3-D Secure, one-time codes, CAPTCHA
+  and silent blocks hand the live page back to the owner
+  (request_challenge_handoff), and an outcome is confirmed from the
+  live page + run report + receipt before claiming success.
+- CVV is never stored (live-cvv guide): a checkout that needs one
+  needs the owner in the loop, or their handoff path. friction to
+  verify before promising autonomy on cvv-demanding merchants.
+- logins too: one credential per site swapped at submit, TOTP without
+  the secret leaving the backend, agent-signup with approval, and url
+  locking per token. covers the kernel-managed-auth job as well.
+- pricing (oct 28 2026): free = 1 agent card, 5 payments/month,
+  unlimited credentials; plus $19/mo (3 free months for first 1000) =
+  5 cards, 100 payments/month, daily spend limits + webhooks;
+  enterprise = merchant allowlists.
+- the checkout recipe registry (get_checkout_recipes + open json
+  recipes per merchant, schema + validator + autonomy benchmark) is
+  useful to prixie's OWN checkout walk with or without the rail.
+- trust boundary, theirs and ours: it may only be connected where
+  nobody but the owner can reach the agent (one gateway = one trust
+  boundary). solas is owner-only, so that holds; also the hosted
+  server refuses account tools until the owner sets Connected apps
+  permissions, agent cards and destinations in the dashboard.
+
+blocked at connect time (oct 28 2026): the mcp config here
+(.agents/mcps/config.json) supports remote urls and headers, not an
+oauth flow, and the server answers 401 + oauth metadata to anonymous
+calls. the owner adds it (editor Tools tab if its dialog runs oauth,
+else another client) and signs in once; then the evaluation is one
+capped sandbox checkout against their proxy browser, in the shape of
+the agentcard step-4 test.
+
 ## rail picking
 
 `PAYMENT_RAIL` forces (`kernel` | `agentcard`); else kernel first
