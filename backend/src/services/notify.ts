@@ -11,6 +11,8 @@
 // runs. a notify failure logs a warning and never takes the capture path
 // down. no creds configured means no-op with a warn, not a crash.
 
+import { outboundProvider, sendViaProvider } from "./mail_outbound.ts";
+
 export interface NotifyEmail {
   subject: string;
   body: string;
@@ -98,6 +100,12 @@ export function buildCaptureEmail(
 }
 
 export async function notifyOwner(email: NotifyEmail): Promise<boolean> {
+  // the relay-back can ride any outbound provider (PRIXIE_OUTBOUND_MAIL,
+  // unset = agentmail). the two true-inbox providers have their own
+  // senders; agentmail keeps the one below.
+  const via = await sendViaProvider(outboundProvider(), email);
+  if (via !== null) return via;
+
   const apiKey = Deno.env.get("AGENTMAIL_API_KEY");
   const inboxId = Deno.env.get("AGENTMAIL_INBOX_ID");
   const to = Deno.env.get("PRIXIE_OWNER_EMAIL");

@@ -89,7 +89,7 @@ honest not-built list.
 
 | channel | status | notes |
 | --- | --- | --- |
-| email (agentmail outbound) | working | notifyOwner sends the take-home to PRIXIE_OWNER_EMAIL using the creds she already has from the inbound side |
+| email (agentmail outbound) | working | notifyOwner sends the take-home to PRIXIE_OWNER_EMAIL using the creds she already has from the inbound side. the relay-back is now MULTI-PROVIDER (anne, oct 28 2026): PRIXIE_OUTBOUND_MAIL = agentmail (default, existing deploys change nothing) | dearagent | carlyemail, and the take-home rides the same provider the mail arrives at: dearagent composes via the self-hosted worker's POST /inboxes/:inbox/messages (DEARAGENT_BASE_URL + DEARAGENT_API_KEY + DEARAGENT_FROM_INBOX), carlyemail via POST /v0/inboxes/:id/messages/send (CARLYEMAIL_API_KEY + CARLYEMAIL_INBOX_ID; "to" is an array in their contract). both built, never live-run; the notify contract holds on every rail: missing creds = warn + no, a failed send never takes the capture path down |
 | imessage | not built | same notifyOwner seam, not wired |
 | signal | not built | same seam |
 | whatsapp | not built | same seam |
