@@ -20,6 +20,8 @@ import memoriumRouter from "./routes/memorium.ts";
 import memoriumTagsRouter from "./routes/memorium_tags.ts";
 import voicePresetsRouter from "./routes/voice_presets.ts";
 import { agentMailRouter } from "./routes/agentmail.ts";
+import { dearAgentRouter } from "./routes/webhooks/dearagent.ts";
+import { carlyEmailRouter } from "./routes/webhooks/carlyemail.ts";
 import { zoomRouter } from "./routes/zoom.ts";
 
 import realtimeWebhook from "./routes/webhooks/realtime.ts";
@@ -90,6 +92,15 @@ app.route("/webhooks/realtime", realtimeWebhook);
 app.route("/webhooks/google-calendar", googleCalendarWebhook);
 // her inbox: forward a meeting invite to her agentmail address and she joins
 app.route("/webhooks/agentmail", agentMailRouter);
+
+// the true-inbox providers (anne, oct 28 2026): for people whose custom
+// domain's mail should live in a REAL inbox (self-hosted on their own
+// cloudflare via dearagent.sh, or hosted with custom domains via
+// carlyemail.com) instead of forwarding to an agentmail address.
+// same shared core: whitelisted senders only, extractMeetingUrl, she
+// joins. both closed by default (their signing secrets in env).
+app.route("/webhooks/dearagent", dearAgentRouter);
+app.route("/webhooks/carlyemail", carlyEmailRouter);
 
 // her imessage: text her a link and she joins (photon/spectrum, hmac
 // signed, whitelisted senders only, same contract as the inbox door)
