@@ -226,7 +226,7 @@ Deno.test("the camera-off plan never cuts the sentence", () => {
   assert(plan.hideVisual === "now", "the visual goes dark immediately");
   assert(plan.keepAudioUntilMs === 4200, "the masky clip plays out fully");
   const sw = plan.voiceSwitch;
-  assert(sw.atMs === 4200 && sw.to === "yap", "yap picks up after the sentence");
+  assert(sw.atMs === 4200 && sw.to === "voice", "voice picks up after the sentence");
   assert(plan.cutMidSentence === false, "by construction, not by discipline");
 });
 
@@ -259,7 +259,7 @@ Deno.test("the adapter hides the camera first and unpublishes only after the cli
   assert(plan.keepAudioUntilMs === 3000, "the plan matches the clip");
 });
 
-Deno.test("after camera-off, face-off turns route to yap, not to a render", async () => {
+Deno.test("after camera-off, face-off turns route to voice, not to a render", async () => {
   const said: string[] = [];
   const published: string[] = [];
   // a PersonaVoice that is off camera: runCall must never reach say().
@@ -274,6 +274,6 @@ Deno.test("after camera-off, face-off turns route to yap, not to a render", asyn
     publish: async () => void published.push("render"),
     publishFaceOff: async (u: TestUtterance) => void said.push(u.text),
   }, () => Promise.resolve(utterances.shift() as (TestUtterance | null)));
-  assert(said[0] === "still here" && said[1] === "audio only", "face-off turns go to yap");
+  assert(said[0] === "still here" && said[1] === "audio only", "face-off turns go to voice");
   assert(published.length === 0, "no masky render happens while the camera is off");
 });

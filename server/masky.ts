@@ -10,7 +10,7 @@
 //
 // note on voice: the speak flow takes TEXT, not audio. masky owns the tts
 // (higgs, with delivery cues via voiceStyle) and the lip-sync together.
-// yap's live voice stays separate; for camera presence the avatar's cloned
+// voice's live voice stays separate; for camera presence the avatar's cloned
 // voice is the one on screen.
 
 const MASKY_API_KEY = Deno.env.get("MASKY_API_KEY") || "";
