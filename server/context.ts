@@ -3,6 +3,8 @@
 // retelldb runs as its own service (retelldb serve, fastapi) or in-process; voice
 // talks to it over http so the voice loop stays decoupled.
 
+import { recallForCall } from "./memory_bridge.ts";
+
 const RETELLDB_URL = Deno.env.get("RETELLDB_URL") || "http://localhost:8000";
 const RETELLDB_API_KEY = Deno.env.get("RETELLDB_API_KEY") || "";
 
@@ -68,23 +70,32 @@ export async function loadProfile(personaId: string): Promise<PersonaProfile | n
   return await resp.json();
 }
 
-// the persona's memory for a query. only their graph plus the shared graph are
-// searched; no other persona's facts can ever come back.
-export async function queryMemory(personaId: string, query: string, topK = 5): Promise<MemoryNode[]> {
-  const resp = await fetch(`${RETELLDB_URL}/v1/query`, {
-    method: "POST",
-    headers: retellHeaders(),
-    body: JSON.stringify({ query, persona_id: personaId, top_k: topK, include_edges: false }),
+// the persona's memory for a query, THROUGH THE BRIDGE (anne, oct 29 2026):
+// voice declares platform "voice" and, when it has one, its meeting, so the
+// head can carry anchored memory instead of treating every call as a cold
+// start. the policy and the anchors stay in retelldb / the proxy; this is
+// only the declaration. a bridge that reaches nothing returns [] so the
+// loop runs on the persona profile alone.
+export async function queryMemory(
+  personaId: string,
+  query: string,
+  topK = 5,
+  meetingId?: string,
+): Promise<MemoryNode[]> {
+  const bridged = await recallForCall({
+    query,
+    personaId,
+    meetingId,
+    topK,
+    platform: "voice",
   });
-  if (!resp.ok) throw new Error(`retelldb query failed: ${resp.status}`);
-  const data = await resp.json();
-  return (data.result?.nodes ?? []).map((sn: any) => ({
-    id: sn.node.id,
-    title: sn.node.title,
-    type: sn.node.type,
-    content: sn.node.content,
-    tags: sn.node.tags ?? [],
-    score: sn.score,
+  return bridged.nodes.map((n) => ({
+    id: n.id,
+    title: n.title,
+    type: n.type as MemoryNode["type"],
+    content: n.content,
+    tags: [],
+    score: n.score,
   }));
 }
 
@@ -115,7 +126,7 @@ export async function loadContext(
   const [profile, memory, qa] = await Promise.all([
     loadProfile(personaId),
     meetingTopic
-      ? queryMemory(personaId, meetingTopic)
+      ? queryMemory(personaId, meetingTopic, 5, meetingId)
       : Promise.resolve([] as MemoryNode[]),
     loadPreparedQuestions(meetingId),
   ]);
