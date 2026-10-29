@@ -8,6 +8,8 @@ Ensures strict dual-graph namespace isolation and idempotent source-URI upserts.
 import time
 import logging
 from typing import Optional, Dict, Any, List, Set
+from retelldb.routing.scope import MemoryScope
+
 from retelldb.models.schema import (
     NodeType,
     EdgeType,
@@ -64,7 +66,8 @@ class IngestionPipeline:
         namespace: Optional[str] = None,
         title: Optional[str] = None,
         source_uri: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        scope: Optional["MemoryScope"] = None
     ) -> IngestResponse:
         """Run full ingestion pipeline with strict persona isolation and source upsert."""
         t_start = time.perf_counter()
@@ -82,6 +85,15 @@ class IngestionPipeline:
 
         # 2. Fast Tier LLM Extraction: refine nodes and normalize tags
         refined_nodes = self.extractor.refine_nodes(norm_doc.nodes)
+
+        # platform scope provenance (anne, oct 29 2026): a write remembers
+        # WHERE it happened (platform:<p>, connection:<id>) so the read
+        # rules can hold it back later. an unscoped ingest writes global
+        # memory exactly as before.
+        if scope is not None:
+            stamp = scope.provenance_tags()
+            for node in refined_nodes:
+                node.tags = sorted(set(list(node.tags) + stamp))
 
         # 3. Strong Tier LLM Extraction: infer relationships
         final_edges = self.extractor.infer_relationships(refined_nodes, norm_doc.edges)

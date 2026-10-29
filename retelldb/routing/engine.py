@@ -18,6 +18,8 @@ from retelldb.models.query import (
     ScoredNode,
     SubGraphResult,
 )
+from retelldb.models.schema import SHARED_NAMESPACE
+from retelldb.routing.scope import MemoryScope, filter_nodes
 from retelldb.storage.base import BaseGraphStore, BaseVectorStore
 from retelldb.storage.embedder import ContextualEmbedder
 from retelldb.routing.persona import PersonaRouter
@@ -158,6 +160,20 @@ class RetrievalEngine:
         scored_nodes.sort(key=lambda x: (x.score, x.confidence), reverse=True)
         top_nodes = scored_nodes[:request.top_k]
 
+        # 4b. Platform scope (anne, oct 29 2026): carry over or drop, per
+        # persona and per platform. only applies when the caller declares
+        # a platform; no platform = the pre-scope behavior, unchanged.
+        dropped_reasons: List[Dict[str, str]] = []
+        if getattr(request, "platform", None):
+            scope = MemoryScope(
+                persona_id=request.persona_id,
+                platform=request.platform,
+                connection_id=getattr(request, "connection_id", None),
+            )
+            top_nodes, dropped_reasons = filter_nodes(
+                top_nodes, scope, scope, shared_ids={SHARED_NAMESPACE}
+            )
+
         # 5. Connect edges in retrieved subgraph
         final_edges: List[GraphEdge] = []
         traversal_chains: List[List[str]] = []
@@ -182,6 +198,7 @@ class RetrievalEngine:
             target_graph=target_graph,
             retrieval_path=strategy,
             nodes=top_nodes,
+            dropped=dropped_reasons,
             edges=final_edges,
             traversal_chains=traversal_chains,
             confidence_signals={

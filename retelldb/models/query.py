@@ -24,6 +24,12 @@ class QueryRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=50)
     include_edges: bool = True
     tag_confidence_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+    # platform scope (anne, oct 29 2026): the surface this query runs
+    # on, and who is in front of her there. both optional: a caller
+    # that declares no platform keeps the pre-scope behavior, so the
+    # migration is per surface, never a flag day.
+    platform: Optional[str] = None
+    connection_id: Optional[str] = None
 
 
 class ScoredNode(BaseModel):
@@ -40,6 +46,9 @@ class SubGraphResult(BaseModel):
     target_graph: str
     retrieval_path: QueryStrategy
     nodes: List[ScoredNode] = Field(default_factory=list)
+    # what the platform scope held back, with a reason per node: a drop
+    # is a decision she can explain, never a silent absence
+    dropped: List[Dict[str, str]] = Field(default_factory=list)
     edges: List[GraphEdge] = Field(default_factory=list)
     traversal_chains: List[List[str]] = Field(default_factory=list)
     confidence_signals: Dict[str, float] = Field(default_factory=dict)
