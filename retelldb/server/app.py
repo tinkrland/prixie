@@ -7,6 +7,7 @@ from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from retelldb.models.persona import PersonaProfile
+from retelldb.routing.scope import MemoryScope
 from retelldb.models.query import (
     QueryRequest,
     QueryResponse,
@@ -94,6 +95,15 @@ def create_app(config: RetellDBConfig = default_config) -> FastAPI:
                 namespace=request.namespace,
                 title=request.title,
                 source_uri=request.source_uri,
+                scope=(
+                    MemoryScope(
+                        persona_id=request.persona_id,
+                        platform=request.platform,
+                        connection_id=request.connection_id,
+                    )
+                    if request.platform
+                    else None
+                ),
                 metadata=request.metadata
             )
             return resp

@@ -80,6 +80,11 @@ class IngestRequest(BaseModel):
     title: Optional[str] = None
     source_uri: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    # provenance (anne, oct 29 2026): where this memory was written, and
+    # who was in front of her. stamped as platform:<p>/connection:<id>
+    # tags so the read rules can hold it back later.
+    platform: Optional[str] = None
+    connection_id: Optional[str] = None
 
 
 class IngestResponse(BaseModel):
