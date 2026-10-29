@@ -285,6 +285,26 @@ the reading that makes the transcript more than text.
 | multi-speaker transcript parsing | working | assembly.ai diarization (speaker_labels), utterances speaker-tagged end to end: capture keyword hits carry the speaker, host reads carry the name |
 | screenshare, call voice, and chat treated hand in hand | working | chat and spoken prompts count equally in the q&a flow (her permission ask answers either), the voice agent pauses through screen-share setup silence, and the chat monitor runs beside the transcript | reading the share's contents is a later step (planned) |
 
+## identity anchors + memory scope (anne, oct 29 2026)
+
+the reconnect rule: a person is anchored ONCE (per-platform handles in
+`PRIXIE_CONNECTIONS`, env-only, never the repo), and every surface that
+holds a handle resolves the same anchor, so a rejoin is a continuation
+and never a cold start. a display name is not a handle. a handle two
+anchors claim resolves to nobody. a self-hosted head (retelldb) holds
+the facts with `platform:` + `connection:` provenance, and the read
+rules drop what must not travel (another person's context, another
+persona's memory, meeting captures on public surfaces).
+
+| surface | status | what |
+| --- | --- | --- |
+| email (agentmail/dearagent/carlyemail) | working | whitelisted forwarded invite writes an anchored fact after the meeting is created |
+| meetings (zoom, meet, teams) | working | `meeting_identity.ts`: `zoom_user_email` resolves on the meeting's platform, then under `email` (one anchor, all surfaces); no email = honest stranger scope |
+| discord | working | occupants resolve by NUMERIC id; the state read only annotates, the scheduler writes one fact per opened call (in-process dedupe, forgotten on empty so a reopened room is a new call), and only when an anchored OWNER is present |
+| receipts | working | capture-match emails carry a "who this is" line: anchored label, honest stranger, or the ambiguity verdict. anchors only, never waits on the head |
+| memory read api | working (built, never live-run) | `POST /api/memory/recall` {query, platform, connection_id?}; no declared platform is a 400 so an undeclared surface cannot read as unanchored |
+| voice, video, socmed | open | branches carry persona/ + retelldb/ (synced) but no runtime head calls yet; they declare `platform: voice|video|socmed` when the first real read lands |
+
 ## on the horizon
 
 not promises, direction (the owner, oct 22 2026). entries wait until they are built.
