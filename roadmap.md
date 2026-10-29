@@ -11,11 +11,11 @@ with several surfaces, one per branch:
   dashboard frontend, browserbase as the one join engine (recall.ai removed:
   no per-platform bot apis, every platform joins through the headless
   browser).
-- `yap`: her voice. livekit room, end-of-turn detection, interruption
+- `voice`: her voice. livekit room, end-of-turn detection, interruption
   handling (barging delegated to assembly.ai), retelldb persona memory as the
   knowledge source.
 - `video`: her face and room. masky.ai renders voice + lip-sync as one turn
-  (one voice, two rooms: masky owns the voice on camera, yap tts covers
+  (one voice, two rooms: masky owns the voice on camera, voice tts covers
   face-off turns), proskena authors the set, rembg matte + ffmpeg composite
   the person over the plate, and our own obs-websocket bridge runs obs studio
   and streams to twitch. camera angle and lighting adjust from the proskena
@@ -36,12 +36,12 @@ with several surfaces, one per branch:
 - post-meeting transcript with hybrid diarization (assembly.ai)
 - delayed join, late join handling (waiting rooms, passwords), breakout rooms
 - attendance marking, capture requests with context
-- the voice (yap), the face (video), the feed sizes (socmed)
+- the voice (voice), the face (video), the feed sizes (socmed)
 
 ### not yet working
 - frontend not wired to the real backend api (mock data in localStorage)
 - twitch stream joining as an attendee (mlh hackathons)
-- prixie speaking questions out loud inside meetings (voice exists on yap,
+- prixie speaking questions out loud inside meetings (voice exists on voice,
   the in-meeting ask is not wired)
 - memorium GUI (weighted/hierarchical memory design lives in memorium.md,
   retelldb is its working core)
