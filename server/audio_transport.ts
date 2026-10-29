@@ -10,7 +10,7 @@
 //     time with a clear error instead of breaking module load.
 //
 // pcm in and out: TTS arrives as Int16 mono frames, STT leaves the same
-// way. the models on either side (yap, assembly.ai) work on pcm; the
+// way. the models on either side (voice, assembly.ai) work on pcm; the
 // transport never transcodes.
 
 export interface AudioFrameData {

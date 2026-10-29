@@ -1,6 +1,6 @@
 # voice
 
-voice (renamed from yap) is prixie's mouth. the voice side of the proxy, decoupled from the meeting join engine (that lives on main) so it can grow at its own pace.
+voice (the branch formerly called yap) is prixie's mouth. the voice side of the proxy, decoupled from the meeting join engine (that lives on main) so it can grow at its own pace.
 
 today prixie sits in meetings silently: she listens, watches the chat, takes notes. voice is the layer that lets her speak. when the floor opens she asks your prepared questions out loud, hears the answer, and knows when to shut up and when to press.
 
@@ -12,7 +12,9 @@ three pieces:
 
 2. **retelldb** for context, now vendored in this branch and reoriented from documentation retrieval to persona memory. what she should know before she opens her mouth: who she is right now (the persona's voice profile), the meeting's topic, the questions she was sent to ask. every persona gets its own isolated memory graph, plus one shared graph for global facts. a persona's facts never leak into another persona's head.
 
-3. **mem0** (open source, github.com/mem0ai/mem0) for conversation memory. what was already said earlier in the call and in past calls, so she does not repeat a question that was answered ten minutes ago. the oss js sdk (`mem0ai/oss`) exposes exactly the two calls voice needs: `add(messages, { userId })` and `search(query, { userId })`, with `infer` on so it extracts the facts itself.
+3. **the head bridge** (anne, oct 29 2026): `server/memory_bridge.ts` is how this branch asks the head with its platform declared: the proxy first (`MEETING_API_URL` + `POST /api/memory/recall`, where the meeting's connection anchor resolves server-side), the retelldb endpoint second with `platform: voice`, and nothing third. `server/context.ts` passes its meeting id through, so the same person is recognized whichever surface is speaking. the branch's own read is `loadContext`; the TTS text builder lives outside these branches, so a spoken turn is grounded by its caller passing `Utterance.grounding` (the seam video's handoff carries). no head reachable = the persona profile alone, never an invented fact.
+
+4. **mem0** (open source, github.com/mem0ai/mem0) for conversation memory. what was already said earlier in the call and in past calls, so she does not repeat a question that was answered ten minutes ago. the oss js sdk (`mem0ai/oss`) exposes exactly the two calls voice needs: `add(messages, { userId })` and `search(query, { userId })`, with `infer` on so it extracts the facts itself.
 
 4. **obs + twitch, ours** — the obs-websocket 5.x bridge (server/obs.ts, vendored from the video branch, tests in tests/obs_test.ts). obs runs the streamer's scenes; streaming to twitch is obs's stream key plus our toggle. no masky in the path: masky's native twitch/OBS integration exists, but a streamer's setup is their set of scenes and the bridge to it should be ours.
 

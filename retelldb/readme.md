@@ -2,7 +2,7 @@
 
 persona memory retrieval for agents that actually know things.
 
-retelldb is the memory layer prixie's yap uses: what she knows before she opens her mouth. it ingests a persona's memory files into a per-persona property graph plus a vector index, then retrieves the relevant slice at question time.
+retelldb is the memory layer prixie's voice uses: what she knows before she opens her mouth. it ingests a persona's memory files into a per-persona property graph plus a vector index, then retrieves the relevant slice at question time.
 
 or simply put: memories go in per person, and only that person's head gets searched.
 
