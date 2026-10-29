@@ -138,6 +138,10 @@ export interface Utterance {
   text: string; // what she says (from retelldb-grounded context on yap)
   medium?: string; // "call" | "meeting" | "stage" ...
   voiceStyle?: VoiceStyle; // explicit cues win over the profile
+  // grounding for the turn, when the caller has a subject to ask the head
+  // about (anne, oct 29 2026). no grounding = nothing invented; see
+  // server/context.ts groundTurn()
+  grounding?: string | null;
 }
 
 export interface Render {
@@ -204,7 +208,10 @@ export class PersonaVoice {
     const style = utterance.voiceStyle ??
       voiceStyleFromProfile(this.profile, utterance.medium ?? "call");
 
-    const turn = await speak(this.handle, utterance.text, {
+    const text = utterance.grounding
+      ? `${utterance.grounding}\n\n${utterance.text}`
+      : utterance.text;
+    const turn = await speak(this.handle, text, {
       voiceStyle: style,
       // draft by default: the face is a presence, not a render. bump to
       // standard/high per utterance when the shot matters (a hello clip, a
