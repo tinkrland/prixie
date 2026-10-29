@@ -23,6 +23,7 @@ import { agentMailRouter } from "./routes/agentmail.ts";
 import memoryRouter from "./routes/memory.ts";
 import { dearAgentRouter } from "./routes/webhooks/dearagent.ts";
 import { carlyEmailRouter } from "./routes/webhooks/carlyemail.ts";
+import wahaRouter from "./routes/webhooks/waha.ts";
 import { zoomRouter } from "./routes/zoom.ts";
 
 import realtimeWebhook from "./routes/webhooks/realtime.ts";
@@ -103,6 +104,10 @@ app.route("/webhooks/agentmail", agentMailRouter);
 // joins. both closed by default (their signing secrets in env).
 app.route("/webhooks/dearagent", dearAgentRouter);
 app.route("/webhooks/carlyemail", carlyEmailRouter);
+// whatsapp text rail (WAHA, oct 29 2026): hmac-signed events, whitelisted
+// senders, a join link inside the text runs the same path as a forward.
+// unset WAHA_HMAC_KEY = closed.
+app.route("/webhooks/waha", wahaRouter);
 
 // her imessage: text her a link and she joins (photon/spectrum, hmac
 // signed, whitelisted senders only, same contract as the inbox door)

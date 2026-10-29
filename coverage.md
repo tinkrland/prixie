@@ -92,7 +92,7 @@ honest not-built list.
 | email (agentmail outbound) | working | notifyOwner sends the take-home to PRIXIE_OWNER_EMAIL using the creds she already has from the inbound side. the relay-back is now MULTI-PROVIDER (anne, oct 28 2026): PRIXIE_OUTBOUND_MAIL = agentmail (default, existing deploys change nothing) | dearagent | carlyemail, and the take-home rides the same provider the mail arrives at: dearagent composes via the self-hosted worker's POST /inboxes/:inbox/messages (DEARAGENT_BASE_URL + DEARAGENT_API_KEY + DEARAGENT_FROM_INBOX), carlyemail via POST /v0/inboxes/:id/messages/send (CARLYEMAIL_API_KEY + CARLYEMAIL_INBOX_ID; "to" is an array in their contract). both built, never live-run; the notify contract holds on every rail: missing creds = warn + no, a failed send never takes the capture path down |
 | imessage | not built | same notifyOwner seam, not wired |
 | signal | not built | same seam |
-| whatsapp | not built | same seam |
+| whatsapp (waha) | built, never live-run (oct 29 2026) | the text rail. WAHA signs its webhook with hmac-sha512 over the raw body (`x-webhook-hmac`, algorithm header must say sha512), 5-minute replay window, message ids deduped for 30 minutes. whitelist `PRIXIE_WHATSAPP_WHITELIST` is personal `@c.us` numbers only (a group id is never the owner), entries separated by `,` or `;` so `+1 555 000 2222` is one number, not four. a join link inside a whitelisted text runs the same `extractMeetingUrl -> createMeeting` path as a forwarded invite; no link = `no_join_link`, a stranger = `sender_not_whitelisted`, her own outgoing message = ignored. send side: `WAHA_BASE_URL` + `WAHA_API_KEY` + `WAHA_SESSION` -> `POST /api/sendText`, unset config is a warn and a no. NOT wired into notifyOwner yet: relay-back stays email (imessage built-never-live) until the text rail is live |
 | telegram | not built | same seam |
 | line | not built | same seam |
 | wechat | not built | same seam |
@@ -199,7 +199,7 @@ what she does once she is in the room.
 | capture request answering |  | working | keywords watched in chat and transcript; screenshots on request; chat links captured; answers recorded per request |
 | term detection |  | working | term_detector picks up codes, access info, and other take-home terms from the live text |
 | host identification |  | working | the host name is read from the room and carried into the take-home |
-| relay back to owner |  | working (email), built-never-live-run (imessage) | the notifyOwner seam. imessage relay (photon, oct 25 2026) is built and structurally whitelist-gated, awaiting the owner's photon project creds for a live run; the signal / line / wechat / whatsapp / telegram / dm list above is the honest not-built remainder |
+| relay back to owner |  | working (email), built-never-live-run (imessage, whatsapp) | the notifyOwner seam. imessage relay (photon, oct 25 2026) and whatsapp send (waha, oct 29 2026: `services/whatsapp_relay.ts`) are built and config-gated; neither is wired into notifyOwner yet, which stays email until one is live. signal / line / wechat / telegram / dm above is the honest not-built remainder |
 
 ## interactive participation meeting features
 
