@@ -15,6 +15,8 @@
 // verifies the secret; this module stays pure except for createMeeting.
 
 import { createMeeting } from "./supabase.ts";
+import { scopeFor } from "./memory_scope.ts";
+import { ingestMemory } from "./retelldb.ts";
 import { detectPlatform, extractMeetingUrl } from "./calendar_sync.ts";
 import { parseColloquialTime } from "./colloquial_time.ts";
 
@@ -109,6 +111,19 @@ export async function agentMailInbound(msg: AgentMailMessage): Promise<AgentMail
       join_delay_minutes: 0,
       attendance_method: "none",
     });
+
+    // the head learns who asked, anchored: the mail's sender resolves to
+    // a connection (the owner's own address is the common case), and the
+    // write carries platform + connection provenance so later reads can
+    // carry a person's context across surfaces. fire-and-forget: a
+    // memory failure never takes the join down.
+    const scope = scopeFor("email", msg.from);
+    void ingestMemory(
+      `the owner forwarded a meeting invite by email: "${msg.subject || "(no subject)"}" ` +
+        `(${platform}, ${new URL(joinUrl).host}). she found the join link and is joining.`,
+      scope,
+      { title: `inbound invite: ${msg.subject || platform}`, sourceUri: joinUrl },
+    );
 
     return {
       created: true,
