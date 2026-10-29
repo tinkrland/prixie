@@ -302,8 +302,10 @@ persona's memory, meeting captures on public surfaces).
 | meetings (zoom, meet, teams) | working | `meeting_identity.ts`: `zoom_user_email` resolves on the meeting's platform, then under `email` (one anchor, all surfaces); no email = honest stranger scope |
 | discord | working | occupants resolve by NUMERIC id; the state read only annotates, the scheduler writes one fact per opened call (in-process dedupe, forgotten on empty so a reopened room is a new call), and only when an anchored OWNER is present |
 | receipts | working | capture-match emails carry a "who this is" line: anchored label, honest stranger, or the ambiguity verdict. anchors only, never waits on the head |
-| memory read api | working (built, never live-run) | `POST /api/memory/recall` {query, platform, connection_id?}; no declared platform is a 400 so an undeclared surface cannot read as unanchored |
-| voice, video, socmed | open | branches carry persona/ + retelldb/ (synced) but no runtime head calls yet; they declare `platform: voice|video|socmed` when the first real read lands |
+| memory read api | working (built, never live-run) | `POST /api/memory/recall` {query, platform, connection_id?, meeting_id?}; no declared platform is a 400 so an undeclared surface cannot read as unanchored; a `meeting_id` resolves the anchor HERE (`meeting_identity.ts`), so a surface never carries a copy of who anybody is |
+| voice | working (built, never live-run) | `@voice bb0c3e5`: `server/memory_bridge.ts` declares `platform: voice` and passes the call's meeting id; proxy first (anchored), direct retelldb second (platform declared), nothing third = the persona profile alone, never invented facts. `loadContext` queries through it |
+| video | working (built, never live-run) | `@video 41485fc`: `groundTurn()` (platform `video`) + `Utterance.grounding` rides in front of the spoken text. handoff always SAID "retelldb-grounded context"; now it is |
+| socmed | working (built, never live-run) | `@socmed 04551a7`: same bridge and grounding, platform `socmed`. its captions compose through masky, so grounding lands where the text for a turn is built |
 
 ## on the horizon
 
