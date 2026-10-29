@@ -88,12 +88,12 @@ protocol (in `server/handoff.ts`): the masky turn owns the current sentence, so
 it runs to the sentence's end and the audio clip is never cut. only the visual
 goes dark, and it goes dark at the browser level (the obs source hidden, the
 livekit camera track muted), never by cancelling the render. once the clip
-finishes, masky audio unpublishes and yap owns the voice from the next
+finishes, masky audio unpublishes and voice owns the voice from the next
 utterance on, so there is no odd-sounding seam and no lost context. the
 ordering is enforced by construction: hide visual -> wait out the clip ->
-unpublish -> switch. voice matching between the two rooms lives on the yap
+unpublish -> switch. voice matching between the two rooms lives on the voice
 side: the same retelldb voice profile that maps to masky's voiceStyle cues
-selects yap's voice, so the room hears one person.
+selects voice's voice, so the room hears one person.
 
 ## the stream session
 

@@ -95,8 +95,8 @@ Deno.test("cameraOff: dark now, audio to the sentence's end, then off camera", a
   assertEquals(log, ["video unpublish", "audio unpublish"]);
   assertEquals(clock.now, 4000); // the sleep IS the sentence's end
   assertEquals(plan.cutMidSentence, false);
-  assertEquals(plan.voiceSwitch, { atMs: 4000, to: "yap" });
-  assertEquals(voice.onCamera, false); // face-off turns route to yap next
+  assertEquals(plan.voiceSwitch, { atMs: 4000, to: "voice" });
+  assertEquals(voice.onCamera, false); // face-off turns route to voice next
 });
 
 Deno.test("cameraOn: back on camera; end closes the room", async () => {

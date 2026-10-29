@@ -15,7 +15,7 @@
 //     running ffmpeg.
 //
 // one voice, two rooms stays true: this publisher owns the room where
-// the room SEES her (the camera track); yap owns the voice when she is
+// the room SEES her (the camera track); voice owns the voice when she is
 // off camera (publishFaceOff), which this side deliberately does not
 // implement.
 
@@ -261,7 +261,7 @@ export async function ffprobeGeometry(videoUrl: string): Promise<{ width: number
 // room (the await IS the clip's duration, by -re pacing), unpublishAudio
 // is the camera-off handoff's leg (idempotent: nothing in flight = fine),
 // close() when the call ends. publishFaceOff is deliberately absent:
-// yap owns the voice when she is off camera.
+// voice owns the voice when she is off camera.
 export async function createLivekitPublisher(deps: LivekitPublisherDeps): Promise<LkPublisher> {
   const rtc = deps.rtc ?? defaultLkRtc();
   const runPipe = deps.runPipe ?? denoRunPipe();

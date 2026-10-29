@@ -16,7 +16,7 @@
 // enter. the room hears the render the mouth moves to, and no schedule
 // or sync protocol exists to drift.
 //
-// hear() is the only thing the caller owns: it is yap's side (transcript
+// hear() is the only thing the caller owns: it is voice's side (transcript
 // -> what she says next), and inventing a default for it here would be
 // inventing a fake agent. the caller passes the loop that produces
 // utterances; this file only guarantees they leave as one voice.
@@ -48,7 +48,7 @@ import type { SetSpec } from "../studioify/set.ts";
 export interface CallSessionDeps {
   voice: PersonaVoice;
   publisher: LkPublisher;
-  // yap: transcript -> next utterance. null = the call is over.
+  // voice: transcript -> next utterance. null = the call is over.
   hear(): Promise<Utterance | null>;
   // the voice leg (the flip's default path): the livekit audio transport
   // from the voice branch. voice-first means most turns never render a
@@ -65,7 +65,7 @@ export interface LiveCall {
   run(): Promise<void>;
   // the meeting-side camera-off handoff: no obs here, the livekit camera
   // track IS the browser-level switch. dark now, audio to the sentence's
-  // end, then yap owns the voice from the next utterance on.
+  // end, then voice owns the voice from the next utterance on.
   cameraOff(render: Render, clipMs: number): Promise<CameraOffPlan>;
   // the face comes back with the next render (the camera track
   // republishes itself on the next publish; there is no idle face in a

@@ -1,6 +1,6 @@
 // the handoff: one voice, two rooms.
 //
-// prixie speaks in a livekit room (yap) and wears a face in a meeting (this
+// prixie speaks in a livekit room (voice) and wears a face in a meeting (this
 // branch). those are two pipes, and they drift: the room voice says one thing
 // while the mouth moves to another render. the fix is to stop having two
 // voices. masky's speak turn renders the voice (higgs tts, the avatar's cloned
@@ -46,7 +46,7 @@ import { loadVoiceProfile, recall, voiceStyleFromProfile, type PersonaVoiceProfi
 // ---------------------------------------------------------------------------
 
 export interface Utterance {
-  text: string; // what she says (from retelldb-grounded context on yap)
+  text: string; // what she says (from retelldb-grounded context on voice)
   medium?: string; // "call" | "meeting" | "stage" ...
   voiceStyle?: VoiceStyle; // explicit cues win over the profile
   // grounding for the turn, when the caller has a subject to ask the head
@@ -130,7 +130,7 @@ export class PersonaVoice {
   }
 
   // THE FLIP: the call starts as a livekit voice call. onCamera starts
-  // FALSE: voice turns go to the voice leg (yap), low latency, no render
+  // FALSE: voice turns go to the voice leg (voice), low latency, no render
   // in the loop. the face is opt-in: cameraOn() flips this, and from then
   // on masky owns the render pair (voice + face together, in the cloned
   // match of the same voice). a meeting face is optional presence; a
@@ -174,7 +174,7 @@ ${utterance.text}`
     };
   }
 
-  // what she knows, persona-scoped. this is the yap side's context source and
+  // what she knows, persona-scoped. this is the voice side's context source and
   // the reason the mouth and the memory agree on who is speaking.
   recall<T = unknown>(query: string, limit = 5): Promise<T> {
     return recall<T>(this.personaRef, query, limit);
@@ -197,12 +197,12 @@ ${utterance.text}`
 // sentence, so it runs to the sentence's end: the audio clip is never cut.
 // only the visual goes dark, and it goes dark at the browser level (the obs
 // source hidden, the livekit camera track muted), never by cancelling the
-// render. once the clip has finished, yap owns the voice again, and the
+// render. once the clip has finished, voice owns the voice again, and the
 // conversation picks up with no odd-sounding seam and no lost context.
 export interface CameraOffPlan {
   hideVisual: "now"; // the browser-level camera goes dark immediately
   keepAudioUntilMs: number; // the masky clip plays out fully
-  voiceSwitch: { atMs: number; to: "yap" }; // after the sentence, yap owns the voice
+  voiceSwitch: { atMs: number; to: "voice" }; // after the sentence, voice owns the voice
   cutMidSentence: false; // by construction, not by discipline
 }
 
@@ -211,7 +211,7 @@ export function planCameraOff(clipMs: number): CameraOffPlan {
   return {
     hideVisual: "now",
     keepAudioUntilMs: clipMs,
-    voiceSwitch: { atMs: clipMs, to: "yap" },
+    voiceSwitch: { atMs: clipMs, to: "voice" },
     cutMidSentence: false,
   };
 }
@@ -241,8 +241,8 @@ export class CameraOffAdapter {
     // 2. the masky turn finishes its sentence. the room hears the render
     //    the voice was already speaking, to its last syllable.
     await this.timer.sleep(plan.keepAudioUntilMs);
-    // 3. the sentence is over. masky audio unpublishes, yap takes the next
-    //    utterance, and face-off turns render as yap tts from here on.
+    // 3. the sentence is over. masky audio unpublishes, voice takes the next
+    //    utterance, and face-off turns render as voice tts from here on.
     await this.deps.unpublishMaskyAudio();
     await this.deps.onSwitched?.();
     return plan;
@@ -250,27 +250,27 @@ export class CameraOffAdapter {
 }
 
 // ---------------------------------------------------------------------------
-// the livekit side (yap) implements this; video never touches a track itself
+// the livekit side (voice) implements this; video never touches a track itself
 // ---------------------------------------------------------------------------
 
 export interface RoomPublisher {
   publish(published: { audioUrl: string; videoUrl: string }): Promise<void>;
   idle?(): Promise<void>; // no utterance: leave the idle clips playing
-  // a face-off turn: she is not on camera, so yap tts says it in her voice
-  // and no render is needed. voice matching lives on the yap side: the same
-  // retelldb voice profile that maps to masky's voiceStyle cues selects yap's
+  // a face-off turn: she is not on camera, so voice tts says it in her voice
+  // and no render is needed. voice matching lives on the voice side: the same
+  // retelldb voice profile that maps to masky's voiceStyle cues selects voice's
   // voice, so the two voices are the same voice by construction.
   publishFaceOff?(utterance: Utterance): Promise<void>;
 }
 
 // the call loop. one voice, two rooms: every utterance goes out as the render
 // the room hears and the render the room sees, from the same masky turn.
-// after a camera-off handoff she is off camera, so utterances route to yap
+// after a camera-off handoff she is off camera, so utterances route to voice
 // (publishFaceOff) until the camera comes back on.
 export async function runCall(
   voice: PersonaVoice,
   publisher: RoomPublisher,
-  hear: () => Promise<Utterance | null>, // yap: transcript -> next utterance
+  hear: () => Promise<Utterance | null>, // voice: transcript -> next utterance
 ): Promise<void> {
   for (;;) {
     const utterance = await hear();

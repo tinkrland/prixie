@@ -6,7 +6,7 @@
 //   goLive()      switch to the live scene, start obs's stream (the target
 //                 is whatever integrations/ last pointed obs at: twitch, kick, ...)
 //   cameraOff()   the full handoff: visual dark now, voice to the sentence's
-//                 end, then yap owns the voice
+//                 end, then voice owns the voice
 //   cameraOn()    the face comes back; masky owns the voice again
 //   end()         stop streaming
 //
@@ -42,7 +42,7 @@ export class StreamSession {
       voice: PersonaVoice;
       // the livekit half: unpublish masky's audio after the clip ends.
       unpublishMaskyAudio(): Promise<void>;
-      onFaceOff?(): Promise<void>; // fires once yap owns the voice
+      onFaceOff?(): Promise<void>; // fires once voice owns the voice
     },
   ) {
     this.adapter = new CameraOffAdapter({
@@ -68,7 +68,7 @@ export class StreamSession {
   }
 
   // the camera-off handoff, end to end: hide visual now, masky finishes the
-  // sentence, then audio unpublishes, yap owns the voice, and she is off
+  // sentence, then audio unpublishes, voice owns the voice, and she is off
   // camera from the next utterance on (runCall routes face-off turns to
   // publishFaceOff).
   async cameraOff(render: Render, clipMs: number): Promise<void> {
