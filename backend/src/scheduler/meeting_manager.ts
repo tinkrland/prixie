@@ -19,6 +19,7 @@ import { calendarService } from "../services/calendar.ts";
 import { shouldJoinNow } from "./join_trigger.ts";
 import { discordChannelFromUrl, roomIsOpen } from "../services/discord_watcher.ts";
 import { getSharedWatcher } from "../services/discord_watch_runtime.ts";
+import { noteOpenCalls, openChannelsFromState } from "../services/discord_memory.ts";
 import { enterForm } from "../services/form_entry.ts";
 import { chooseFormEmail } from "../services/form_email.ts";
 import { assertLinkSafe } from "../services/link_safety.ts";
@@ -108,6 +109,9 @@ export class MeetingManager {
         }
         if (trigger === "room_open") {
           const w = getSharedWatcher();
+        // one fact per opened call (deduped in-process): the head
+        // learns the owner was in a discord room, anchored
+        if (w) void noteOpenCalls(openChannelsFromState(w.state)).catch(() => {});
           // a url that is not a channel link is "cannot see", not
           // "closed": the watcher would never say false about a room it
           // cannot name.

@@ -8,6 +8,7 @@ import { captureScreenshot } from "../../services/screenshots.ts";
 import { registerDefaultScreenshotEngines } from "../../services/screenshot_engines.ts";
 import { detectTerms } from "../../services/term_detector.ts";
 import { notifyCaptureMatch } from "../../services/notify.ts";
+import { hostReceiptLine } from "../../services/memory_recall.ts";
 import { detectScarcity } from "../../services/scarcity.ts";
 import { extractExpiryWindow } from "../../services/expiry_window.ts";
 import { expiryReceiptLine } from "../../services/notify.ts";
@@ -515,6 +516,7 @@ realtimeWebhook.post("/", async (c) => {
           // hears about it the moment she does. a heard window lands in
           // the subject line: the inbox IS the push.
           await notifyCaptureMatch({
+            hostLine: hostReceiptLine(meeting),
             meetingTitle: meeting.title,
             captureTitle: req.title,
             snippet: captureSnippet,
@@ -619,6 +621,7 @@ realtimeWebhook.post("/", async (c) => {
             // same instant push for chat: forms and links dropped mid-call
             // often close when the call does
             await notifyCaptureMatch({
+            hostLine: hostReceiptLine(meeting),
               meetingTitle: meeting.title,
               captureTitle: req.title,
               snippet: chatSnippet,

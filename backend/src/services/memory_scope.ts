@@ -32,7 +32,17 @@ export interface BuiltScope extends MemoryScope {
 export function scopeFor(
   platform: string,
   handle: string | undefined | null,
-  opts: { personaId?: string; connections?: Connection[] } = {},
+  opts: {
+    personaId?: string;
+    connections?: Connection[];
+    // an already-resolved connection (the caller may have found it under
+    // another platform's handle, e.g. a zoom email anchored under email).
+    // passing it here keeps one resolution, not a second guess.
+    resolved?: Connection | null;
+    // resolution already happened and was ambiguous: carry that verdict
+    // instead of re-resolving into a plain stranger.
+    anchorHint?: BuiltScope["anchor"];
+  } = {},
 ): BuiltScope {
   const platformClassOf = platformClass(platform);
   if (platformClassOf === "unknown") {
@@ -40,8 +50,18 @@ export function scopeFor(
     // everything for it, which is the safe direction
     console.warn(`prixie: memory scope on an unknown platform: ${platform}`);
   }
-  const resolution = resolveConnection(platform, handle, opts.connections);
+  const resolution = opts.resolved !== undefined
+    ? { connection: opts.resolved, reason: opts.resolved ? "anchored" as const : "unknown_handle" as const }
+    : resolveConnection(platform, handle, opts.connections);
   const connection = resolution.connection;
+  if (!connection && opts.anchorHint && opts.anchorHint !== "stranger") {
+    return {
+      persona_id: opts.personaId,
+      platform: platform.trim().toLowerCase(),
+      connection_id: null,
+      anchor: opts.anchorHint,
+    };
+  }
   return {
     persona_id: opts.personaId,
     platform: platform.trim().toLowerCase(),

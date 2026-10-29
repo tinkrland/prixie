@@ -39,6 +39,9 @@ export function buildCaptureEmail(
     capturedAt: Date;
     expiry?: ExpiryInfo | null;
     scarcity?: string | null;
+    // who this meeting is, per the anchors (memory_recall.hostReceiptLine).
+    // null = say nothing: no anchor config, or nothing worth saying.
+    hostLine?: string | null;
   },
 ): NotifyEmail {
   const when = opts.capturedAt.toISOString().replace("T", " ").slice(0, 16) + " UTC";
@@ -83,6 +86,8 @@ export function buildCaptureEmail(
   } else {
     lines.push("if this code expires when the meeting ends, redeem it now.");
   }
+
+  if (opts.hostLine) lines.push(opts.hostLine);
 
   // the subject escalates on a heard window: the inbox subject line is
   // the push, "~10 min" in it beats any body text for speed
