@@ -671,24 +671,124 @@ export async function joinBlueJeans(sessionId: string, meetingUrl: string, profi
   return { session_id: sessionId, status: "joined" };
 }
 
+// ringcentral (anne, nov 1 2026, completed): the app-download shim was the
+// old shape and it lied: it returned "joined" off a click, so a waiting
+// room read as success and nothing ever knocked again. now it follows the
+// same bar as zoom/meet: prefer the browser path, one guest name, join,
+// the audio dialog, then the entry verdict (entered is success, a waiting
+// room stays a waiting room and the knock loop owns it).
 export async function joinRingCentral(sessionId: string, meetingUrl: string, profileName: string): Promise<JoinResult> {
   await navigateTo(sessionId, meetingUrl);
-  await new Promise(r => setTimeout(r, 5000));
+  await new Promise(r => setTimeout(r, 6000));
 
-  // ringcentral often prompts to download the app. click "Join from browser" instead
-  const joinFromBrowser = await findAndClick(sessionId, 'a:has-text("Join from browser"), button:has-text("Join from browser"), a[class*="browser"]', 10000);
+  // ringcentral pushes the desktop app first. the browser path is the one
+  // she can actually drive, whichever wording the page uses today
+  await findAndClickByText(
+    sessionId,
+    ["join from browser", "join from your browser", "continue in browser", "join meeting in browser"],
+    "a, button, div[role='button']",
+    10000,
+  );
 
-  // enter name
-  await findAndType(sessionId, 'input[name="name"], input[placeholder*="name"], input[placeholder*="Name"]', profileName, 8000);
+  // guest name (their own id/name inputs and the generic name field)
+  await findAndType(
+    sessionId,
+    'input[name="name"], input[id*="name" i], input[aria-label*="name" i], input[placeholder*="name" i]',
+    profileName,
+    10000,
+  );
 
-  // click join
-  const joinButton = await findAndClick(sessionId, 'button[class*="join"], button[aria-label*="Join"], button[type="submit"]', 10000);
+  // some ringcentral joins make the guest fill an email. her own form
+  // identity, never the owner's: no PRIXIE_FORM_EMAIL = the field is left
+  // alone and the page decides, honestly
+  const formEmail = Deno.env.get("PRIXIE_FORM_EMAIL");
+  if (formEmail) {
+    await findAndType(
+      sessionId,
+      'input[type="email"], input[name*="email" i], input[placeholder*="email" i]',
+      formEmail,
+      3000,
+    );
+  }
 
-  if (!joinButton) {
+  const joined = await findAndClickByText(
+    sessionId,
+    ["join meeting", "join as guest", "join"],
+    "button, div[role='button'], a",
+    15000,
+  );
+  if (!joined) {
     return { session_id: sessionId, status: "failed", error: "could not find join button on ringcentral" };
   }
 
-  return { session_id: sessionId, status: "joined" };
+  // the pre-join audio choice, then the verdict
+  await findAndClickByText(
+    sessionId,
+    ["join with computer audio", "use computer audio", "join audio", "ok"],
+    "button, div[role='button']",
+    8000,
+  );
+
+  return entryVerdict(sessionId, await awaitEntry(sessionId));
+}
+
+// webex (cisco webex meetings, anne nov 1 2026): the guest join page.
+// webex is browser-only for prixie (no api bot covers it), so this is the
+// whole coverage: the app-download shim, the guest name, the email field
+// when the page insists (her form identity only), the join button, the
+// pre-join preview's own join, then the entry verdict. a webex lobby
+// ("waiting for the host to start") is a waiting room, not a failure.
+export async function joinWebex(sessionId: string, meetingUrl: string, profileName: string): Promise<JoinResult> {
+  await navigateTo(sessionId, meetingUrl);
+  await new Promise(r => setTimeout(r, 6000));
+
+  // webex pushes the desktop app. stay in the browser
+  await findAndClickByText(
+    sessionId,
+    ["join from browser", "join from your browser", "continue in browser", "use web app", "open in browser"],
+    "a, button, div[role='button']",
+    10000,
+  );
+
+  // guest name: webex requires one for every non-signed-in join
+  await findAndType(
+    sessionId,
+    'input[name="name"], input[id*="name" i], input[aria-label*="name" i], input[placeholder*="name" i]',
+    profileName,
+    10000,
+  );
+
+  // webex guest joins sometimes require an email; her own, never the owner's
+  const formEmail = Deno.env.get("PRIXIE_FORM_EMAIL");
+  if (formEmail) {
+    await findAndType(
+      sessionId,
+      'input[type="email"], input[name*="email" i], input[placeholder*="email" i], input[id*="email" i]',
+      formEmail,
+      3000,
+    );
+  }
+
+  const joined = await findAndClickByText(
+    sessionId,
+    ["join meeting", "join as guest", "join"],
+    "button, div[role='button'], a",
+    15000,
+  );
+  if (!joined) {
+    return { session_id: sessionId, status: "failed", error: "could not find join button on webex" };
+  }
+
+  // the pre-join preview asks once more (audio/camera off by default for
+  // her): the second join is the same button by another name
+  await findAndClickByText(
+    sessionId,
+    ["join meeting", "join with computer audio", "use computer audio", "join audio"],
+    "button, div[role='button']",
+    10000,
+  );
+
+  return entryVerdict(sessionId, await awaitEntry(sessionId));
 }
 
 export async function joinGeneric(sessionId: string, meetingUrl: string, profileName: string): Promise<JoinResult> {
@@ -728,6 +828,10 @@ export async function joinMeeting(
         break;
       case "ringcentral":
         result = await joinRingCentral(session.id, meetingUrl, profileName);
+        break;
+      case "webex":
+      case "cisco_webex":
+        result = await joinWebex(session.id, meetingUrl, profileName);
         break;
       case "zoom":
         result = await joinZoom(session.id, meetingUrl, profileName);
@@ -849,6 +953,12 @@ export const WAITING_ROOM_TEXTS = [
   "ask to join", "asking to join", "request to join",
   "waiting for the host", "waiting for someone", "let you in",
   "waiting for the meeting to start", "hasn\'t approved",
+  // webex lobby + ringcentral lobby (anne, nov 1 2026): both platforms
+  // park a guest on their own wording, and none of it said "waiting for
+  // the host" verbatim
+  "you are in the waiting room", "in the waiting room",
+  "waiting for the host to start", "waiting for the organizer",
+  "the meeting has not started", "meeting has not started",
 ];
 
 // the texts that (re)request entry, wherever the page still offers it
@@ -859,6 +969,18 @@ export type EntryState = "entered" | "waiting" | "unknown";
 // one page read, classified. pure shape -> probe value -> state.
 export function classifyEntry(probe: string | undefined): EntryState {
   if (probe === "entered" || probe === "waiting") return probe;
+  return "unknown";
+}
+
+// the body-text half of the page probe, as a pure function: same lists the
+// injected probe uses, readable from a test without a browser. in-call
+// wording wins over lobby wording when a page carries both (the in-call
+// composer often keeps a "waiting for others to join" hint).
+export function entryTextSignal(bodyText: string | undefined): EntryState {
+  const body = (bodyText || "").toLowerCase();
+  if (!body) return "unknown";
+  if (IN_CALL_TEXTS.some((t) => body.includes(t))) return "entered";
+  if (WAITING_ROOM_TEXTS.some((t) => body.includes(t))) return "waiting";
   return "unknown";
 }
 

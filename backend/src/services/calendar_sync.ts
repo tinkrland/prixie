@@ -333,18 +333,33 @@ export function extractMeetingUrl(text: string, hangoutLink?: string): string | 
   return undefined;
 }
 
+// the platform a join link belongs to. DOMAIN BOUNDARIES, not substrings
+// (anne, nov 1 2026): "evil-webex.com" contains "webex.com" and used to
+// detect as webex, which is a routing bug with a phishing shape. a parsed
+// url matches its host exactly or as a subdomain of the real domain; an
+// input that will not parse keeps the old lenient match (callers pass
+// urls, and a schemeless string is not a host to judge).
 export function detectPlatform(url: string): string {
-  const lower = url.toLowerCase();
-  if (lower.includes("zoom.us")) return "zoom";
-  if (lower.includes("meet.google.com")) return "google_meet";
-  if (lower.includes("teams.microsoft.com")) return "teams";
-  if (lower.includes("discord.gg") || lower.includes("discord.com")) return "discord";
-  if (lower.includes("bluejeans.com")) return "bluejeans";
-  if (lower.includes("ringcentral.com")) return "ringcentral";
-  if (lower.includes("webex.com")) return "webex";
-  if (lower.includes("twitch.tv")) return "twitch";
-  if (lower.includes("cal.com")) return "calcom";   // cal video / cal.com booking rooms
-  if (lower.includes("zcal.to")) return "zcal";
+  const raw = (url || "").toLowerCase();
+  let host = "";
+  try {
+    host = new URL(raw).hostname;
+  } catch {
+    host = "";
+  }
+  const on = (domain: string): boolean =>
+    host ? host === domain || host.endsWith("." + domain) : raw.includes(domain);
+
+  if (on("zoom.us")) return "zoom";
+  if (on("meet.google.com")) return "google_meet";
+  if (on("teams.microsoft.com")) return "teams";
+  if (on("discord.gg") || on("discord.com")) return "discord";
+  if (on("bluejeans.com")) return "bluejeans";
+  if (on("ringcentral.com")) return "ringcentral";
+  if (on("webex.com")) return "webex";
+  if (on("twitch.tv")) return "twitch";
+  if (on("cal.com")) return "calcom";   // cal video / cal.com booking rooms
+  if (on("zcal.to")) return "zcal";
   return "custom";
 }
 

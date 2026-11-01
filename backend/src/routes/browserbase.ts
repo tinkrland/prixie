@@ -11,7 +11,7 @@ const supabase = createClient(
 const app = new Hono();
 
 // platform aliases for the browserbase route (all platforms run on browserbase now)
-const BROWSERBASE_PLATFORMS = ["discord", "bluejeans", "ringcentral", "custom"];
+const BROWSERBASE_PLATFORMS = ["discord", "bluejeans", "ringcentral", "webex", "custom"];
 
 function needsBrowserbase(platform: string): boolean {
   return BROWSERBASE_PLATFORMS.includes(platform);

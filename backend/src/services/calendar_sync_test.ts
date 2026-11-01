@@ -132,3 +132,20 @@ Deno.test("ical floating time with no tzid reads as utc, warned not shifted", ()
   const got = parseICalDate("20261022T190000", "");
   assertEquals(got, "2026-10-22T19:00:00Z");
 });
+
+// ringcentral + webex detection (anne, nov 1 2026): both platforms ride
+// the browserbase engine, and the meeting row's platform value is what
+// picks the join flow, so detection has to name them, not "custom".
+Deno.test("detectPlatform: ringcentral and webex links name their platform", () => {
+  assertEquals(detectPlatform("https://meetings.ringcentral.com/j/1234567890"), "ringcentral");
+  assertEquals(detectPlatform("https://v.ringcentral.com/join/1234567890"), "ringcentral");
+  assertEquals(detectPlatform("https://acme.webex.com/acme/j.php?MTID=m123abc"), "webex");
+  assertEquals(detectPlatform("https://acme.webex.com/meet/priya.host"), "webex");
+  assertEquals(detectPlatform("https://acme.webex.com/webappng/sites/acme/meeting/info/1234567890"), "webex");
+  // a lookalike host never matches: domain boundaries, not substrings
+  assertEquals(detectPlatform("https://evil-webex.com/meet/x"), "custom");
+  assertEquals(detectPlatform("https://notzoom.us.example.com/j/1"), "custom");
+  assertEquals(detectPlatform("https://ringcentral.com.evil.io/join/1"), "custom");
+  // a schemeless string keeps the lenient match (callers pass urls)
+  assertEquals(detectPlatform("meet.google.com/abc-defg-hij"), "google_meet");
+});

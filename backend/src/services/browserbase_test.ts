@@ -338,3 +338,38 @@ Deno.test("setScreenshareInSession: the page seam answers start and stop", async
     restoreFetch();
   }
 });
+// --- ringcentral + webex coverage (anne, nov 1 2026) ---
+//
+// the lobby halves of both platforms are the part a click-through test
+// cannot reach without a live meeting, so the wording is pinned here:
+// webex and ringcentral park a guest on their own sentences, and every
+// one of them has to read as "waiting" (never "entered", never a silent
+// unknown that would let a failed join look like success).
+
+Deno.test("entryTextSignal: webex lobby wording is a waiting room, not a failure", async () => {
+  const { entryTextSignal } = await import("./browserbase.ts");
+  assertEquals(entryTextSignal("You are in the waiting room. The host will let you in soon."), "waiting");
+  assertEquals(entryTextSignal("Waiting for the host to start this meeting"), "waiting");
+  assertEquals(entryTextSignal("Please wait, the meeting has not started yet"), "waiting");
+});
+
+Deno.test("entryTextSignal: ringcentral lobby wording is a waiting room", async () => {
+  const { entryTextSignal } = await import("./browserbase.ts");
+  assertEquals(entryTextSignal("Waiting for the organizer to join"), "waiting");
+  assertEquals(entryTextSignal("The meeting has not started"), "waiting");
+});
+
+Deno.test("entryTextSignal: in-call wording wins over a lobby hint on the same page", async () => {
+  const { entryTextSignal } = await import("./browserbase.ts");
+  // a live composer often keeps a "waiting for others to join" hint: she
+  // is IN the call, the hint is about the others
+  assertEquals(entryTextSignal("Leave meeting · Waiting for others to join"), "entered");
+  assertEquals(entryTextSignal("Leave"), "entered");
+});
+
+Deno.test("entryTextSignal: a page with neither wording is unknown, never a guess", async () => {
+  const { entryTextSignal } = await import("./browserbase.ts");
+  assertEquals(entryTextSignal("Welcome to Acme Webex"), "unknown");
+  assertEquals(entryTextSignal(""), "unknown");
+  assertEquals(entryTextSignal(undefined), "unknown");
+});
